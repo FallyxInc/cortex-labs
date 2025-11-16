@@ -1,0 +1,319 @@
+
+.dashboard {
+  margin: auto;
+  background-color: #f9fafb;
+  overflow-x: auto;
+  padding-top: 15px;
+  padding-left: 30px;
+  padding-right: 30px;
+  padding-bottom: 30px;
+}
+.topHeader {
+  display: flex;
+  flex-direction: row; 
+  justify-content: space-between;
+  align-items: center;
+}
+.dateSelector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  /* margin-top: 10px; */
+}
+
+.selector {
+  appearance: none;
+  -webkit-appearance: none; 
+  -moz-appearance: none;   
+
+  background: #fff;
+  border: 1px solid #fff;
+  border-radius: 8px;
+  padding: 12px 16px; 
+  font-size: 16px;
+  font-weight: 500;
+  color: #212529; /* Text color */
+  cursor: pointer;
+  /* min-width: 120px; Ensure a minimum width */
+  /* height: 50px; */
+
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat; 
+  background-size: 16px;
+
+  padding-right: 40px; /* This ensures text doesn't overlap the arrow */
+
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  /* Optional: Focus and Hover states for better UX */
+  transition: all 0.2s ease-in-out; /* Smooth transitions */
+}
+
+.selector:hover {
+  background: #f1f3f4;
+  border-color: #d0d7de;
+
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat; /* Don't repeat the arrow */
+  background-size: 16px;
+}
+
+.selector:focus {
+  outline: none;
+  border-color: #0969da; /* Blue border on focus */
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1); /* Subtle shadow on focus */
+}
+.dateSelectorItem {
+  position: relative;
+  display: inline-block;
+}
+.toggleButton {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  /* height: 50px; */
+  margin-bottom: 10px;
+}
+
+.toggleButton.active {
+  background-color: #fff;
+  /* color: black; */
+}
+
+.toggleButton.active:hover {
+  background-color: #fff;
+}
+
+.toggleButton.inactive {
+  background-color: #fff;
+  /* color: #495057; */
+  border: 1px solid #fff;
+}
+
+.toggleButton.inactive:hover {
+  background-color: #dee2e6;
+  color: #212529;
+  border-color: #adb5bd;
+}
+
+.toggleButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+}
+.chart-container {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+.chart {
+  flex: 1; /* Make charts grow equally */
+  background-color: #fff;
+  border-radius: 8px;
+  padding-top: 10px;
+  padding-left: 20px;
+    padding-right: 20px;
+    padding-bottom:20px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+}
+.gauge-container {
+  /* text-align: center; */
+}
+.gauge-title {
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.gauge {
+  width: 300px;
+  height: 150px;
+  margin: 0 auto;
+  position: relative;
+}
+.gauge-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding-top: 65px;
+  transform: translate(-50%, -50%);
+  font-size: 86px;
+  font-weight: bold;
+}
+.gauge-scale {
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+}
+
+.update-button,
+.download-button {
+  background-color: #000;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 16px;
+  margin-top: 20px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.download-button {
+  float: right;
+  margin-top: 0;
+}
+#fallsLineChart {
+  display: none;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-size: 12px;
+  max-height: 100px;
+  overflow: auto;
+}
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.table th {
+  background-color: #e8f5e9;
+}
+.table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+.logout-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #4caf50;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  z-index: 1000;
+}
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gauge-label {
+  font-size: 34px; /* Adjust this size if you want it bigger */
+  font-weight: bold; /* Make the text bold */
+  text-align: center;
+  margin-top: -20px; /* Adjust the spacing as needed */
+  color: #333; /* Ensure the color matches */
+}
+
+.cellRed {
+  background-color: #f8b9c6;
+  color: white;
+}
+
+/* Control the background and positioning of the modal */
+.modal {
+  position: fixed; /* Fixed positioning, does not scroll with the page */
+  top: 50%; /* 50% from the top of the page */
+  left: 50%; /* 50% from the left of the page */
+  transform: translate(-50%, -50%); /* Move to the center both horizontally and vertically */
+  background-color: #fff; /* Background color is white */
+  padding: 20px; /* Padding */
+  z-index: 1000; /* Ensure the modal is above other elements */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Add a shadow effect to the modal */
+  border-radius: 8px; /* Rounded corners */
+  width: 400px; /* Width of the modal */
+  max-width: 100%; /* Ensure it doesn't exceed the viewport on smaller screens */
+}
+
+/* Control the layout of the content inside the modal */
+.modalContent {
+  display: flex;
+  flex-direction: column; /* Arrange content vertically */
+}
+
+/* Style for the textarea */
+.modal textarea {
+  margin-top: 10px;
+
+  width: 95%; /* Take up the full width of the parent element */
+  height: 100px; /* Height set to 100px */
+  padding: 10px; /* Add some padding inside the textarea */
+  border-radius: 4px; /* Rounded corners */
+  border: 1px solid #ccc; /* Border color */
+  font-size: 16px; /* Font size */
+}
+
+/* Style for the buttons */
+.modal button {
+  margin-top: 10px; /* Add some spacing above the button */
+  padding: 10px 15px; /* Add padding inside the button */
+  background-color: #4caf50; /* Button background color */
+  color: white; /* Button text color */
+  border: none; /* Remove default border */
+  border-radius: 4px; /* Rounded corners */
+  cursor: pointer; /* Show pointer on hover */
+  font-size: 16px; /* Font size */
+  transition: background-color 0.3s ease; /* Add transition effect */
+}
+
+/* Change background color when the mouse hovers over the button */
+.modal button:hover {
+  background-color: #45a049;
+}
+
+/* Style for the Cancel button, typically with a different color */
+.modal button:last-child {
+  background-color: #f44336; /* Cancel button background color is red */
+}
+
+/* Change the cancel button color on hover */
+.modal button:last-child:hover {
+  background-color: #d32f2f;
+}
+
+.header {
+  display: flex;
+  flex-direction: column; /* Stack children vertically */
+  align-items: flex-start; /* Align items to the start for better visual */
+  gap: 5px; /* Adjust gap if needed */
+}
+
+/* Ensure the h2 takes its own line */
+.header h2 {
+  margin-bottom: 5px; /* Add some space below the title */
+}
+
+/* Style for the div containing the select elements to keep them inline */
+.header > div {
+  display: flex;
+  gap: 10px;
+}

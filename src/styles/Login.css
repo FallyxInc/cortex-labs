@@ -1,0 +1,100 @@
+.login-container {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: auto;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 350px;
+}
+
+.logoLogin {
+  width: 200px;
+  height: auto;
+  margin-bottom: 30px;
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #008445;
+  margin-bottom: 20px;
+}
+
+.login-input-group {
+  width: 330px;
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-input-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #008445;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.login-input-group input {
+  width: calc(100% - 20px); /* Adjusted for consistent padding on both sides */
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.3s ease;
+  margin: 0 auto; /* Centers input within the container */
+}
+
+.login-input-group input:focus {
+  border-color: #008445;
+}
+
+.login-button {
+  width: calc(100% - 20px); /* Matches input width */
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background-color: #00c264;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 15px;
+  cursor: pointer;
+  display: block;
+}
+
+.login-button:hover {
+  background-color: #008445;
+}
+
+.login-error-message {
+  color: red;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.resetPasswordLink {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.resetPasswordLink a {
+  color: #1aab65;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.resetPasswordLink a:hover {
+  color: #008445;
+  text-decoration: underline;
+}
