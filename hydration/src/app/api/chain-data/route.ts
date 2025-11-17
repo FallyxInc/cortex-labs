@@ -40,8 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get all homes for this chain
-    let fbdb = db as Firestore;
-    const querySnapshot = await getDocs(collection(fbdb, 'users'));
+    const querySnapshot = await getDocs(collection(db, 'users'));
     
     const homes: string[] = [];
     querySnapshot.docs.forEach(doc => {
