@@ -33,10 +33,10 @@ export async function PATCH(
       message: 'User role updated successfully'
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating user role:', error);
     return NextResponse.json(
-      { error: 'Failed to update user role', details: error.message },
+      { error: 'Failed to update user role', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
