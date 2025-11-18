@@ -345,6 +345,10 @@
   padding-right: 20px;
 }
 
+.table-header > div:last-child {
+  margin-right: -60px;
+}
+
 .gauge-label {
   font-size: 34px; /* Adjust this size if you want it bigger */
   font-weight: bold; /* Make the text bold */
