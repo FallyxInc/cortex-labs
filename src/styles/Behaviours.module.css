@@ -346,7 +346,7 @@
 }
 
 .table-header > div:last-child {
-  margin-right: -60px;
+  margin-left: 100px;
 }
 
 .gauge-label {

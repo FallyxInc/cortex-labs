@@ -1152,13 +1152,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
 
   return (
     <div className={styles.dashboard} ref={tableRef}>
-      {/* Main Header */}
-      <div className={styles.mainHeader}>
-        <div className={styles.headerLeft}>
-          <h1 className={styles.dashboardTitle}>{title}</h1>
-        </div>
-      </div>
-
       {/* Filters Section */}
       <div className={styles.filtersSection}>
         <div className={styles.filtersRow}>

@@ -207,6 +207,7 @@ const s = {
     },
     tableCell: {
         borderRight: '1px solid #e5e7eb',
+        borderBottom: '1px solid #d1d5db',
         borderLeft: 'none',
         borderTop: 'none',
         padding: '12px 16px',
@@ -223,6 +224,7 @@ const s = {
         verticalAlign: 'middle',
         borderLeft: '1px solid #e5e7eb',
         borderRight: '1px solid #e5e7eb',
+        borderBottom: '1px solid #d1d5db',
     },
     radioInput: {
         width: '18px',
