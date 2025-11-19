@@ -4,7 +4,7 @@ import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password, role } = await request.json();
+    const { username, password, role, homeId, chainId, createNewHome, createNewChain, newHomeName, newChainName } = await request.json();
 
     if (!username || !password || !role) {
       return NextResponse.json(
@@ -13,11 +13,128 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate role
+    if (role !== 'admin' && role !== 'homeUser') {
+      return NextResponse.json(
+        { error: 'Role must be either "admin" or "homeUser"' },
+        { status: 400 }
+      );
+    }
+
+    // For homeUser, require home and chain
+    if (role === 'homeUser') {
+      if (createNewChain) {
+        if (!newChainName || typeof newChainName !== 'string') {
+          return NextResponse.json(
+            { error: 'Chain name is required when creating a new chain' },
+            { status: 400 }
+          );
+        }
+        if (!newHomeName || typeof newHomeName !== 'string') {
+          return NextResponse.json(
+            { error: 'Home name is required when creating a new chain' },
+            { status: 400 }
+          );
+        }
+      } else {
+        if (!chainId || typeof chainId !== 'string') {
+          return NextResponse.json(
+            { error: 'Chain ID is required for homeUser' },
+            { status: 400 }
+          );
+        }
+        if (createNewHome) {
+          if (!newHomeName || typeof newHomeName !== 'string') {
+            return NextResponse.json(
+              { error: 'Home name is required when creating a new home' },
+              { status: 400 }
+            );
+          }
+        } else {
+          if (!homeId || typeof homeId !== 'string') {
+            return NextResponse.json(
+              { error: 'Home ID is required for homeUser' },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
+
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters' },
         { status: 400 }
       );
+    }
+
+    let finalChainId = chainId;
+    let finalHomeId = homeId;
+
+    // Handle chain creation
+    if (createNewChain && newChainName) {
+      const sanitizedChainName = newChainName.trim().toLowerCase().replace(/\s+/g, '_');
+      const chainRef = adminDb.ref(`/chains/${sanitizedChainName}`);
+      const chainSnapshot = await chainRef.once('value');
+      
+      if (chainSnapshot.exists()) {
+        return NextResponse.json(
+          { error: 'Chain already exists' },
+          { status: 409 }
+        );
+      }
+
+      await chainRef.set({
+        name: newChainName,
+        homes: [],
+        createdAt: new Date().toISOString()
+      });
+
+      finalChainId = sanitizedChainName;
+    }
+
+    // Handle home creation
+    if ((createNewHome || createNewChain) && newHomeName) {
+      const sanitizedHomeName = newHomeName.trim().toLowerCase().replace(/\s+/g, '_');
+      const homeRef = adminDb.ref(`/${sanitizedHomeName}`);
+      const homeSnapshot = await homeRef.once('value');
+      
+      if (homeSnapshot.exists()) {
+        return NextResponse.json(
+          { error: 'Home already exists' },
+          { status: 409 }
+        );
+      }
+
+      // Verify chain exists
+      const chainRef = adminDb.ref(`/chains/${finalChainId}`);
+      const chainSnapshot = await chainRef.once('value');
+      
+      if (!chainSnapshot.exists()) {
+        return NextResponse.json(
+          { error: 'Chain not found' },
+          { status: 404 }
+        );
+      }
+
+      // Create home
+      await homeRef.set({
+        behaviours: {
+          createdAt: new Date().toISOString()
+        },
+        chainId: finalChainId,
+        createdAt: new Date().toISOString()
+      });
+
+      // Add home to chain
+      const chainData = chainSnapshot.val();
+      const homes = chainData.homes || [];
+      if (!homes.includes(sanitizedHomeName)) {
+        homes.push(sanitizedHomeName);
+        await chainRef.update({ homes });
+      }
+
+      finalHomeId = sanitizedHomeName;
     }
 
     const email = `${username}@example.com`;
@@ -29,11 +146,17 @@ export async function POST(request: NextRequest) {
       displayName: username
     });
 
-    const userData = {
+    const userData: any = {
       role,
       loginCount: 0,
       createdAt: new Date().toISOString()
     };
+
+    // Add home and chain info for homeUser
+    if (role === 'homeUser') {
+      userData.homeId = finalHomeId;
+      userData.chainId = finalChainId;
+    }
 
     const userRef = adminDb.ref(`/users/${userRecord.uid}`);
     await userRef.set(userData);

@@ -6,7 +6,7 @@ export default function FileUpload() {
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [excelFiles, setExcelFiles] = useState<File[]>([]);
   const [selectedHome, setSelectedHome] = useState('');
-  const [homes, setHomes] = useState<string[]>([]);
+  const [homes, setHomes] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [loadingHomes, setLoadingHomes] = useState(true);
   const [message, setMessage] = useState('');
@@ -39,9 +39,11 @@ export default function FileUpload() {
         const data = await response.json();
         
         if (data.success) {
+          // Convert homes array to format expected by component
+          const homesList = data.homes.map((home: { id: string; name: string }) => home.id);
           setHomes(data.homes);
           
-          if (data.homes.length === 0) {
+          if (homesList.length === 0) {
             setMessage('No homes found. Please ensure homes are configured.');
           }
         } else {
@@ -453,8 +455,8 @@ export default function FileUpload() {
                 {loadingHomes ? 'Loading homes...' : 'Select a home...'}
               </option>
               {homes.map((home) => (
-                <option key={home} value={home}>
-                  {home}
+                <option key={home.id} value={home.id}>
+                  {home.name}
                 </option>
               ))}
             </select>

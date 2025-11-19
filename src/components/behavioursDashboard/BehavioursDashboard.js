@@ -1327,7 +1327,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     fontSize: '24px',
                     fontWeight: 'bold'
                   }}>
-                    {overviewMetrics.antipsychotics.percentage}%
+                    {overviewMetrics.antipsychotics.percentage}
                   </div>
                   <div style={{ textAlign: 'left' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D0E10', marginBottom: '5px' }}>
@@ -1376,7 +1376,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     fontSize: '24px',
                     fontWeight: 'bold'
                   }}>
-                    {overviewMetrics.worsened.percentage}%
+                    {overviewMetrics.worsened.percentage}
                   </div>
                   <div style={{ textAlign: 'left' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D0E10', marginBottom: '5px' }}>
@@ -1425,7 +1425,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     fontSize: '24px',
                     fontWeight: 'bold'
                   }}>
-                    {overviewMetrics.improved.percentage}%
+                    {overviewMetrics.improved.percentage}
                   </div>
                   <div style={{ textAlign: 'left' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D0E10', marginBottom: '5px' }}>

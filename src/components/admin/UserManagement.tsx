@@ -9,27 +9,61 @@ interface User {
   role: string;
   loginCount?: number;
   createdAt?: string;
+  homeId?: string;
+  chainId?: string;
+}
+
+interface Chain {
+  id: string;
+  name: string;
+  homes: string[];
+}
+
+interface Home {
+  id: string;
+  name: string;
+  chainId?: string | null;
 }
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
-  const [homes, setHomes] = useState<string[]>([]);
+  const [chains, setChains] = useState<Chain[]>([]);
+  const [homes, setHomes] = useState<Home[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    role: ''
+    role: 'homeUser',
+    chainId: '',
+    homeId: '',
+    createNewChain: false,
+    createNewHome: false,
+    newChainName: '',
+    newHomeName: ''
   });
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showRoleOptions, setShowRoleOptions] = useState(false);
 
   useEffect(() => {
     fetchUsers();
+    fetchChains();
     fetchHomes();
   }, []);
+
+  const fetchChains = async () => {
+    try {
+      const response = await fetch('/api/admin/chains');
+      const data = await response.json();
+      
+      if (data.success) {
+        setChains(data.chains || []);
+      }
+    } catch (error) {
+      console.error('Error fetching chains:', error);
+    }
+  };
 
   const fetchHomes = async () => {
     try {
@@ -80,12 +114,49 @@ export default function UserManagement() {
     try {
       if (formData.password.length < 6) {
         showMessage('Password must be at least 6 characters', 'error');
+        setIsSubmitting(false);
         return;
       }
 
       if (!formData.role) {
         showMessage('Please select a role', 'error');
+        setIsSubmitting(false);
         return;
+      }
+
+      // Validate homeUser requirements
+      if (formData.role === 'homeUser') {
+        if (formData.createNewChain) {
+          if (!formData.newChainName.trim()) {
+            showMessage('Chain name is required when creating a new chain', 'error');
+            setIsSubmitting(false);
+            return;
+          }
+          if (!formData.newHomeName.trim()) {
+            showMessage('Home name is required when creating a new chain', 'error');
+            setIsSubmitting(false);
+            return;
+          }
+        } else {
+          if (!formData.chainId) {
+            showMessage('Please select or create a chain', 'error');
+            setIsSubmitting(false);
+            return;
+          }
+          if (formData.createNewHome) {
+            if (!formData.newHomeName.trim()) {
+              showMessage('Home name is required when creating a new home', 'error');
+              setIsSubmitting(false);
+              return;
+            }
+          } else {
+            if (!formData.homeId) {
+              showMessage('Please select or create a home', 'error');
+              setIsSubmitting(false);
+              return;
+            }
+          }
+        }
       }
 
       const response = await fetch('/api/admin/users/create', {
@@ -100,9 +171,21 @@ export default function UserManagement() {
 
       if (response.ok && data.success) {
         showMessage('User created successfully!', 'success');
-        setFormData({ username: '', password: '', role: '' });
+        setFormData({
+          username: '',
+          password: '',
+          role: 'homeUser',
+          chainId: '',
+          homeId: '',
+          createNewChain: false,
+          createNewHome: false,
+          newChainName: '',
+          newHomeName: ''
+        });
         setShowForm(false);
         fetchUsers();
+        fetchChains();
+        fetchHomes();
       } else {
         showMessage(data.error || 'Failed to create user', 'error');
       }
@@ -138,6 +221,30 @@ export default function UserManagement() {
     }
   };
 
+  const handleHomeChainChange = async (userId: string, homeId: string, chainId: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/home-chain`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ homeId, chainId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        showMessage('User home and chain updated successfully!', 'success');
+        fetchUsers();
+      } else {
+        showMessage(data.error || 'Failed to update user home/chain', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating user home/chain:', error);
+      showMessage('Failed to update user home/chain', 'error');
+    }
+  };
+
   const handleDelete = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       return;
@@ -166,6 +273,26 @@ export default function UserManagement() {
     }
   };
 
+  // Get homes for selected chain
+  const getHomesForChain = (chainId: string) => {
+    if (!chainId) return [];
+    return homes.filter(home => home.chainId === chainId);
+  };
+
+  // Get display name for home
+  const getHomeDisplayName = (homeId: string | undefined) => {
+    if (!homeId) return 'N/A';
+    const home = homes.find(h => h.id === homeId);
+    return home ? home.name : homeId;
+  };
+
+  // Get display name for chain
+  const getChainDisplayName = (chainId: string | undefined) => {
+    if (!chainId) return 'N/A';
+    const chain = chains.find(c => c.id === chainId);
+    return chain ? chain.name : chainId;
+  };
+
   if (loading && users.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -174,129 +301,262 @@ export default function UserManagement() {
     );
   }
 
-  const availableRoles = ['admin', ...homes];
+  const availableRoles = ['admin', 'homeUser'];
+  const availableHomesForChain = formData.chainId ? getHomesForChain(formData.chainId) : [];
 
   function userCreateForm() {
     return (
-    <div className="bg-white shadow rounded-lg p-6 border border-gray-200">
-    <h4 className="text-lg font-medium text-gray-900 mb-4">Add New User</h4>
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-          Username
-        </label>
-        <input
-          type="text"
-          id="username"
-          value={formData.username}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Enter username"
-          required
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          Email will be: {formData.username || 'username'}@example.com
-        </p>
-      </div>
+      <div className="bg-white shadow rounded-lg p-6 border border-gray-200">
+        <h4 className="text-lg font-medium text-gray-900 mb-4">Add New User</h4>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              Username
+            </label>
+            <input
+              type="text"
+              id="username"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter username"
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Email will be: {formData.username || 'username'}@example.com
+            </p>
+          </div>
 
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          Password
-        </label>
-        <input
-          type="password"
-          id="password"
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Enter password (minimum 6 characters)"
-          required
-          minLength={6}
-        />
-        {formData.password.length > 0 && formData.password.length < 6 && (
-          <p className="mt-1 text-xs text-red-600">
-            Password must be at least 6 characters
-          </p>
-        )}
-      </div>
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-            Role
-          </label>
-          <div className="flex items-center space-x-2">
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter password (minimum 6 characters)"
+              required
+              minLength={6}
+            />
+            {formData.password.length > 0 && formData.password.length < 6 && (
+              <p className="mt-1 text-xs text-red-600">
+                Password must be at least 6 characters
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+              Role
+            </label>
+            <select
+              id="role"
+              value={formData.role}
+              onChange={(e) => {
+                const newRole = e.target.value;
+                setFormData({
+                  ...formData,
+                  role: newRole,
+                  // Reset chain/home when switching to admin
+                  chainId: newRole === 'admin' ? '' : formData.chainId,
+                  homeId: newRole === 'admin' ? '' : formData.homeId
+                });
+              }}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="homeUser">homeUser</option>
+              <option value="admin">admin</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              {formData.role === 'admin' ? 'Admin users have access to the admin dashboard' : 'Home users have access to their home dashboard'}
+            </p>
+          </div>
+
+          {/* Chain and Home fields - only for homeUser */}
+          {formData.role === 'homeUser' && (
+            <>
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Chain
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        createNewChain: false,
+                        chainId: '',
+                        homeId: '',
+                        createNewHome: false
+                      })}
+                      className={`text-xs px-2 py-1 rounded-md ${!formData.createNewChain ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
+                    >
+                      Select Existing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        createNewChain: true,
+                        chainId: '',
+                        homeId: '',
+                        createNewHome: true
+                      })}
+                      className={`text-xs px-2 py-1 rounded-md ${formData.createNewChain ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
+                    >
+                      Create New
+                    </button>
+                  </div>
+                </div>
+
+                {formData.createNewChain ? (
+                  <input
+                    type="text"
+                    value={formData.newChainName}
+                    onChange={(e) => setFormData({ ...formData, newChainName: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter new chain name (e.g., Responsive, Kindera)"
+                    required={formData.createNewChain}
+                  />
+                ) : (
+                  <select
+                    value={formData.chainId}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      chainId: e.target.value,
+                      homeId: '',
+                      createNewHome: false
+                    })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    required={!formData.createNewChain}
+                  >
+                    <option value="">Select a chain</option>
+                    {chains.map((chain) => (
+                      <option key={chain.id} value={chain.id}>
+                        {chain.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {!formData.createNewChain && formData.chainId && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Home
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          createNewHome: false,
+                          homeId: ''
+                        })}
+                        className={`text-xs px-2 py-1 rounded-md ${!formData.createNewHome ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
+                      >
+                        Select Existing
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          createNewHome: true,
+                          homeId: ''
+                        })}
+                        className={`text-xs px-2 py-1 rounded-md ${formData.createNewHome ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
+                      >
+                        Create New
+                      </button>
+                    </div>
+                  </div>
+
+                  {formData.createNewHome ? (
+                    <input
+                      type="text"
+                      value={formData.newHomeName}
+                      onChange={(e) => setFormData({ ...formData, newHomeName: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter new home name (e.g., Berkshire Care, Mill Creek Care)"
+                      required={formData.createNewHome}
+                    />
+                  ) : (
+                    <select
+                      value={formData.homeId}
+                      onChange={(e) => setFormData({ ...formData, homeId: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required={!formData.createNewHome}
+                    >
+                      <option value="">Select a home</option>
+                      {availableHomesForChain.map((home) => (
+                        <option key={home.id} value={home.id}>
+                          {home.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {formData.createNewChain && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Home Name (required for new chain)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.newHomeName}
+                    onChange={(e) => setFormData({ ...formData, newHomeName: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter new home name (e.g., Berkshire Care, Mill Creek Care)"
+                    required={formData.createNewChain}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    A new home will be created automatically for the new chain
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-4">
             <button
               type="button"
-              onClick={() => setShowRoleOptions(true)}
-              className="text-xs text-black  bg-gray-200 px-2 py-1 rounded-md"
-              style={{
-                backgroundColor: showRoleOptions ? '#0cc7ed' : '#d1d5db',
+              onClick={() => {
+                setShowForm(false);
+                setFormData({
+                  username: '',
+                  password: '',
+                  role: 'homeUser',
+                  chainId: '',
+                  homeId: '',
+                  createNewChain: false,
+                  createNewHome: false,
+                  newChainName: '',
+                  newHomeName: ''
+                });
               }}
+              className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium transition-colors"
             >
-              Select Existing
+              Cancel
             </button>
-
             <button
-              type="button"
-              onClick={() => setShowRoleOptions(false)}
-              className="text-xs text-black bg-gray-200 px-2 py-1 rounded-md"
-              style={{
-                backgroundColor: !showRoleOptions ? '#0cc7ed' : '#d1d5db',
-              }}
+              type="submit"
+              disabled={isSubmitting || formData.password.length < 6 || !formData.role}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create New
+              {isSubmitting ? 'Creating...' : 'Create User'}
             </button>
           </div>
-        </div>
-        {showRoleOptions ? (
-          <select
-            id="role"
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            required
-          >
-            <option value="">Select a role</option>
-            {availableRoles.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            type="text"
-            id="role"
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            required
-            placeholder="Enter new role"
-          />
-        )}
+        </form>
       </div>
-
-      <div className="flex justify-end space-x-3">
-        <button
-          type="button"
-          onClick={() => {
-            setShowForm(false);
-            setFormData({ username: '', password: '', role: '' });
-          }}
-          className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting || formData.password.length < 6 || !formData.role}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isSubmitting ? 'Creating...' : 'Create User'}
-        </button>
-      </div>
-    </form>
-  </div>)
+    );
   }
 
   return (
@@ -340,45 +600,51 @@ export default function UserManagement() {
           <h3 className="text-lg font-medium text-gray-900">All Users</h3>
         </div>
         <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Username
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Home
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Chain
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Login Count
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Created
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {users.length === 0 ? (
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Username
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Login Count
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
+                    No users found
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {users.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
-                      No users found
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {user.username || 'N/A'}
                     </td>
-                  </tr>
-                ) : (
-                  users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {user.username || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.email || 'N/A'}
-                      </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {user.email || 'N/A'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <select
                         value={user.role}
@@ -391,6 +657,69 @@ export default function UserManagement() {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {user.role === 'homeUser' ? (
+                        <select
+                          value={user.homeId || ''}
+                          onChange={(e) => {
+                            const newHomeId = e.target.value;
+                            if (newHomeId) {
+                              const selectedHome = homes.find(h => h.id === newHomeId);
+                              // Automatically set chain when home is selected
+                              const newChainId = selectedHome?.chainId || '';
+                              if (newChainId) {
+                                handleHomeChainChange(user.id, newHomeId, newChainId);
+                              } else {
+                                handleHomeChainChange(user.id, newHomeId, user.chainId || '');
+                              }
+                            } else {
+                              handleHomeChainChange(user.id, '', user.chainId || '');
+                            }
+                          }}
+                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 min-w-[150px]"
+                          title="Select a home to reassign. The chain will be automatically updated to match the home's chain."
+                        >
+                          <option value="">Select home</option>
+                          {/* Show all homes - when a home is selected, chain will auto-update */}
+                          {homes.map((home) => (
+                            <option key={home.id} value={home.id}>
+                              {home.name} {home.chainId ? `(${getChainDisplayName(home.chainId)})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-sm text-gray-500">{getHomeDisplayName(user.homeId)}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {user.role === 'homeUser' ? (
+                        <select
+                          value={user.chainId || ''}
+                          onChange={(e) => {
+                            const newChainId = e.target.value;
+                            if (newChainId) {
+                              // If current home doesn't belong to new chain, clear home selection
+                              const currentHome = homes.find(h => h.id === user.homeId);
+                              const newHomeId = (currentHome?.chainId === newChainId) ? user.homeId : '';
+                              handleHomeChainChange(user.id, newHomeId, newChainId);
+                            } else {
+                              handleHomeChainChange(user.id, user.homeId || '', '');
+                            }
+                          }}
+                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
+                          title="Select a chain to reassign. If the current home doesn't belong to the new chain, it will be cleared."
+                        >
+                          <option value="">Select chain</option>
+                          {chains.map((chain) => (
+                            <option key={chain.id} value={chain.id}>
+                              {chain.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-sm text-gray-500">{getChainDisplayName(user.chainId)}</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {user.loginCount || 0}
@@ -424,4 +753,3 @@ export default function UserManagement() {
     </div>
   );
 }
-
