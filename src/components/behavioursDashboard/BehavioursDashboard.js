@@ -131,8 +131,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   
   // Follow-up specific filters
   const [filterFollowUpResident, setFilterFollowUpResident] = useState("Any Resident");
-  const [filterStartDate, setFilterStartDate] = useState("");
-  const [filterEndDate, setFilterEndDate] = useState("");
   // const [desiredMonth, setDesiredMonth] = useState('January');
   // const [desiredYear, setDesiredYear] = useState(2025);
   const [availableYearMonth, setAvailableYearMonth] = useState({});
@@ -421,10 +419,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   const filteredFollowUpData = followUpData.filter((item) => {
     // Resident filter for follow-ups
     if (filterFollowUpResident !== "Any Resident" && item.resident_name !== filterFollowUpResident) return false;
-
-    // Date range filter
-    if (filterStartDate && item.date && new Date(item.date) < new Date(filterStartDate)) return false;
-    if (filterEndDate && item.date && new Date(item.date) > new Date(filterEndDate)) return false;
 
     return true;
   });
@@ -1509,26 +1503,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                 <option key={name}>{name}</option>
               ))}
             </select>
-
-            {/* Start Date Filter */}
-            <input
-              type="date"
-              className={styles.selector}
-              value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              placeholder="yyyy-mm-dd"
-              style={{ padding: '8px 12px', height: '36px' }}
-            />
-
-            {/* End Date Filter */}
-            <input
-              type="date"
-              className={styles.selector}
-              value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              placeholder="yyyy-mm-dd"
-              style={{ padding: '8px 12px', height: '36px' }}
-            />
           </React.Fragment>
         )}
           </div>
