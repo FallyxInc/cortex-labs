@@ -701,7 +701,7 @@ export default function UserManagement() {
                             if (newChainId) {
                               // If current home doesn't belong to new chain, clear home selection
                               const currentHome = homes.find(h => h.id === user.homeId);
-                              const newHomeId = (currentHome?.chainId === newChainId) ? user.homeId : '';
+                              const newHomeId = (currentHome?.chainId === newChainId) ? (user.homeId || '') : '';
                               handleHomeChainChange(user.id, newHomeId, newChainId);
                             } else {
                               handleHomeChainChange(user.id, user.homeId || '', '');
