@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import HelpIcon from './HelpIcon';
+import { trackFileUpload, trackBulkFileProcessing, trackFormInteraction, trackError } from '@/lib/mixpanel';
+import { auth } from '@/lib/firebase';
 
 export default function FileUpload() {
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
@@ -24,6 +26,7 @@ export default function FileUpload() {
   const [improvedPercentage, setImprovedPercentage] = useState('');
   const [improvedChange, setImprovedChange] = useState('');
   const [improvedResidents, setImprovedResidents] = useState('');
+  const formStartTime = useRef<number>(Date.now());
 
   useEffect(() => {
     const fetchHomes = async () => {
@@ -64,6 +67,15 @@ export default function FileUpload() {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       setPdfFiles(files);
+      // Track file selection
+      files.forEach((file) => {
+        trackFileUpload({
+          homeId: selectedHome || 'unknown',
+          fileType: 'pdf',
+          fileName: file.name,
+          fileSize: file.size,
+        });
+      });
     }
   };
 
@@ -71,6 +83,16 @@ export default function FileUpload() {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       setExcelFiles(files);
+      // Track file selection
+      files.forEach((file) => {
+        const fileType = file.name.endsWith('.xlsx') ? 'xlsx' : 'xls';
+        trackFileUpload({
+          homeId: selectedHome || 'unknown',
+          fileType: fileType as 'excel' | 'xls' | 'xlsx',
+          fileName: file.name,
+          fileSize: file.size,
+        });
+      });
     }
   };
 
@@ -79,10 +101,25 @@ export default function FileUpload() {
     setLoading(true);
     setMessage('');
 
+    const processingStartTime = Date.now();
+    formStartTime.current = Date.now();
+
+    // Track form submission
+    trackFormInteraction({
+      formName: 'file_upload',
+      action: 'submitted',
+      homeId: selectedHome,
+    });
+
     // Files are optional - only require home selection
     if (!selectedHome) {
       setMessage('Please select a home');
       setLoading(false);
+      trackFormInteraction({
+        formName: 'file_upload',
+        action: 'validated',
+        validationErrors: ['no_home_selected'],
+      });
       return;
     }
 
@@ -92,6 +129,11 @@ export default function FileUpload() {
       if (pdfFiles.length === 0 || excelFiles.length === 0) {
         setMessage('Please select both PDF and Excel files, or provide only overview metrics');
         setLoading(false);
+        trackFormInteraction({
+          formName: 'file_upload',
+          action: 'validated',
+          validationErrors: ['mismatched_file_types'],
+        });
         return;
       }
     }
@@ -135,9 +177,31 @@ export default function FileUpload() {
       });
 
       const result = await response.json();
+      const processingTime = Date.now() - processingStartTime;
 
       if (response.ok) {
         setMessage('Files and metrics processed successfully!');
+        
+        // Track successful bulk processing
+        const totalFiles = pdfFiles.length + excelFiles.length;
+        const recordsExtracted = result.recordsExtracted || 0;
+        
+        trackBulkFileProcessing({
+          homeId: selectedHome,
+          totalFiles,
+          successCount: totalFiles,
+          failureCount: 0,
+          totalProcessingTime: processingTime,
+          totalRecordsExtracted: recordsExtracted,
+        });
+
+        trackFormInteraction({
+          formName: 'file_upload',
+          action: 'submitted',
+          timeToComplete: Date.now() - formStartTime.current,
+          homeId: selectedHome,
+        });
+
         setPdfFiles([]);
         setExcelFiles([]);
         setSelectedHome('');
@@ -156,9 +220,42 @@ export default function FileUpload() {
         if (excelInput) excelInput.value = '';
       } else {
         setMessage(`Error: ${result.error}`);
+        
+        // Track processing error
+        trackBulkFileProcessing({
+          homeId: selectedHome,
+          totalFiles: pdfFiles.length + excelFiles.length,
+          successCount: 0,
+          failureCount: pdfFiles.length + excelFiles.length,
+          totalProcessingTime: processingTime,
+          totalRecordsExtracted: 0,
+        });
+
+        trackError({
+          errorType: 'processing_error',
+          errorMessage: result.error || 'Unknown error',
+          page: 'upload',
+          homeId: selectedHome,
+          context: {
+            pdfCount: pdfFiles.length,
+            excelCount: excelFiles.length,
+          },
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       setMessage(`Error: ${error}`);
+      
+      trackError({
+        errorType: 'processing_error',
+        errorMessage: error?.message || 'Unknown error',
+        errorStack: error?.stack,
+        page: 'upload',
+        homeId: selectedHome,
+        context: {
+          pdfCount: pdfFiles.length,
+          excelCount: excelFiles.length,
+        },
+      });
     } finally {
       setLoading(false);
     }

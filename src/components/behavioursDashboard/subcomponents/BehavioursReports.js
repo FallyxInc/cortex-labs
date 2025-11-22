@@ -19,6 +19,7 @@
   import 'jspdf-autotable';
   // Import Inter font helper
   import { getInterFontName, registerInterFont } from '@/lib/inter-font';
+  import { trackReportsPageClick, trackChartInteraction, trackExportButtonClick } from '@/lib/mixpanel';
 
   ChartJS.register(
     CategoryScale,
@@ -31,6 +32,10 @@
   );
 
   export default function BehavioursReports({ name, altName, data, getTimeOfDay, startDate, endDate }) {
+    const clickCountsRef = useRef({});
+    const chartHoverCountsRef = useRef({});
+    const chartHoverStartTimesRef = useRef({});
+    const exportClickCountRef = useRef(0);
     const [selectedHome, setSelectedHome] = useState(name);
     const [selectedUnits, setSelectedUnits] = useState([]);
     const [selectedResidents, setSelectedResidents] = useState([]);
@@ -253,6 +258,17 @@
 
     const handleExportPDF = async () => {
       if (!reportContentRef.current || Object.keys(allReportsData).length === 0) return;
+      
+      exportClickCountRef.current += 1;
+      trackExportButtonClick({
+        exportType: 'pdf',
+        pageName: 'reports',
+        section: 'reports',
+        homeId: altName,
+        dataType: 'reports',
+        recordCount: data?.length || 0,
+        clickCount: exportClickCountRef.current,
+      });
 
       // Ensure jspdf-autotable is loaded
       if (typeof window !== 'undefined') {
@@ -655,7 +671,18 @@
                 <select 
                   className={styles.selector}
                   value={selectedHome}
-                  onChange={(e) => setSelectedHome(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedHome(e.target.value);
+                    const key = 'home_selector';
+                    clickCountsRef.current[key] = (clickCountsRef.current[key] || 0) + 1;
+                    trackReportsPageClick({
+                      elementType: 'selector',
+                      elementName: 'Home Selector',
+                      elementId: 'home_selector',
+                      homeId: altName,
+                      clickCount: clickCountsRef.current[key],
+                    });
+                  }}
                   style={{ width: '140px', padding: '6px 32px 6px 12px', height: '36px' }}
                 >
                   <option value={name}>{name}</option>
@@ -667,6 +694,15 @@
                   value={selectedUnits.length > 0 ? selectedUnits[0] : ''}
                   onChange={(e) => {
                     setSelectedUnits(e.target.value ? [e.target.value] : []);
+                    const key = 'unit_selector';
+                    clickCountsRef.current[key] = (clickCountsRef.current[key] || 0) + 1;
+                    trackReportsPageClick({
+                      elementType: 'selector',
+                      elementName: 'Unit Selector',
+                      elementId: 'unit_selector',
+                      homeId: altName,
+                      clickCount: clickCountsRef.current[key],
+                    });
                   }}
                   style={{ width: '140px', padding: '6px 32px 6px 12px', height: '36px' }}
                 >
@@ -682,6 +718,15 @@
                   value={selectedResidents.length > 0 ? selectedResidents[0] : ''}
                   onChange={(e) => {
                     setSelectedResidents(e.target.value ? [e.target.value] : []);
+                    const key = 'resident_selector';
+                    clickCountsRef.current[key] = (clickCountsRef.current[key] || 0) + 1;
+                    trackReportsPageClick({
+                      elementType: 'selector',
+                      elementName: 'Resident Selector',
+                      elementId: 'resident_selector',
+                      homeId: altName,
+                      clickCount: clickCountsRef.current[key],
+                    });
                   }}
                   style={{ width: '140px', padding: '6px 32px 6px 12px', height: '36px' }}
                 >
@@ -864,6 +909,43 @@
                   };
 
                   const chartOptions = {
+                    onHover: (event, activeElements) => {
+                      if (activeElements.length > 0) {
+                        const chartId = `${reportKey}_${chartKey}`;
+                        if (!chartHoverStartTimesRef.current[chartId]) {
+                          chartHoverStartTimesRef.current[chartId] = Date.now();
+                        }
+                        const dataIndex = activeElements[0].index;
+                        const datasetIndex = activeElements[0].datasetIndex;
+                        const dataPoint = chartData.labels[dataIndex];
+                        const value = chartData.datasets[datasetIndex]?.data[dataIndex];
+                        
+                        chartHoverCountsRef.current[chartId] = (chartHoverCountsRef.current[chartId] || 0) + 1;
+                        
+                        trackChartInteraction({
+                          chartType: 'bar',
+                          chartName: `${reportKey} - ${chartKey}`,
+                          interactionType: 'hover',
+                          dataPoint: `${dataPoint}: ${value}`,
+                          homeId: altName,
+                          interactionCount: chartHoverCountsRef.current[chartId],
+                        });
+                      }
+                    },
+                    onLeave: (event, activeElements) => {
+                      const chartId = `${reportKey}_${chartKey}`;
+                      if (chartHoverStartTimesRef.current[chartId]) {
+                        const hoverDuration = Date.now() - chartHoverStartTimesRef.current[chartId];
+                        trackChartInteraction({
+                          chartType: 'bar',
+                          chartName: `${reportKey} - ${chartKey}`,
+                          interactionType: 'hover',
+                          homeId: altName,
+                          hoverDuration,
+                        });
+                        delete chartHoverStartTimesRef.current[chartId];
+                      }
+                    },
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {

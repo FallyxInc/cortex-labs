@@ -11,6 +11,13 @@ import { db, auth } from '@/lib/firebase';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { 
+  trackPageVisit, 
+  trackExportButtonClick, 
+  trackTableEdit, 
+  trackDashboardInteraction,
+  trackTimeOnPage
+} from '@/lib/mixpanel';
 import {
   markPostFallNotes,
   countFallsByExactInjury,
@@ -195,6 +202,46 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   const [insightOutcomes, setInsightOutcomes] = useState({});
   const [reviewedInsights, setReviewedInsights] = useState({});
   const [insights, setInsights] = useState([]);
+
+  // Track page visits with count
+  const pageVisitCountRef = useRef(0);
+  const lastVisitTimeRef = useRef(null);
+  const exportClickCountRef = useRef(0);
+  const tableEditCountsRef = useRef({});
+  const pageStartTimeRef = useRef(Date.now());
+
+  // Track page visit on mount
+  useEffect(() => {
+    pageVisitCountRef.current += 1;
+    const timeSinceLastVisit = lastVisitTimeRef.current 
+      ? Math.floor((Date.now() - lastVisitTimeRef.current) / 1000)
+      : undefined;
+    
+    trackPageVisit({
+      pageName: `dashboard_${name}`,
+      visitCount: pageVisitCountRef.current,
+      homeId: altName,
+      timeSinceLastVisit,
+    });
+    
+    lastVisitTimeRef.current = Date.now();
+  }, [name, altName]);
+
+  // Track time on page periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const timeSpent = Math.floor((Date.now() - pageStartTimeRef.current) / 1000);
+      if (timeSpent > 0 && timeSpent % 30 === 0) {
+        trackTimeOnPage({
+          pageName: `dashboard_${name}`,
+          timeSpent,
+          homeId: altName,
+        });
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [name, altName]);
 
   const MOCK_INCIDENT_DATA = {
     'Falls': {
@@ -542,6 +589,20 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   const tableRef = useRef(null);
 
   const handleSavePDF = async () => {
+    exportClickCountRef.current += 1;
+    trackInteraction();
+    
+    // Track export click
+    trackExportButtonClick({
+      exportType: 'pdf',
+      pageName: `dashboard_${name}`,
+      section: showFollowUpTable ? 'follow_up' : 'overview',
+      homeId: altName,
+      dataType: showFollowUpTable ? 'follow_up' : 'behaviours',
+      recordCount: showFollowUpTable ? (followUpData.length > 0 ? filteredFollowUpData.length : DUMMY_FOLLOW_UP_DATA.length) : data.length,
+      clickCount: exportClickCountRef.current,
+    });
+
     // work no blank but last pages lack
 
     if (tableRef.current) {
@@ -598,6 +659,9 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   };
 
   const handleSaveCSV = () => {
+    exportClickCountRef.current += 1;
+    trackInteraction();
+    
     let modifiedData;
     let filename;
     
@@ -614,6 +678,17 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       
       const monthNum = months_backword[desiredMonth];
       filename = `${name}_${desiredYear}_${monthNum}_follow_ups.csv`;
+      
+      // Track export click
+      trackExportButtonClick({
+        exportType: 'csv',
+        pageName: `dashboard_${name}`,
+        section: 'follow_up',
+        homeId: altName,
+        dataType: 'follow_up',
+        recordCount: dataToExport.length,
+        clickCount: exportClickCountRef.current,
+      });
     } else {
       // Export behaviors data
       modifiedData = data.map(item => ({
@@ -634,6 +709,17 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       
       const monthNum = months_backword[desiredMonth];
       filename = `${name}_${desiredYear}_${monthNum}_behaviours_data.csv`;
+      
+      // Track export click
+      trackExportButtonClick({
+        exportType: 'csv',
+        pageName: `dashboard_${name}`,
+        section: 'overview',
+        homeId: altName,
+        dataType: 'behaviours',
+        recordCount: data.length,
+        clickCount: exportClickCountRef.current,
+      });
     }
     
     const csv = Papa.unparse(modifiedData);
@@ -643,6 +729,8 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   };
 
   const handleUpdateCSV = async (index, newValue, name, changeType) => {
+    trackInteraction();
+    
     const collectionRef = ref(db, `/${altName}/${desiredYear}/${months_backword[desiredMonth]}`);
 
     try {
@@ -651,19 +739,22 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       if (snapshot.exists()) {
         const rows = snapshot.val();
         let targetRowKey = null;
+        let targetRow = null;
 
         for (const [key, row] of Object.entries(rows)) {
           if (row.id === String(index)) {  
             targetRowKey = key;
+            targetRow = row;
             break;
           }
         }
 
-        if (targetRowKey) {
+        if (targetRowKey && targetRow) {
           const rowRef = child(collectionRef, targetRowKey);
           const currentRowData = rows[targetRowKey];
 
           let updates = {};
+          const oldValue = currentRowData[changeType];
 
           switch (changeType) {
             case 'hir':
@@ -698,6 +789,25 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
 
           await update(rowRef, updates);
           console.log(`Row with id ${index} updated successfully.`);
+
+          // Track table edit
+          const fieldKey = `${changeType}_edits`;
+          if (!tableEditCountsRef.current[fieldKey]) {
+            tableEditCountsRef.current[fieldKey] = 0;
+          }
+          tableEditCountsRef.current[fieldKey] += 1;
+
+          trackTableEdit({
+            tableType: 'behaviours',
+            fieldName: changeType,
+            fieldType: changeType === 'hir' ? 'dropdown' : changeType.includes('Ref') ? 'boolean' : 'text',
+            rowId: String(index),
+            oldValue: oldValue,
+            newValue: newValue,
+            homeId: altName,
+            editCount: tableEditCountsRef.current[fieldKey],
+            residentName: targetRow.name || name,
+          });
 
           const updatedData = data.map(item => 
             item.id === String(index) 
@@ -1245,7 +1355,14 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             {/* Overview Section with Sub-items */}
             <div className={styles.navSection}>
               <button
-                onClick={() => setActiveSection('overview')}
+                onClick={() => {
+                  setActiveSection('overview');
+                  trackDashboardInteraction({
+                    action: 'view_table',
+                    dashboardType: 'behaviours',
+                    homeId: altName,
+                  });
+                }}
                 className={`${styles.navMainItem} ${activeSection === 'overview' ? styles.navMainItemActive : ''}`}
               >
                 <div className={styles.navItemContent}>
@@ -1295,7 +1412,14 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             {/* Reports Section */}
             <div className={styles.navSection}>
               <button
-                onClick={() => setActiveSection('reports')}
+                onClick={() => {
+                  setActiveSection('reports');
+                  trackDashboardInteraction({
+                    action: 'view_report',
+                    dashboardType: 'reports',
+                    homeId: altName,
+                  });
+                }}
                 className={`${styles.navMainItem} ${activeSection === 'reports' ? styles.navMainItemActive : ''}`}
               >
                 <div className={styles.navItemContent}>
@@ -1312,7 +1436,14 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             {/* Trends and Analysis Section */}
             <div className={styles.navSection}>
               <button
-                onClick={() => setActiveSection('trends')}
+                onClick={() => {
+                  setActiveSection('trends');
+                  trackDashboardInteraction({
+                    action: 'view_trends',
+                    dashboardType: 'trends',
+                    homeId: altName,
+                  });
+                }}
                 className={`${styles.navMainItem} ${activeSection === 'trends' ? styles.navMainItemActive : ''}`}
               >
                 <div className={styles.navItemContent}>
