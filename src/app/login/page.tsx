@@ -106,14 +106,47 @@ export default function Login() {
       }
     } catch (error: any) {
       console.error('Error during login:', error);
-      const errorMessage = error?.message || 'Login failed. Please check your credentials.';
+      
+      // Map Firebase error codes to user-friendly messages
+      let errorMessage = 'Login failed. Please check your credentials.';
+      
+      if (error?.code) {
+        switch (error.code) {
+          case 'auth/invalid-credential':
+          case 'auth/wrong-password':
+          case 'auth/user-not-found':
+            errorMessage = 'Incorrect email or password';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Invalid email address';
+            break;
+          case 'auth/user-disabled':
+            errorMessage = 'This account has been disabled';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Too many failed attempts. Please try again later';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Network error. Please check your connection';
+            break;
+          default:
+            // For other errors, use a generic message
+            errorMessage = 'Login failed. Please check your credentials.';
+        }
+      } else if (error?.message) {
+        // If there's a message but no code, check if it contains invalid-credential
+        if (error.message.includes('invalid-credential') || error.message.includes('wrong-password')) {
+          errorMessage = 'Incorrect email or password';
+        }
+      }
+      
       setErrorMessage(errorMessage);
       
       // Track failed login
       trackLogin({
         method: 'email',
         success: false,
-        error: error?.code || errorMessage,
+        error: error?.code || 'authentication_failed',
         timeToLogin: loginStartTime.current ? Date.now() - loginStartTime.current : undefined,
       });
 
