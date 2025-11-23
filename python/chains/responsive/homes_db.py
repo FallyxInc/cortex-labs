@@ -1,12 +1,29 @@
 # Import shared homes_db configuration
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from homes_db import (
-    CHAINS, HOME_TO_CHAIN, ALL_HOMES,
-    association_dict, homes_dict, naming_dict,
-    get_chain_for_home, get_extraction_type, supports_follow_up, get_homes_for_chain
-)
+import importlib.util
+from datetime import datetime
+
+# Get the parent homes_db module path
+parent_dir = os.path.join(os.path.dirname(__file__), '..')
+parent_homes_db_path = os.path.join(parent_dir, 'homes_db.py')
+
+# Load the parent homes_db module explicitly to avoid circular import
+spec = importlib.util.spec_from_file_location("chains_homes_db", parent_homes_db_path)
+chains_homes_db = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(chains_homes_db)
+
+# Import the needed items
+CHAINS = chains_homes_db.CHAINS
+HOME_TO_CHAIN = chains_homes_db.HOME_TO_CHAIN
+ALL_HOMES = chains_homes_db.ALL_HOMES
+association_dict = chains_homes_db.association_dict
+homes_dict = chains_homes_db.homes_dict
+naming_dict = chains_homes_db.naming_dict
+get_chain_for_home = chains_homes_db.get_chain_for_home
+get_extraction_type = chains_homes_db.get_extraction_type
+supports_follow_up = chains_homes_db.supports_follow_up
+get_homes_for_chain = chains_homes_db.get_homes_for_chain
 
 # Responsive chain homes
 RESPONSIVE_HOMES = CHAINS['responsive']['homes']

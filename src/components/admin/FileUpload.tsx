@@ -13,6 +13,9 @@ export default function FileUpload() {
   const [loading, setLoading] = useState(false);
   const [loadingHomes, setLoadingHomes] = useState(true);
   const [message, setMessage] = useState('');
+  const [progress, setProgress] = useState({ percentage: 0, message: '', step: '' });
+  const [jobId, setJobId] = useState<string | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Overview metrics state
   const [antipsychoticsPercentage, setAntipsychoticsPercentage] = useState('');
@@ -27,6 +30,47 @@ export default function FileUpload() {
   const [improvedChange, setImprovedChange] = useState('');
   const [improvedResidents, setImprovedResidents] = useState('');
   const formStartTime = useRef<number>(Date.now());
+
+  // Poll for progress updates
+  useEffect(() => {
+    if (!jobId) return;
+
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`/api/admin/process-progress?jobId=${jobId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setProgress({ percentage: data.percentage || 0, message: data.message || '', step: data.step || '' });
+          
+          // Stop polling if complete or error
+          if (data.percentage >= 100 || data.step === 'error' || data.step === 'complete') {
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
+            if (data.step === 'complete') {
+              setMessage('Files processed successfully!');
+            } else if (data.step === 'error') {
+              setMessage(`Error: ${data.message}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+      }
+    };
+
+    // Poll every 500ms
+    progressIntervalRef.current = setInterval(pollProgress, 500);
+    pollProgress(); // Initial poll
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, [jobId]);
 
   useEffect(() => {
     const fetchHomes = async () => {
@@ -179,8 +223,17 @@ export default function FileUpload() {
       const result = await response.json();
       const processingTime = Date.now() - processingStartTime;
 
+      // Start tracking progress if jobId is returned
+      if (result.jobId) {
+        setJobId(result.jobId);
+        setProgress({ percentage: 0, message: 'Processing started...', step: 'initializing' });
+      }
+
       if (response.ok) {
-        setMessage('Files and metrics processed successfully!');
+        // Wait for progress to reach 100% before showing success
+        if (!result.jobId) {
+          setMessage('Files and metrics processed successfully!');
+        }
         
         // Track successful bulk processing
         const totalFiles = pdfFiles.length + excelFiles.length;
@@ -214,11 +267,15 @@ export default function FileUpload() {
         setImprovedPercentage('');
         setImprovedChange('');
         setImprovedResidents('');
+        setJobId(null);
+        setProgress({ percentage: 0, message: '', step: '' });
         const pdfInput = document.getElementById('pdf') as HTMLInputElement;
         const excelInput = document.getElementById('excel') as HTMLInputElement;
         if (pdfInput) pdfInput.value = '';
         if (excelInput) excelInput.value = '';
       } else {
+        setJobId(null);
+        setProgress({ percentage: 0, message: '', step: '' });
         setMessage(`Error: ${result.error}`);
         
         // Track processing error
@@ -243,6 +300,8 @@ export default function FileUpload() {
         });
       }
     } catch (error: any) {
+      setJobId(null);
+      setProgress({ percentage: 0, message: '', step: '' });
       setMessage(`Error: ${error}`);
       
       trackError({
@@ -257,9 +316,26 @@ export default function FileUpload() {
         },
       });
     } finally {
-      setLoading(false);
+      // Only set loading to false if we're not tracking progress
+      if (!jobId) {
+        setLoading(false);
+      }
     }
   };
+
+  // Update loading state based on progress
+  useEffect(() => {
+    if (progress.percentage >= 100 || progress.step === 'error' || progress.step === 'complete') {
+      setLoading(false);
+      if (progress.step === 'complete') {
+        // Clean up after a delay
+        setTimeout(() => {
+          setJobId(null);
+          setProgress({ percentage: 0, message: '', step: '' });
+        }, 3000);
+      }
+    }
+  }, [progress]);
 
   return (
     <div className="bg-white shadow rounded-lg">
@@ -651,8 +727,39 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
             </button>
           </div>
 
+          {/* Progress Bar */}
+          {(loading || progress.percentage > 0) && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  {progress.message || 'Processing...'}
+                </span>
+                <span className="text-sm font-semibold text-gray-700">
+                  {progress.percentage}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-full transition-all duration-300 ease-out rounded-full"
+                  style={{
+                    width: `${progress.percentage}%`,
+                    background: progress.step === 'error' 
+                      ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'
+                      : 'linear-gradient(90deg, #06b6d4 0%, #0cc7ed 100%)',
+                    transition: 'width 0.5s ease-out'
+                  }}
+                />
+              </div>
+              {progress.step && progress.step !== 'initializing' && progress.step !== 'complete' && progress.step !== 'error' && (
+                <p className="mt-1 text-xs text-gray-500 capitalize">
+                  Step: {progress.step.replace(/_/g, ' ')}
+                </p>
+              )}
+            </div>
+          )}
+
           {message && (
-            <div className={`text-sm ${message.includes('Error') ? 'text-red-600' : ''}`} style={!message.includes('Error') ? { color: '#06b6d4' } : {}}>
+            <div className={`text-sm ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`} style={!message.includes('Error') && !message.includes('success') ? { color: '#06b6d4' } : {}}>
               {message}
             </div>
           )}
