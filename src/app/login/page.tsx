@@ -6,7 +6,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
 import { db, auth } from '@/lib/firebase';
 import '@/styles/Login.css';
-import Link from 'next/link';
 import { trackLogin, trackFormInteraction, trackFeatureUsage } from '@/lib/mixpanel';
 
 export default function Login() {
@@ -211,10 +210,6 @@ export default function Login() {
       <button className="login-button" onClick={() => handleLogin()}>
         Login
       </button>
-
-      <div className="resetPasswordLink">
-        <Link href="/reset-password">Forgot Password? Reset here</Link>
-      </div>
       </div>
     </div>
   );
