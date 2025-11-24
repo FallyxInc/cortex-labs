@@ -105,6 +105,12 @@ const HOMES: Record<string, HomeMapping> = {
     homeName: 'franklingardens',
     displayName: 'Franklin Gardens'
   },
+  test: {
+    firebaseId: 'test',
+    pythonDir: 'test',
+    homeName: 'test',
+    displayName: 'Test'
+  },
 }
 /**
  * Complete mapping of all homes in the system.
@@ -131,6 +137,8 @@ export const HOME_MAPPINGS: Record<string, HomeMapping> = {
   
   // Franklin Gardens
   franklingardens: HOMES.franklingardens,
+  // Test
+  test: HOMES.test,
 };
 
 /**

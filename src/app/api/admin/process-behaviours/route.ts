@@ -442,8 +442,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error processing files:', error);
-    const jobId = (error as any)?.jobId || `job_${Date.now()}`;
-    await updateProgress(jobId, 0, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error').catch(() => {});
+    const jobId = (error as unknown as { jobId: string })?.jobId || `job_${Date.now()}`;
+    await updateProgress(jobId, 0, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error').catch((error: unknown) => {
+      console.error('Error updating progress:', error);
+    });
     return NextResponse.json(
       { 
         error: 'Failed to process files', 
