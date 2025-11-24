@@ -9,7 +9,7 @@ import glob
 from homes_db import homes, homes_dict
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../.env'))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../../.env'))
 
 client = None
 
@@ -975,6 +975,7 @@ def main(api_key: str):
 
 if __name__ == "__main__":
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    print(os.getcwd())
     if not openai_api_key:
         raise ValueError("OPENAI_API_KEY not found in .env file")
     main(openai_api_key)

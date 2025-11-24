@@ -131,7 +131,7 @@ export const HOME_MAPPINGS: Record<string, HomeMapping> = {
   banwell: HOMES.banwell,
   
   // The O'Neill
-  the_oneill: HOMES.the_oneill,
+  the_oneill: HOMES.oneill,
   ONCB: HOMES.oneill,
   oneill: HOMES.oneill,
   

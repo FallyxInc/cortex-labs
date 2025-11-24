@@ -20,6 +20,7 @@ export const identifyUser = (userId: string, userProperties?: {
   loginCount?: number;
   createdAt?: string;
 }) => {
+  console.log('identifyUser', userId, userProperties);
   if (typeof window === 'undefined') return;
   
   mixpanel.identify(userId);
@@ -302,7 +303,7 @@ export const trackUserUpdated = (properties: {
   userId: string;
   updatedFields: string[];
   updatedBy: string;
-  changes?: Record<string, { from: any; to: any }>;
+  changes?: Record<string, { from: unknown; to: unknown }>;
 }) => {
   if (typeof window === 'undefined') return;
   
@@ -454,7 +455,7 @@ export const trackError = (properties: {
   page?: string;
   userId?: string;
   homeId?: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }) => {
   if (typeof window === 'undefined') return;
   
@@ -475,7 +476,7 @@ export const trackFeatureUsage = (properties: {
   featureName: string;
   action: 'opened' | 'closed' | 'used' | 'configured';
   homeId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }) => {
   if (typeof window === 'undefined') return;
   
@@ -604,7 +605,7 @@ export const trackReportsPageClick = (properties: {
   elementId?: string;
   homeId?: string;
   clickCount?: number; // Total clicks on this specific element
-  metadata?: Record<string, any>; // Additional context
+  metadata?: Record<string, unknown>; // Additional context
 }) => {
   if (typeof window === 'undefined') return;
   
@@ -658,8 +659,8 @@ export const trackTableEdit = (properties: {
   fieldName: string; // Name of the field being edited
   fieldType: string; // Type of field (text, dropdown, date, etc.)
   rowId?: string;
-  oldValue?: any;
-  newValue?: any;
+  oldValue?: unknown;
+  newValue?: unknown;
   homeId?: string;
   editCount?: number; // Total edits to this field
   residentName?: string;
@@ -686,7 +687,7 @@ export const trackTableEdit = (properties: {
 };
 
 // Custom event tracking
-export const track = (eventName: string, properties?: Record<string, any>) => {
+export const track = (eventName: string, properties?: Record<string, unknown>) => {
   if (typeof window === 'undefined') return;
   
   mixpanel.track(eventName, {
@@ -696,13 +697,13 @@ export const track = (eventName: string, properties?: Record<string, any>) => {
 };
 
 // Set super properties (sent with every event)
-export const setSuperProperties = (properties: Record<string, any>) => {
+export const setSuperProperties = (properties: Record<string, unknown>) => {
   if (typeof window === 'undefined') return;
   mixpanel.register(properties);
 };
 
 // Increment user properties
-export const incrementUserProperty = (property: string, value: number = 1) => {
+export const incrementUserProperty = (property: string, value = 1) => {
   if (typeof window === 'undefined') return;
   mixpanel.people.increment(property, value);
 };

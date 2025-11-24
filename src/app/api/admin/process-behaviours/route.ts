@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir, stat, readdir } from 'fs/promises';
+import { writeFile, mkdir, stat, readdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { adminDb } from '@/lib/firebase-admin';
-import { getFirebaseIdAsync, getHomeNameAsync, validateHomeMappingAsync, getPythonDirName } from '@/lib/homeMappings';
+import { getFirebaseIdAsync, getHomeNameAsync, validateHomeMappingAsync, getPythonDirName, getHomeName } from '@/lib/homeMappings';
 import { progressStore } from '../process-progress/route';
 
 const execAsync = promisify(exec);
@@ -54,17 +54,43 @@ export async function POST(request: NextRequest) {
     await updateProgress(jobId, 2, 'Validating home configuration...', 'validating');
 
     // Validate home mapping exists (check Firebase)
-    const validation = await validateHomeMappingAsync(home);
-    if (!validation.valid) {
-      console.error(`❌ [API] Invalid home mapping for: ${home}`, validation.missing);
-      await updateProgress(jobId, 0, `Error: Home mapping not configured properly. Missing: ${validation.missing?.join(', ')}`, 'error');
-      return NextResponse.json({ 
-        error: `Home mapping not configured properly. Missing: ${validation.missing?.join(', ')}. Please ensure the home was created through the admin UI.`,
-        jobId
-      }, { status: 400 });
-    }
+    // const validation = await validateHomeMappingAsync(home);
+    // if (!validation.valid) {
+    //   console.error(`❌ [API] Invalid home mapping for: ${home}`, validation.missing);
+    //   await updateProgress(jobId, 0, `Error: Home mapping not configured properly. Missing: ${validation.missing?.join(', ')}`, 'error');
+    //   return NextResponse.json({ 
+    //     error: `Home mapping not configured properly. Missing: ${validation.missing?.join(', ')}. Please ensure the home was created through the admin UI.`,
+    //     jobId
+    //   }, { status: 400 });
+    // }
 
-    await updateProgress(jobId, 5, 'Home validated successfully', 'validated');
+    // await updateProgress(jobId, 5, 'Home validated successfully', 'validated');
+
+    // Get extraction type from chain data
+    let extractionType: string | null = null;
+    try {
+      const firebaseId = await getFirebaseIdAsync(home);
+      const homeRef = adminDb.ref(`/${firebaseId}`);
+      const homeSnapshot = await homeRef.once('value');
+      
+      if (homeSnapshot.exists()) {
+        const homeData = homeSnapshot.val();
+        const chainId = homeData.chainId;
+        
+        if (chainId) {
+          const chainRef = adminDb.ref(`/chains/${chainId}`);
+          const chainSnapshot = await chainRef.once('value');
+          
+          if (chainSnapshot.exists()) {
+            const chainData = chainSnapshot.val();
+            extractionType = chainData.extractionType || null;
+            console.log(`📋 [API] Chain: ${chainId}, Extraction Type: ${extractionType || 'not set'}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ [API] Could not fetch extraction type from chain:', error);
+    }
 
     // If no files, we can still save metrics
     const hasFiles = pdfCount > 0 && excelCount > 0;
@@ -158,7 +184,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get chain-based Python directory instead of individual home directory
-    const chainPythonDir = await getPythonDirName(home);
+    console.log('🏠 [API] Extraction type: ', extractionType);
+    console.log('🏠 [API] Home: ', home);
+    const chainPythonDir = (extractionType != null) ? 'chains/' + extractionType : await getPythonDirName(home);
     const homeNameForPython = await getHomeNameAsync(home);
     const chainDir = join(process.cwd(), 'python', chainPythonDir);
     const downloadsDir = join(chainDir, 'downloads');
@@ -175,6 +203,19 @@ export async function POST(request: NextRequest) {
     
     const totalFiles = pdfFiles.length + excelFiles.length;
     let filesSaved = 0;
+    
+    // Clear downloads directory before saving new files
+    console.log('🧹 [API] Clearing downloads directory...');
+    try {
+      const existingFiles = await readdir(downloadsDir);
+      for (const file of existingFiles) {
+        await unlink(join(downloadsDir, file));
+      }
+      console.log(`✅ [API] Cleared ${existingFiles.length} existing file(s)`);
+    } catch (err) {
+      // Directory might not exist yet or be empty, which is fine
+      console.log('ℹ️ [API] Downloads directory empty or doesn\'t exist yet');
+    }
     
     for (const file of pdfFiles) {
       const bytes = new Uint8Array(await file.arrayBuffer());
