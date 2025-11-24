@@ -38,10 +38,27 @@ export default function Login() {
       return;
     }
 
+    let loginEmail = email
+    // validate email
+    if (!email.includes('@')){
+      loginEmail = email+'@example.com'
+    }
+    // Additional email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(loginEmail)) {
+      setErrorMessage('Please enter a valid email address');
+      trackFormInteraction({
+        formName: 'login',
+        action: 'validated',
+        validationErrors: ['invalid_email_format'],
+      });
+      return;
+    } 
+
     loginStartTime.current = Date.now();
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
       const userId = userCredential.user.uid;
       const userSnapshot = await get(ref(db, `users/${userCredential.user.uid}`));
 
@@ -167,7 +184,8 @@ export default function Login() {
         <label htmlFor="login-email">Email</label>
         <input
           id="login-email"
-          type="email"
+          // type="email"
+          type="text"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
