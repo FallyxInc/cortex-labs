@@ -299,15 +299,15 @@ export default function FileUpload() {
           },
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setJobId(null);
       setProgress({ percentage: 0, message: '', step: '' });
-      setMessage(`Error: ${error}`);
+      setMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       
       trackError({
         errorType: 'processing_error',
-        errorMessage: error?.message || 'Unknown error',
-        errorStack: error?.stack,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
         page: 'upload',
         homeId: selectedHome,
         context: {

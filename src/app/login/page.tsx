@@ -15,7 +15,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const loginStartTime = useRef<number | null>(null);
-  const formStartTime = useRef<number>(Date.now());
+  const formStartTime = useRef<number>(new Date().getTime());
 
   useEffect(() => {
     // Track form start
@@ -104,14 +104,14 @@ export default function Login() {
           router.push('/' + mappedRole);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error during login:', error);
       
       // Map Firebase error codes to user-friendly messages
       let errorMessage = 'Login failed. Please check your credentials.';
       
-      if (error?.code) {
-        switch (error.code) {
+      if (error && typeof error === 'object' && 'code' in error) {
+        switch ((error as { code: string }).code) {
           case 'auth/invalid-credential':
           case 'auth/wrong-password':
           case 'auth/user-not-found':
@@ -127,15 +127,15 @@ export default function Login() {
             errorMessage = 'Too many failed attempts. Please try again later';
             break;
           case 'auth/network-request-failed':
-            errorMessage = 'Network error. Please check your connection';
+            errorMessage = 'Network error. Please check your connection.';
             break;
           default:
             // For other errors, use a generic message
             errorMessage = 'Login failed. Please check your credentials.';
         }
-      } else if (error?.message) {
+      } else if (error && typeof error === 'object' && 'message' in error) {
         // If there's a message but no code, check if it contains invalid-credential
-        if (error.message.includes('invalid-credential') || error.message.includes('wrong-password')) {
+        if ((error as { message: string }).message.includes('invalid-credential') || (error as { message: string }).message.includes('wrong-password')) {
           errorMessage = 'Incorrect email or password';
         }
       }
@@ -146,14 +146,14 @@ export default function Login() {
       trackLogin({
         method: 'email',
         success: false,
-        error: error?.code || 'authentication_failed',
+        error: error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : 'authentication_failed',
         timeToLogin: loginStartTime.current ? Date.now() - loginStartTime.current : undefined,
       });
 
       trackFormInteraction({
         formName: 'login',
         action: 'validated',
-        validationErrors: [error?.code || 'authentication_failed'],
+        validationErrors: [error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : 'authentication_failed'],
       });
     }
   };

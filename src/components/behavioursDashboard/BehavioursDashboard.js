@@ -36,20 +36,14 @@ import FollowUpChart from './subcomponents/BeFollowUpChart.js';
 import BeFollowUpTable from './subcomponents/BeFollowUpTable.js';
 import BehavioursReports from './subcomponents/BehavioursReports.js';
 import TrendsAndAnalysis from './subcomponents/TrendsAndAnalysis.js';
+import firebase from 'firebase/compat/app';
 
 Chart.register(ArcElement, PointElement, LineElement);
 
-export default function BehavioursDashboard({ name, title, goal} ) {
+export default function BehavioursDashboard({ name, firebaseId, title, goal} ) {
   const router = useRouter();
-  const altName = name === 'ONCB'
-    ? 'oneill'
-    : name === 'MCB'
-      ? 'millCreek'
-      : name === 'berkshire'
-        ? 'berkshire'
-        : name === 'banwell'
-          ? 'banwell'
-      : name;
+  
+  const altName = firebaseId;
   const months_forward = {
     '01': 'January',
     '02': 'February',

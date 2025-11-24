@@ -2,7 +2,7 @@
 
 import { use } from 'react';
 import BehavioursDashboard from '@/components/behavioursDashboard/BehavioursDashboard';
-import { getDisplayName, getFirebaseId } from '@/lib/homeMappings';
+import { getDisplayName, getFirebaseId, getPythonDirName } from '@/lib/homeMappings';
 
 interface PageProps {
   params: Promise<{ homeId: string }>;
@@ -27,17 +27,10 @@ export default function HomePage({ params }: PageProps) {
   // Default goal value (can be made configurable per home later)
   const goal = 15;
 
-  // The BehavioursDashboard component uses the 'name' prop to construct Firebase paths
-  // It has hardcoded mappings for MCB -> millCreek, ONCB -> oneill
-  // For other homes, it uses the name as-is to look up in Firebase
-  // So we need to pass the firebaseId (or the mapped name) so it can find the data
-  // However, the component's altName logic will handle MCB/ONCB, so for those we keep the original
-  // For new homes like mill_creek_care, we should use the firebaseId
-  const dashboardName = (homeId === 'MCB' || homeId === 'ONCB') ? homeId : firebaseId;
-
   return (
     <BehavioursDashboard
-      name={dashboardName}
+      name={displayName}
+      firebaseId={firebaseId}
       title={title}
       goal={goal}
     />

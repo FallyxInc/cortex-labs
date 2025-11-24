@@ -4,7 +4,7 @@ import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { adminDb } from '@/lib/firebase-admin';
-import { getFirebaseIdAsync, getChainPythonDirAsync, getHomeNameAsync, validateHomeMappingAsync } from '@/lib/homeMappings';
+import { getFirebaseIdAsync, getHomeNameAsync, validateHomeMappingAsync, getPythonDirName } from '@/lib/homeMappings';
 import { progressStore } from '../process-progress/route';
 
 const execAsync = promisify(exec);
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       const altName = await getFirebaseIdAsync(home);
       const metricsRef = adminDb.ref(`/${altName}/overviewMetrics`);
       
-      const metricsData: any = {};
+      const metricsData: Record<string, { percentage: number; change: number; residents: string[] }> = {};
       
       if (antipsychoticsPercentage) {
         metricsData.antipsychotics = {
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get chain-based Python directory instead of individual home directory
-    const chainPythonDir = await getChainPythonDirAsync(home);
+    const chainPythonDir = await getPythonDirName(home);
     const homeNameForPython = await getHomeNameAsync(home);
     const chainDir = join(process.cwd(), 'python', chainPythonDir);
     const downloadsDir = join(chainDir, 'downloads');

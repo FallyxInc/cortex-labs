@@ -74,31 +74,12 @@ function getMappingsSync(): Record<string, HomeMapping> {
   return HOME_MAPPINGS;
 }
 
-/**
- * Complete mapping of all homes in the system.
- * When adding a new home, add an entry here with all four identifiers.
- */
-export const HOME_MAPPINGS: Record<string, HomeMapping> = {
-  // Mill Creek
-  mill_creek_care: {
+const HOMES: Record<string, HomeMapping> = {
+  millCreek: {
     firebaseId: 'millCreek',
     pythonDir: 'millcreek',
     homeName: 'mill_creek_care',
     displayName: 'Mill Creek Care'
-  },
-  MCB: {
-    firebaseId: 'millCreek',
-    pythonDir: 'millcreek',
-    homeName: 'mill_creek_care',
-    displayName: 'Mill Creek Care'
-  },
-  
-  // Berkshire
-  berkshire_care: {
-    firebaseId: 'berkshire',
-    pythonDir: 'berkshire',
-    homeName: 'berkshire_care',
-    displayName: 'Berkshire Care'
   },
   berkshire: {
     firebaseId: 'berkshire',
@@ -106,33 +87,11 @@ export const HOME_MAPPINGS: Record<string, HomeMapping> = {
     homeName: 'berkshire_care',
     displayName: 'Berkshire Care'
   },
-  
-  // Banwell
-  banwell_gardens: {
-    firebaseId: 'banwell',
-    pythonDir: 'banwell',
-    homeName: 'banwell_gardens',
-    displayName: 'Banwell Gardens'
-  },
   banwell: {
     firebaseId: 'banwell',
     pythonDir: 'banwell',
     homeName: 'banwell_gardens',
     displayName: 'Banwell Gardens'
-  },
-  
-  // The O'Neill
-  the_oneill: {
-    firebaseId: 'oneill',
-    pythonDir: 'oneill',
-    homeName: 'the_oneill',
-    displayName: 'The O\'Neill'
-  },
-  ONCB: {
-    firebaseId: 'oneill',
-    pythonDir: 'oneill',
-    homeName: 'the_oneill',
-    displayName: 'The O\'Neill'
   },
   oneill: {
     firebaseId: 'oneill',
@@ -140,14 +99,38 @@ export const HOME_MAPPINGS: Record<string, HomeMapping> = {
     homeName: 'the_oneill',
     displayName: 'The O\'Neill'
   },
-  
-  // Franklin Gardens
   franklingardens: {
     firebaseId: 'franklingardens',
     pythonDir: 'franklingardens',
     homeName: 'franklingardens',
     displayName: 'Franklin Gardens'
   },
+}
+/**
+ * Complete mapping of all homes in the system.
+ * When adding a new home, add an entry here with all four identifiers.
+ */
+export const HOME_MAPPINGS: Record<string, HomeMapping> = {
+  // Mill Creek
+  millCreek: HOMES.millCreek,
+  mill_creek_care: HOMES.millCreek,
+  MCB: HOMES.millCreek,
+  
+  // Berkshire
+  berkshire_care: HOMES.berkshire,
+  berkshire: HOMES.berkshire,
+  
+  // Banwell
+  banwell_gardens: HOMES.banwell,
+  banwell: HOMES.banwell,
+  
+  // The O'Neill
+  the_oneill: HOMES.the_oneill,
+  ONCB: HOMES.oneill,
+  oneill: HOMES.oneill,
+  
+  // Franklin Gardens
+  franklingardens: HOMES.franklingardens,
 };
 
 /**
