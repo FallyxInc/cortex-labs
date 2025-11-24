@@ -6,6 +6,7 @@ export default function MCB() {
   return (
     <BehavioursDashboard
       name="MCB"
+      firebaseId="millCreek"
       title="Mill Creek Behaviours Dashboard"
       goal={30}
     />
