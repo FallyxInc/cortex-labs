@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir, stat, readdir, unlink, rm } from 'fs/promises';
 import { join } from 'path';
 import { exec } from 'child_process';
-import { spawn } from 'child_process';
 import { promisify } from 'util';
 import { adminDb } from '@/lib/firebase-admin';
 import { getFirebaseIdAsync, getHomeNameAsync, validateHomeMappingAsync, getPythonDirName, getHomeName } from '@/lib/homeMappings';
@@ -209,13 +208,6 @@ export async function POST(request: NextRequest) {
         excelFiles.push(file);
         console.log(`📊 [API] Extracted Excel file ${i}: ${file.name}`);
       }
-    }
-    console.log('🐍 [PYTHON] Installing required packages...');
-    try {
-      await execAsync(`${PYTHON_PATH} -m pip install --break-system-packages numpy pdfplumber openai pandas python-dotenv openpyxl`);
-      console.log('✅ [PYTHON] Packages installed successfully');
-    } catch (pipErr) {
-      console.log('⚠️ [PYTHON] Package installation warning:', pipErr);
     }
 
     // Extract date from first file (PDF or Excel) - format: {home_name}_{month}-{day}-{year}
