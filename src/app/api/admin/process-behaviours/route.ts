@@ -10,6 +10,8 @@ import { progressStore } from '../process-progress/route';
 
 const execAsync = promisify(exec);
 
+const PYTHON_PATH = process.env.PYTHON_PATH || 'python3';
+
 // Helper function to update progress
 async function updateProgress(jobId: string, percentage: number, message: string, step: string) {
   // Store progress in memory
@@ -19,11 +21,10 @@ async function updateProgress(jobId: string, percentage: number, message: string
 
 // Helper function to execute Python script with live output streaming
 async function execPythonWithLiveOutput(
-  command: string,
   args: string[],
   options: { cwd: string; env: NodeJS.ProcessEnv }
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
-  const fullCommand = `cd ${options.cwd} && ${command} ${args.join(' ')}`;
+  const fullCommand = `cd ${options.cwd} && ${PYTHON_PATH} ${args.join(' ')}`;
   console.log('🐍 [PYTHON] Executing:', fullCommand);
   try {
     const { stdout, stderr } = await execAsync(fullCommand, {
@@ -211,7 +212,7 @@ export async function POST(request: NextRequest) {
     }
     console.log('🐍 [PYTHON] Installing required packages...');
     try {
-      await execAsync(`python3 -m pip install --user --break-system-packages pdfplumber openai pandas python-dotenv openpyxl`);
+      await execAsync(`${PYTHON_PATH} -m pip install --user --break-system-packages pdfplumber openai pandas python-dotenv openpyxl`);
       console.log('✅ [PYTHON] Packages installed successfully');
     } catch (pipErr) {
       console.log('⚠️ [PYTHON] Package installation warning:', pipErr);
@@ -355,7 +356,7 @@ export async function POST(request: NextRequest) {
       console.log(`📁 [PYTHON] Working directory: ${chainDir}`);
       console.log(`🏠 [PYTHON] Home ID: ${homeNameForPython}`);
       
-      const excelResult = await execPythonWithLiveOutput('python3', ['getExcelInfo.py', homeNameForPython], {
+      const excelResult = await execPythonWithLiveOutput(['getExcelInfo.py', homeNameForPython], {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
@@ -415,7 +416,7 @@ export async function POST(request: NextRequest) {
       console.log(`⏳ [PYTHON] Starting PDF processing at ${new Date().toISOString()}...`);
       console.log(`💡 [PYTHON] This step involves text extraction and AI processing, which can take several minutes...`);
       
-      const pdfResult = await execPythonWithLiveOutput('python3', ['getPdfInfo.py', homeNameForPython], {
+      const pdfResult = await execPythonWithLiveOutput(['getPdfInfo.py', homeNameForPython], {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
@@ -459,7 +460,7 @@ export async function POST(request: NextRequest) {
       await updateProgress(jobId, 65, 'Executing behaviour data generation script...', 'generating_behaviour');
       console.log(`🔧 [PYTHON] Executing: python3 getBe.py ${homeNameForPython}`);
       
-      const behaviourResult = await execPythonWithLiveOutput('python3', ['getBe.py', homeNameForPython], {
+      const behaviourResult = await execPythonWithLiveOutput(['getBe.py', homeNameForPython], {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
@@ -494,7 +495,7 @@ export async function POST(request: NextRequest) {
         : ['update.py', homeNameForPython];
       console.log(`🔧 [PYTHON] Executing: python3 ${updateArgs.join(' ')}`);
       
-      const dashboardResult = await execPythonWithLiveOutput('python3', updateArgs, {
+      const dashboardResult = await execPythonWithLiveOutput(updateArgs, {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
@@ -529,7 +530,7 @@ export async function POST(request: NextRequest) {
         : ['upload_to_dashboard.py', homeNameForPython];
       console.log(`🔧 [PYTHON] Executing: python3 ${uploadArgs.join(' ')}`);
       
-      const uploadResult = await execPythonWithLiveOutput('python3', uploadArgs, {
+      const uploadResult = await execPythonWithLiveOutput(uploadArgs, {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
