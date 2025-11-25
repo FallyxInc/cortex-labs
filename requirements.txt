@@ -1,7 +1,7 @@
 # Core Dependencies
 firebase-admin
-numpy==1.26.4
-pandas==2.1.3
+numpy==2.3.5
+pandas==2.2.3
 plotly
 python-dotenv
 
