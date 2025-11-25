@@ -6,14 +6,15 @@ cmds = [
   "npm ci",
   "python3 -m venv /opt/venv",
   "/opt/venv/bin/pip install --upgrade pip",
-  "/opt/venv/bin/pip install -r requirements.txt",
+  "export LD_LIBRARY_PATH=$(find /nix/store -name 'libz.so.1' -exec dirname {} \\; | head -1):$LD_LIBRARY_PATH",
+  "/opt/venv/bin/pip install --no-cache-dir -r requirements.txt",
 ]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
-cmd = "npm run start"
+cmd = "export LD_LIBRARY_PATH=$(find /nix/store -name 'libz.so.1' -exec dirname {} \\; | head -1):$LD_LIBRARY_PATH && npm run start"
 
 [variables]
 NODE_ENV = "production"
