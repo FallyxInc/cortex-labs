@@ -24,6 +24,7 @@ async function execPythonWithLiveOutput(
   options: { cwd: string; env: NodeJS.ProcessEnv }
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
   const fullCommand = `cd ${options.cwd} && ${command} ${args.join(' ')}`;
+  console.log('🐍 [PYTHON] Executing:', fullCommand);
   try {
     const { stdout, stderr } = await execAsync(fullCommand, {
     });
@@ -207,6 +208,13 @@ export async function POST(request: NextRequest) {
         excelFiles.push(file);
         console.log(`📊 [API] Extracted Excel file ${i}: ${file.name}`);
       }
+    }
+    console.log('🐍 [PYTHON] Installing required packages...');
+    try {
+      await execAsync(`python3 -m pip install --user --break-system-packages pdfplumber openai pandas python-dotenv openpyxl`);
+      console.log('✅ [PYTHON] Packages installed successfully');
+    } catch (pipErr) {
+      console.log('⚠️ [PYTHON] Package installation warning:', pipErr);
     }
 
     // Extract date from first file (PDF or Excel) - format: {home_name}_{month}-{day}-{year}
