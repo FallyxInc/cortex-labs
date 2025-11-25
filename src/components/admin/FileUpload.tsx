@@ -1,34 +1,43 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import HelpIcon from './HelpIcon';
-import { trackFileUpload, trackBulkFileProcessing, trackFormInteraction, trackError } from '@/lib/mixpanel';
-import { auth } from '@/lib/firebase';
+import { useState, useEffect, useRef } from "react";
+import HelpIcon from "./HelpIcon";
+import {
+  trackFileUpload,
+  trackBulkFileProcessing,
+  trackFormInteraction,
+  trackError,
+} from "@/lib/mixpanel";
+import { auth } from "@/lib/firebase";
 
 export default function FileUpload() {
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [excelFiles, setExcelFiles] = useState<File[]>([]);
-  const [selectedHome, setSelectedHome] = useState('');
+  const [selectedHome, setSelectedHome] = useState("");
   const [homes, setHomes] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [loadingHomes, setLoadingHomes] = useState(true);
-  const [message, setMessage] = useState('');
-  const [progress, setProgress] = useState({ percentage: 0, message: '', step: '' });
+  const [message, setMessage] = useState("");
+  const [progress, setProgress] = useState({
+    percentage: 0,
+    message: "",
+    step: "",
+  });
   const [jobId, setJobId] = useState<string | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Overview metrics state
-  const [antipsychoticsPercentage, setAntipsychoticsPercentage] = useState('');
-  const [antipsychoticsChange, setAntipsychoticsChange] = useState('');
-  const [antipsychoticsResidents, setAntipsychoticsResidents] = useState('');
-  
-  const [worsenedPercentage, setWorsenedPercentage] = useState('');
-  const [worsenedChange, setWorsenedChange] = useState('');
-  const [worsenedResidents, setWorsenedResidents] = useState('');
-  
-  const [improvedPercentage, setImprovedPercentage] = useState('');
-  const [improvedChange, setImprovedChange] = useState('');
-  const [improvedResidents, setImprovedResidents] = useState('');
+  const [antipsychoticsPercentage, setAntipsychoticsPercentage] = useState("");
+  const [antipsychoticsChange, setAntipsychoticsChange] = useState("");
+  const [antipsychoticsResidents, setAntipsychoticsResidents] = useState("");
+
+  const [worsenedPercentage, setWorsenedPercentage] = useState("");
+  const [worsenedChange, setWorsenedChange] = useState("");
+  const [worsenedResidents, setWorsenedResidents] = useState("");
+
+  const [improvedPercentage, setImprovedPercentage] = useState("");
+  const [improvedChange, setImprovedChange] = useState("");
+  const [improvedResidents, setImprovedResidents] = useState("");
   const formStartTime = useRef<number>(Date.now());
 
   // Poll for progress updates
@@ -37,26 +46,36 @@ export default function FileUpload() {
 
     const pollProgress = async () => {
       try {
-        const response = await fetch(`/api/admin/process-progress?jobId=${jobId}`);
+        const response = await fetch(
+          `/api/admin/process-progress?jobId=${jobId}`,
+        );
         if (response.ok) {
           const data = await response.json();
-          setProgress({ percentage: data.percentage || 0, message: data.message || '', step: data.step || '' });
-          
+          setProgress({
+            percentage: data.percentage || 0,
+            message: data.message || "",
+            step: data.step || "",
+          });
+
           // Stop polling if complete or error
-          if (data.percentage >= 100 || data.step === 'error' || data.step === 'complete') {
+          if (
+            data.percentage >= 100 ||
+            data.step === "error" ||
+            data.step === "complete"
+          ) {
             if (progressIntervalRef.current) {
               clearInterval(progressIntervalRef.current);
               progressIntervalRef.current = null;
             }
-            if (data.step === 'complete') {
-              setMessage('Files processed successfully!');
-            } else if (data.step === 'error') {
+            if (data.step === "complete") {
+              setMessage("Files processed successfully!");
+            } else if (data.step === "error") {
               setMessage(`Error: ${data.message}`);
             }
           }
         }
       } catch (error) {
-        console.error('Error polling progress:', error);
+        console.error("Error polling progress:", error);
       }
     };
 
@@ -76,29 +95,33 @@ export default function FileUpload() {
     const fetchHomes = async () => {
       try {
         setLoadingHomes(true);
-        const response = await fetch('/api/admin/homes');
-        
+        const response = await fetch("/api/admin/homes");
+
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Error response:', response.status, errorText);
+          console.error("Error response:", response.status, errorText);
           throw new Error(`Failed to fetch homes: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
           // Convert homes array to format expected by component
-          const homesList = data.homes.map((home: { id: string; name: string }) => home.id);
+          const homesList = data.homes.map(
+            (home: { id: string; name: string }) => home.id,
+          );
           setHomes(data.homes);
-          
+
           if (homesList.length === 0) {
-            setMessage('No homes found. Please ensure homes are configured.');
+            setMessage("No homes found. Please ensure homes are configured.");
           }
         } else {
           setMessage(`Error loading homes: ${data.error}`);
         }
       } catch (error) {
-        setMessage(`Error loading homes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setMessage(
+          `Error loading homes: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
       } finally {
         setLoadingHomes(false);
       }
@@ -114,8 +137,8 @@ export default function FileUpload() {
       // Track file selection
       files.forEach((file) => {
         trackFileUpload({
-          homeId: selectedHome || 'unknown',
-          fileType: 'pdf',
+          homeId: selectedHome || "unknown",
+          fileType: "pdf",
           fileName: file.name,
           fileSize: file.size,
         });
@@ -129,10 +152,10 @@ export default function FileUpload() {
       setExcelFiles(files);
       // Track file selection
       files.forEach((file) => {
-        const fileType = file.name.endsWith('.xlsx') ? 'xlsx' : 'xls';
+        const fileType = file.name.endsWith(".xlsx") ? "xlsx" : "xls";
         trackFileUpload({
-          homeId: selectedHome || 'unknown',
-          fileType: fileType as 'excel' | 'xls' | 'xlsx',
+          homeId: selectedHome || "unknown",
+          fileType: fileType as "excel" | "xls" | "xlsx",
           fileName: file.name,
           fileSize: file.size,
         });
@@ -143,26 +166,26 @@ export default function FileUpload() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
+    setMessage("");
 
     const processingStartTime = Date.now();
     formStartTime.current = Date.now();
 
     // Track form submission
     trackFormInteraction({
-      formName: 'file_upload',
-      action: 'submitted',
+      formName: "file_upload",
+      action: "submitted",
       homeId: selectedHome,
     });
 
     // Files are optional - only require home selection
     if (!selectedHome) {
-      setMessage('Please select a home');
+      setMessage("Please select a home");
       setLoading(false);
       trackFormInteraction({
-        formName: 'file_upload',
-        action: 'validated',
-        validationErrors: ['no_home_selected'],
+        formName: "file_upload",
+        action: "validated",
+        validationErrors: ["no_home_selected"],
       });
       return;
     }
@@ -171,12 +194,14 @@ export default function FileUpload() {
     // If no files, metrics are optional (will keep most recent value if nothing provided)
     if (pdfFiles.length > 0 || excelFiles.length > 0) {
       if (pdfFiles.length === 0 || excelFiles.length === 0) {
-        setMessage('Please select both PDF and Excel files, or provide only overview metrics');
+        setMessage(
+          "Please select both PDF and Excel files, or provide only overview metrics",
+        );
         setLoading(false);
         trackFormInteraction({
-          formName: 'file_upload',
-          action: 'validated',
-          validationErrors: ['mismatched_file_types'],
+          formName: "file_upload",
+          action: "validated",
+          validationErrors: ["mismatched_file_types"],
         });
         return;
       }
@@ -185,38 +210,42 @@ export default function FileUpload() {
 
     try {
       const formData = new FormData();
-      
+
       pdfFiles.forEach((file, index) => {
         formData.append(`pdf_${index}`, file);
       });
-      
+
       excelFiles.forEach((file, index) => {
         formData.append(`excel_${index}`, file);
       });
-      
-      formData.append('home', selectedHome);
-      formData.append('pdfCount', pdfFiles.length.toString());
-      formData.append('excelCount', excelFiles.length.toString());
-      
+
+      formData.append("home", selectedHome);
+      formData.append("pdfCount", pdfFiles.length.toString());
+      formData.append("excelCount", excelFiles.length.toString());
+
       // Add overview metrics if provided
       if (antipsychoticsPercentage) {
-        formData.append('antipsychoticsPercentage', antipsychoticsPercentage);
-        formData.append('antipsychoticsChange', antipsychoticsChange || '0');
-        formData.append('antipsychoticsResidents', antipsychoticsResidents || '');
+        formData.append("antipsychoticsPercentage", antipsychoticsPercentage);
+        formData.append("antipsychoticsChange", antipsychoticsChange || "0");
+        formData.append(
+          "antipsychoticsResidents",
+          antipsychoticsResidents || "",
+        );
       }
       if (worsenedPercentage) {
-        formData.append('worsenedPercentage', worsenedPercentage);
-        formData.append('worsenedChange', worsenedChange || '0');
-        formData.append('worsenedResidents', worsenedResidents || '');
+        formData.append("worsenedPercentage", worsenedPercentage);
+        formData.append("worsenedChange", worsenedChange || "0");
+        formData.append("worsenedResidents", worsenedResidents || "");
       }
       if (improvedPercentage) {
-        formData.append('improvedPercentage', improvedPercentage);
-        formData.append('improvedChange', improvedChange || '0');
-        formData.append('improvedResidents', improvedResidents || '');
+        formData.append("improvedPercentage", improvedPercentage);
+        formData.append("improvedChange", improvedChange || "0");
+        formData.append("improvedResidents", improvedResidents || "");
       }
 
-      const response = await fetch('/api/admin/process-behaviours', {
-        method: 'POST',
+      console.log("formData", formData.values());
+      const response = await fetch("/api/admin/process-behaviours", {
+        method: "POST",
         body: formData,
       });
 
@@ -226,19 +255,23 @@ export default function FileUpload() {
       // Start tracking progress if jobId is returned
       if (result.jobId) {
         setJobId(result.jobId);
-        setProgress({ percentage: 0, message: 'Processing started...', step: 'initializing' });
+        setProgress({
+          percentage: 0,
+          message: "Processing started...",
+          step: "initializing",
+        });
       }
 
       if (response.ok) {
         // Wait for progress to reach 100% before showing success
         if (!result.jobId) {
-          setMessage('Files and metrics processed successfully!');
+          setMessage("Files and metrics processed successfully!");
         }
-        
+
         // Track successful bulk processing
         const totalFiles = pdfFiles.length + excelFiles.length;
         const recordsExtracted = result.recordsExtracted || 0;
-        
+
         trackBulkFileProcessing({
           homeId: selectedHome,
           totalFiles,
@@ -249,35 +282,35 @@ export default function FileUpload() {
         });
 
         trackFormInteraction({
-          formName: 'file_upload',
-          action: 'submitted',
+          formName: "file_upload",
+          action: "submitted",
           timeToComplete: Date.now() - formStartTime.current,
           homeId: selectedHome,
         });
 
         setPdfFiles([]);
         setExcelFiles([]);
-        setSelectedHome('');
-        setAntipsychoticsPercentage('');
-        setAntipsychoticsChange('');
-        setAntipsychoticsResidents('');
-        setWorsenedPercentage('');
-        setWorsenedChange('');
-        setWorsenedResidents('');
-        setImprovedPercentage('');
-        setImprovedChange('');
-        setImprovedResidents('');
+        setSelectedHome("");
+        setAntipsychoticsPercentage("");
+        setAntipsychoticsChange("");
+        setAntipsychoticsResidents("");
+        setWorsenedPercentage("");
+        setWorsenedChange("");
+        setWorsenedResidents("");
+        setImprovedPercentage("");
+        setImprovedChange("");
+        setImprovedResidents("");
         setJobId(null);
-        setProgress({ percentage: 0, message: '', step: '' });
-        const pdfInput = document.getElementById('pdf') as HTMLInputElement;
-        const excelInput = document.getElementById('excel') as HTMLInputElement;
-        if (pdfInput) pdfInput.value = '';
-        if (excelInput) excelInput.value = '';
+        setProgress({ percentage: 0, message: "", step: "" });
+        const pdfInput = document.getElementById("pdf") as HTMLInputElement;
+        const excelInput = document.getElementById("excel") as HTMLInputElement;
+        if (pdfInput) pdfInput.value = "";
+        if (excelInput) excelInput.value = "";
       } else {
         setJobId(null);
-        setProgress({ percentage: 0, message: '', step: '' });
+        setProgress({ percentage: 0, message: "", step: "" });
         setMessage(`Error: ${result.error}`);
-        
+
         // Track processing error
         trackBulkFileProcessing({
           homeId: selectedHome,
@@ -289,9 +322,9 @@ export default function FileUpload() {
         });
 
         trackError({
-          errorType: 'processing_error',
-          errorMessage: result.error || 'Unknown error',
-          page: 'upload',
+          errorType: "processing_error",
+          errorMessage: result.error || "Unknown error",
+          page: "upload",
           homeId: selectedHome,
           context: {
             pdfCount: pdfFiles.length,
@@ -301,14 +334,16 @@ export default function FileUpload() {
       }
     } catch (error: unknown) {
       setJobId(null);
-      setProgress({ percentage: 0, message: '', step: '' });
-      setMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
+      setProgress({ percentage: 0, message: "", step: "" });
+      setMessage(
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+
       trackError({
-        errorType: 'processing_error',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorType: "processing_error",
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
         errorStack: error instanceof Error ? error.stack : undefined,
-        page: 'upload',
+        page: "upload",
         homeId: selectedHome,
         context: {
           pdfCount: pdfFiles.length,
@@ -325,13 +360,17 @@ export default function FileUpload() {
 
   // Update loading state based on progress
   useEffect(() => {
-    if (progress.percentage >= 100 || progress.step === 'error' || progress.step === 'complete') {
+    if (
+      progress.percentage >= 100 ||
+      progress.step === "error" ||
+      progress.step === "complete"
+    ) {
       setLoading(false);
-      if (progress.step === 'complete') {
+      if (progress.step === "complete") {
         // Clean up after a delay
         setTimeout(() => {
           setJobId(null);
-          setProgress({ percentage: 0, message: '', step: '' });
+          setProgress({ percentage: 0, message: "", step: "" });
         }, 3000);
       }
     }
@@ -344,7 +383,7 @@ export default function FileUpload() {
           <h3 className="text-base leading-6 font-medium text-gray-900">
             Upload Behaviour Files
           </h3>
-          <HelpIcon 
+          <HelpIcon
             title="Upload Behaviour Files"
             content="Upload and process behavioural data files for homes.
 
@@ -360,14 +399,17 @@ export default function FileUpload() {
 You can upload files only, enter metrics only, or do both. If no files are uploaded, only metrics will be saved."
           />
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <div className="flex items-center">
-              <label htmlFor="pdf" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="pdf"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Behaviour Notes PDF
               </label>
-              <HelpIcon 
+              <HelpIcon
                 title="Behaviour Notes PDF"
                 content="Upload PDF files containing behaviour notes. You can upload multiple PDF files. The system will process these files to extract behavioural data."
               />
@@ -391,9 +433,13 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
                   <label
                     htmlFor="pdf"
                     className="relative cursor-pointer bg-white rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
-                    style={{ color: '#0cc7ed' }}
-                    onMouseEnter={(e) => (e.target as HTMLLabelElement).style.color = '#0aa8c7'}
-                    onMouseLeave={(e) => (e.target as HTMLLabelElement).style.color = '#0cc7ed'}
+                    style={{ color: "#0cc7ed" }}
+                    onMouseEnter={(e) =>
+                      ((e.target as HTMLLabelElement).style.color = "#0aa8c7")
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.target as HTMLLabelElement).style.color = "#0cc7ed")
+                    }
                   >
                     <span>Upload a file</span>
                     <input
@@ -413,10 +459,14 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
             </div>
             {pdfFiles.length > 0 && (
               <div className="mt-2">
-                <p className="text-sm font-medium" style={{ color: '#06b6d4' }}>Selected {pdfFiles.length} file(s):</p>
+                <p className="text-sm font-medium" style={{ color: "#06b6d4" }}>
+                  Selected {pdfFiles.length} file(s):
+                </p>
                 <ul className="mt-1 text-sm text-gray-600">
                   {pdfFiles.map((file, index) => (
-                    <li key={index} className="truncate">• {file.name}</li>
+                    <li key={index} className="truncate">
+                      • {file.name}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -425,10 +475,13 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
 
           <div>
             <div className="flex items-center">
-              <label htmlFor="excel" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="excel"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Incident Report Excel
               </label>
-              <HelpIcon 
+              <HelpIcon
                 title="Incident Report Excel"
                 content="Upload Excel files (.xls or .xlsx) containing incident reports. You must upload the same number of Excel files as PDF files. The system will process these files to extract incident data."
               />
@@ -452,9 +505,13 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
                   <label
                     htmlFor="excel"
                     className="relative cursor-pointer bg-white rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
-                    style={{ color: '#0cc7ed' }}
-                    onMouseEnter={(e) => (e.target as HTMLLabelElement).style.color = '#0aa8c7'}
-                    onMouseLeave={(e) => (e.target as HTMLLabelElement).style.color = '#0cc7ed'}
+                    style={{ color: "#0cc7ed" }}
+                    onMouseEnter={(e) =>
+                      ((e.target as HTMLLabelElement).style.color = "#0aa8c7")
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.target as HTMLLabelElement).style.color = "#0cc7ed")
+                    }
                   >
                     <span>Upload a file</span>
                     <input
@@ -474,10 +531,14 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
             </div>
             {excelFiles.length > 0 && (
               <div className="mt-2">
-                <p className="text-sm font-medium" style={{ color: '#06b6d4' }}>Selected {excelFiles.length} file(s):</p>
+                <p className="text-sm font-medium" style={{ color: "#06b6d4" }}>
+                  Selected {excelFiles.length} file(s):
+                </p>
                 <ul className="mt-1 text-sm text-gray-600">
                   {excelFiles.map((file, index) => (
-                    <li key={index} className="truncate">• {file.name}</li>
+                    <li key={index} className="truncate">
+                      • {file.name}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -489,7 +550,7 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
               <h4 className="text-base font-medium text-gray-900">
                 Overview Metrics (Optional)
               </h4>
-              <HelpIcon 
+              <HelpIcon
                 title="Overview Metrics"
                 content="Enter high-level metrics for the behaviours dashboard. These metrics can be entered manually or will be extracted from uploaded files.
 
@@ -501,17 +562,20 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
               />
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              Enter overview metrics for the behaviours dashboard. If no files are uploaded, these metrics will be saved. If files are uploaded, metrics are optional.
+              Enter overview metrics for the behaviours dashboard. If no files
+              are uploaded, these metrics will be saved. If files are uploaded,
+              metrics are optional.
             </p>
-            
+
             <div className="space-y-6">
               {/* Antipsychotics Section */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center mb-3">
                   <h5 className="text-sm font-medium text-gray-700">
-                    % of Residents with Potentially Inappropriate Use of Antipsychotics
+                    % of Residents with Potentially Inappropriate Use of
+                    Antipsychotics
                   </h5>
-                  <HelpIcon 
+                  <HelpIcon
                     title="Antipsychotics Metric"
                     content="Track the percentage of residents who have potentially inappropriate use of antipsychotics. Enter the percentage value, change from previous period, and list of affected residents."
                   />
@@ -524,7 +588,9 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
                     <input
                       type="number"
                       value={antipsychoticsPercentage}
-                      onChange={(e) => setAntipsychoticsPercentage(e.target.value)}
+                      onChange={(e) =>
+                        setAntipsychoticsPercentage(e.target.value)
+                      }
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
                       placeholder="e.g., 15"
                     />
@@ -562,7 +628,7 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
                   <h5 className="text-sm font-medium text-gray-700">
                     % of Behaviours Worsened
                   </h5>
-                  <HelpIcon 
+                  <HelpIcon
                     title="Behaviours Worsened"
                     content="Track the percentage of behaviours that have worsened. Enter the percentage value, change from previous period, and list of residents whose behaviours worsened."
                   />
@@ -613,7 +679,7 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
                   <h5 className="text-sm font-medium text-gray-700">
                     % of Behaviours Improved
                   </h5>
-                  <HelpIcon 
+                  <HelpIcon
                     title="Behaviours Improved"
                     content="Track the percentage of behaviours that have improved. Enter the percentage value, change from previous period, and list of residents whose behaviours improved."
                   />
@@ -662,10 +728,13 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
 
           <div>
             <div className="flex items-center">
-              <label htmlFor="home" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="home"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Select Home
               </label>
-              <HelpIcon 
+              <HelpIcon
                 title="Select Home"
                 content="Select the home (care facility) that these files and metrics belong to. The data will be associated with this home in the dashboard."
               />
@@ -677,21 +746,24 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
               onChange={(e) => setSelectedHome(e.target.value)}
               disabled={loadingHomes}
               className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-              style={{ 
-                '--tw-ring-color': '#0cc7ed',
-                '--tw-border-color': '#0cc7ed'
-              } as React.CSSProperties}
+              style={
+                {
+                  "--tw-ring-color": "#0cc7ed",
+                  "--tw-border-color": "#0cc7ed",
+                } as React.CSSProperties
+              }
               onFocus={(e) => {
-                (e.target as HTMLSelectElement).style.borderColor = '#0cc7ed';
-                (e.target as HTMLSelectElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                (e.target as HTMLSelectElement).style.borderColor = "#0cc7ed";
+                (e.target as HTMLSelectElement).style.boxShadow =
+                  "0 0 0 3px rgba(12, 199, 237, 0.1)";
               }}
               onBlur={(e) => {
-                (e.target as HTMLSelectElement).style.borderColor = '#d1d5db';
-                (e.target as HTMLSelectElement).style.boxShadow = 'none';
+                (e.target as HTMLSelectElement).style.borderColor = "#d1d5db";
+                (e.target as HTMLSelectElement).style.boxShadow = "none";
               }}
             >
               <option value="">
-                {loadingHomes ? 'Loading homes...' : 'Select a home...'}
+                {loadingHomes ? "Loading homes..." : "Select a home..."}
               </option>
               {homes.map((home) => (
                 <option key={home.id} value={home.id}>
@@ -711,19 +783,19 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
               type="submit"
               disabled={loading || loadingHomes || !selectedHome}
               className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
-              style={{ backgroundColor: '#0cc7ed' }}
+              style={{ backgroundColor: "#0cc7ed" }}
               onMouseEnter={(e) => {
                 if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.backgroundColor = '#0aa8c7';
+                  e.currentTarget.style.backgroundColor = "#0aa8c7";
                 }
               }}
               onMouseLeave={(e) => {
                 if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.backgroundColor = '#0cc7ed';
+                  e.currentTarget.style.backgroundColor = "#0cc7ed";
                 }
               }}
             >
-              {loading ? 'Processing...' : 'Process Files'}
+              {loading ? "Processing..." : "Process Files"}
             </button>
           </div>
 
@@ -732,7 +804,7 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700">
-                  {progress.message || 'Processing...'}
+                  {progress.message || "Processing..."}
                 </span>
                 <span className="text-sm font-semibold text-gray-700">
                   {progress.percentage}%
@@ -743,23 +815,34 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
                   className="h-full transition-all duration-300 ease-out rounded-full"
                   style={{
                     width: `${progress.percentage}%`,
-                    background: progress.step === 'error' 
-                      ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'
-                      : 'linear-gradient(90deg, #06b6d4 0%, #0cc7ed 100%)',
-                    transition: 'width 0.5s ease-out'
+                    background:
+                      progress.step === "error"
+                        ? "linear-gradient(90deg, #ef4444 0%, #dc2626 100%)"
+                        : "linear-gradient(90deg, #06b6d4 0%, #0cc7ed 100%)",
+                    transition: "width 0.5s ease-out",
                   }}
                 />
               </div>
-              {progress.step && progress.step !== 'initializing' && progress.step !== 'complete' && progress.step !== 'error' && (
-                <p className="mt-1 text-xs text-gray-500 capitalize">
-                  Step: {progress.step.replace(/_/g, ' ')}
-                </p>
-              )}
+              {progress.step &&
+                progress.step !== "initializing" &&
+                progress.step !== "complete" &&
+                progress.step !== "error" && (
+                  <p className="mt-1 text-xs text-gray-500 capitalize">
+                    Step: {progress.step.replace(/_/g, " ")}
+                  </p>
+                )}
             </div>
           )}
 
           {message && (
-            <div className={`text-sm ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`} style={!message.includes('Error') && !message.includes('success') ? { color: '#06b6d4' } : {}}>
+            <div
+              className={`text-sm ${message.includes("Error") ? "text-red-600" : "text-green-600"}`}
+              style={
+                !message.includes("Error") && !message.includes("success")
+                  ? { color: "#06b6d4" }
+                  : {}
+              }
+            >
               {message}
             </div>
           )}
@@ -768,4 +851,3 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
     </div>
   );
 }
-
