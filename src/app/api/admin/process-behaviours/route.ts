@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
     }
     console.log('🐍 [PYTHON] Installing required packages...');
     try {
-      await execAsync(`${PYTHON_PATH} -m pip install --user --break-system-packages pdfplumber openai pandas python-dotenv openpyxl`);
+      await execAsync(`${PYTHON_PATH} -m pip install --break-system-packages numpy pdfplumber openai pandas python-dotenv openpyxl`);
       console.log('✅ [PYTHON] Packages installed successfully');
     } catch (pipErr) {
       console.log('⚠️ [PYTHON] Package installation warning:', pipErr);
