@@ -18,45 +18,30 @@ async function updateProgress(jobId: string, percentage: number, message: string
 }
 
 // Helper function to execute Python script with live output streaming
-function execPythonWithLiveOutput(
+async function execPythonWithLiveOutput(
   command: string,
   args: string[],
   options: { cwd: string; env: NodeJS.ProcessEnv }
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
-  return new Promise((resolve, reject) => {
-    const childProcess = spawn(command, args, {
+  const fullCommand = `${command} ${args.join(' ')}`;
+  try {
+    const { stdout, stderr } = await execAsync(fullCommand, {
       cwd: options.cwd,
-      env: { ...process.env, ...options.env },
-      stdio: ['ignore', 'pipe', 'pipe']
+      env: { ...process.env, ...options.env }
     });
-
-    let stdout = '';
-    let stderr = '';
-
-    childProcess.stdout?.on('data', (data: Buffer) => {
-      const output = data.toString();
-      stdout += output;
-      console.log(output);
-    });
-
-    childProcess.stderr?.on('data', (data: Buffer) => {
-      const output = data.toString();
-      stderr += output;
-      console.error(output);
-    });
-
-    childProcess.on('close', (code: number | null) => {
-      if (code === 0) {
-        resolve({ stdout, stderr, code });
-      } else {
-        reject(new Error(`Process exited with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`));
-      }
-    });
-
-    childProcess.on('error', (error: Error) => {
-      reject(error);
-    });
-  });
+    console.log(stdout);
+    if (stderr) {
+      console.error(stderr);
+    }
+    return { stdout, stderr, code: 0 };
+  } catch (error: unknown) {
+    const errorObj = error as { stdout?: string; stderr?: string; code?: number };
+    const stdout = errorObj.stdout || '';
+    const stderr = errorObj.stderr || '';
+    console.log(stdout);
+    console.error(stderr);
+    throw new Error(`Process exited with code ${errorObj.code || 0}\nstdout: ${stdout}\nstderr: ${stderr}`);
+  }
 }
 
 // Note: getAltName is no longer needed - we use getFirebaseIdAsync directly
