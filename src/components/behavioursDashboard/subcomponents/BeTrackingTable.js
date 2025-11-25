@@ -180,6 +180,8 @@ const s = {
         backgroundColor: '#fff',
         borderRadius: '8px',
         overflowX: 'auto',
+        overflowY: 'auto',
+        maxHeight: 'calc(100vh - 300px)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         border: '1px solid #e5e7eb',
     },
@@ -204,6 +206,9 @@ const s = {
         color: '#374151',
         verticalAlign: 'middle',
         whiteSpace: 'nowrap',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
     },
     radioHeader: {
         textAlign: 'center',
