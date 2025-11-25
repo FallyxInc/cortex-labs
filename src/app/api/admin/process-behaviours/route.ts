@@ -321,19 +321,19 @@ export async function POST(request: NextRequest) {
     await updateProgress(jobId, 15, 'All files saved successfully', 'files_saved');
     console.log('✅ [API] All files saved successfully');
 
-    await updateProgress(jobId, 16, 'Installing required Python packages...', 'installing_packages');
-    console.log('🐍 [PYTHON] Installing required packages...');
-    try {
-      await execAsync(`python3 -m pip install --user --break-system-packages pdfplumber openai pandas python-dotenv openpyxl httpx httpcore --upgrade`, {
-        cwd: chainDir,
-        env: { ...process.env, HOME_ID: homeNameForPython }
-      });
-      await updateProgress(jobId, 18, 'Packages installed successfully', 'packages_installed');
-      console.log('✅ [PYTHON] Packages installed successfully');
-    } catch (pipErr) {
-      await updateProgress(jobId, 18, 'Package installation completed (with warnings)', 'packages_installed');
-      console.log('⚠️ [PYTHON] Package installation warning:', pipErr);
-    }
+    // await updateProgress(jobId, 16, 'Installing required Python packages...', 'installing_packages');
+    // console.log('🐍 [PYTHON] Installing required packages...');
+    // try {
+    //   await execAsync(`python3 -m pip install --user --break-system-packages pdfplumber openai pandas python-dotenv openpyxl httpx httpcore --upgrade`, {
+    //     cwd: chainDir,
+    //     env: { ...process.env, HOME_ID: homeNameForPython }
+    //   });
+    //   await updateProgress(jobId, 18, 'Packages installed successfully', 'packages_installed');
+    //   console.log('✅ [PYTHON] Packages installed successfully');
+    // } catch (pipErr) {
+    //   await updateProgress(jobId, 18, 'Package installation completed (with warnings)', 'packages_installed');
+    //   console.log('⚠️ [PYTHON] Package installation warning:', pipErr);
+    // }
 
     await updateProgress(jobId, 20, 'Step 1: Processing Excel data...', 'processing_excel');
     console.log('🐍 [PYTHON] Step 1: Processing Excel data...');
