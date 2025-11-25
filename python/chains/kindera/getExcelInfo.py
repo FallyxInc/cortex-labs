@@ -128,32 +128,18 @@ def process_excel_file(input_file, output_file):
     if not os.path.exists(analyzed_dir):
         os.makedirs(analyzed_dir)
 
-    # Create subdirectories for each home
-    for home in homes:
-        home_dir = os.path.join(analyzed_dir, home.replace(" ", "_").replace("-", "_").lower())
-        if not os.path.exists(home_dir):
-            os.makedirs(home_dir)
-
-    # Determine the home name from the input file name
-    home_name = next((home for home in homes if home.lower().replace(" ", "_") in input_file.lower()), None)
-
-    if home_name:
-        home_dir = os.path.join(analyzed_dir, home_name.replace(" ", "_").replace("-", "_").lower())
+    # Extract date information from the filename
+    _, year, month, day = extract_info_from_filename(os.path.basename(input_file))
+    if year and month and day:
+        date_dir = os.path.join(analyzed_dir, f"{year}_{month}_{day}")
+        if not os.path.exists(date_dir):
+            os.makedirs(date_dir)
         
-        # Extract date information from the filename
-        _, year, month, day = extract_info_from_filename(os.path.basename(input_file))
-        if year and month and day:
-            date_dir = os.path.join(home_dir, f"{year}_{month}_{day}")
-            if not os.path.exists(date_dir):
-                os.makedirs(date_dir)
-            
-            # Save the CSV in the date-specific subdirectory
-            new_df.to_csv(os.path.join(date_dir, f"{os.path.splitext(os.path.basename(input_file))[0]}_processed_incidents.csv"), index=False)
-            logging.info(f"CSV file created successfully: {os.path.join(date_dir, f'{os.path.splitext(os.path.basename(input_file))[0]}_processed_incidents.csv')}")
-        else:
-            logging.info(f"Date information not found in file name: {input_file}")
+        # Save the CSV in the date-specific subdirectory (no home subfolder)
+        new_df.to_csv(os.path.join(date_dir, f"{os.path.splitext(os.path.basename(input_file))[0]}_processed_incidents.csv"), index=False)
+        logging.info(f"CSV file created successfully: {os.path.join(date_dir, f'{os.path.splitext(os.path.basename(input_file))[0]}_processed_incidents.csv')}")
     else:
-        logging.info(f"No matching home name found for file: {input_file}")
+        logging.info(f"Date information not found in file name: {input_file}")
 
 def main():
     # Get the downloads directory path

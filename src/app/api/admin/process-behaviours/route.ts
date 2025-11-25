@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir, stat, readdir, unlink } from 'fs/promises';
+import { writeFile, mkdir, stat, readdir, unlink, rm } from 'fs/promises';
 import { join } from 'path';
 import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { promisify } from 'util';
 import { adminDb } from '@/lib/firebase-admin';
 import { getFirebaseIdAsync, getHomeNameAsync, validateHomeMappingAsync, getPythonDirName, getHomeName } from '@/lib/homeMappings';
@@ -14,6 +15,48 @@ async function updateProgress(jobId: string, percentage: number, message: string
   // Store progress in memory
   progressStore.set(jobId, { percentage, message, step });
   console.log(`📊 [PROGRESS ${percentage}%] ${step}: ${message}`);
+}
+
+// Helper function to execute Python script with live output streaming
+function execPythonWithLiveOutput(
+  command: string,
+  args: string[],
+  options: { cwd: string; env: NodeJS.ProcessEnv }
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  return new Promise((resolve, reject) => {
+    const childProcess = spawn(command, args, {
+      cwd: options.cwd,
+      env: { ...process.env, ...options.env },
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    childProcess.stdout?.on('data', (data: Buffer) => {
+      const output = data.toString();
+      stdout += output;
+      console.log(output);
+    });
+
+    childProcess.stderr?.on('data', (data: Buffer) => {
+      const output = data.toString();
+      stderr += output;
+      console.error(output);
+    });
+
+    childProcess.on('close', (code: number | null) => {
+      if (code === 0) {
+        resolve({ stdout, stderr, code });
+      } else {
+        reject(new Error(`Process exited with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`));
+      }
+    });
+
+    childProcess.on('error', (error: Error) => {
+      reject(error);
+    });
+  });
 }
 
 // Note: getAltName is no longer needed - we use getFirebaseIdAsync directly
@@ -183,6 +226,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Extract date from first file (PDF or Excel) - format: {home_name}_{month}-{day}-{year}
+    let year: string | null = null;
+    let month: string | null = null;
+    let day: string | null = null;
+    
+    const firstFile = pdfFiles[0] || excelFiles[0];
+    if (firstFile) {
+      const dateMatch = firstFile.name.match(/(\d{2})-(\d{2})-(\d{4})/);
+      if (dateMatch) {
+        month = dateMatch[1];
+        day = dateMatch[2];
+        year = dateMatch[3];
+        console.log(`📅 [API] Extracted date from filename: year=${year}, month=${month}, day=${day}`);
+      } else {
+        console.warn(`⚠️ [API] Could not extract date from filename: ${firstFile.name}`);
+      }
+    }
+
     // Get chain-based Python directory instead of individual home directory
     console.log('🏠 [API] Extraction type: ', extractionType);
     console.log('🏠 [API] Home: ', home);
@@ -215,6 +276,26 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       // Directory might not exist yet or be empty, which is fine
       console.log('ℹ️ [API] Downloads directory empty or doesn\'t exist yet');
+    }
+
+    // Clear analyze directory before processing
+    console.log('🧹 [API] Clearing analyze directory...');
+    const analyzeDir = join(chainDir, 'analyzed');
+    try {
+      await mkdir(analyzeDir, { recursive: true });
+      const existingAnalyzedFiles = await readdir(analyzeDir, { withFileTypes: true });
+      for (const entry of existingAnalyzedFiles) {
+        const fullPath = join(analyzeDir, entry.name);
+        if (entry.isDirectory()) {
+          // Recursively remove directory
+          await rm(fullPath, { recursive: true, force: true });
+        } else {
+          await unlink(fullPath);
+        }
+      }
+      console.log(`✅ [API] Cleared ${existingAnalyzedFiles.length} item(s) from analyze directory`);
+    } catch (err) {
+      console.log('ℹ️ [API] Analyze directory empty or doesn\'t exist yet');
     }
     
     for (const file of pdfFiles) {
@@ -282,11 +363,14 @@ export async function POST(request: NextRequest) {
       console.log(`🔧 [PYTHON] Executing: python3 getExcelInfo.py ${homeNameForPython}`);
       console.log(`📁 [PYTHON] Working directory: ${chainDir}`);
       console.log(`🏠 [PYTHON] Home ID: ${homeNameForPython}`);
+      console.log('📊 [PYTHON] Live output:');
+      console.log('='.repeat(80));
       
-      const excelResult = await execAsync(`python3 getExcelInfo.py ${homeNameForPython}`, {
+      const excelResult = await execPythonWithLiveOutput('python3', ['getExcelInfo.py', homeNameForPython], {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
+      console.log('='.repeat(80));
       const excelDuration = ((Date.now() - excelStartTime) / 1000).toFixed(2);
       await updateProgress(jobId, 30, `Excel processing completed in ${excelDuration}s`, 'excel_complete');
       console.log(`✅ [PYTHON] Excel processing completed in ${excelDuration}s`);
@@ -341,11 +425,14 @@ export async function POST(request: NextRequest) {
       console.log(`🏠 [PYTHON] Home ID: ${homeNameForPython}`);
       console.log(`⏳ [PYTHON] Starting PDF processing at ${new Date().toISOString()}...`);
       console.log(`💡 [PYTHON] This step involves text extraction and AI processing, which can take several minutes...`);
+      console.log('📊 [PYTHON] Live output:');
+      console.log('='.repeat(80));
       
-      const pdfResult = await execAsync(`python3 getPdfInfo.py ${homeNameForPython}`, {
+      const pdfResult = await execPythonWithLiveOutput('python3', ['getPdfInfo.py', homeNameForPython], {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
+      console.log('='.repeat(80));
       const pdfDuration = ((Date.now() - pdfStartTime) / 1000).toFixed(2);
       const pdfDurationMinutes = (parseFloat(pdfDuration) / 60).toFixed(2);
       await updateProgress(jobId, 60, `PDF processing completed in ${pdfDuration}s (${pdfDurationMinutes} minutes)`, 'pdf_complete');
@@ -384,10 +471,14 @@ export async function POST(request: NextRequest) {
     try {
       await updateProgress(jobId, 65, 'Executing behaviour data generation script...', 'generating_behaviour');
       console.log(`🔧 [PYTHON] Executing: python3 getBe.py ${homeNameForPython}`);
-      const behaviourResult = await execAsync(`python3 getBe.py ${homeNameForPython}`, {
+      console.log('📊 [PYTHON] Live output:');
+      console.log('='.repeat(80));
+      
+      const behaviourResult = await execPythonWithLiveOutput('python3', ['getBe.py', homeNameForPython], {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
+      console.log('='.repeat(80));
       const behaviourDuration = ((Date.now() - behaviourStartTime) / 1000).toFixed(2);
       await updateProgress(jobId, 75, `Behaviour data generation completed in ${behaviourDuration}s`, 'behaviour_complete');
       console.log(`✅ [PYTHON] Behaviour data generation completed in ${behaviourDuration}s`);
@@ -413,11 +504,18 @@ export async function POST(request: NextRequest) {
     const updateStartTime = Date.now();
     try {
       await updateProgress(jobId, 80, 'Executing dashboard update script...', 'updating_dashboard');
-      console.log(`🔧 [PYTHON] Executing: python3 update.py ${homeNameForPython}`);
-      const dashboardResult = await execAsync(`python3 update.py ${homeNameForPython}`, {
+      const updateArgs = year && month && day 
+        ? ['update.py', homeNameForPython, year, month, day]
+        : ['update.py', homeNameForPython];
+      console.log(`🔧 [PYTHON] Executing: python3 ${updateArgs.join(' ')}`);
+      console.log('📊 [PYTHON] Live output:');
+      console.log('='.repeat(80));
+      
+      const dashboardResult = await execPythonWithLiveOutput('python3', updateArgs, {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
+      console.log('='.repeat(80));
       const updateDuration = ((Date.now() - updateStartTime) / 1000).toFixed(2);
       await updateProgress(jobId, 90, `Dashboard updated successfully in ${updateDuration}s`, 'dashboard_updated');
       console.log(`✅ [PYTHON] Dashboard updated successfully in ${updateDuration}s`);
@@ -443,11 +541,18 @@ export async function POST(request: NextRequest) {
     const uploadStartTime = Date.now();
     try {
       await updateProgress(jobId, 95, 'Executing dashboard upload script...', 'uploading_dashboard');
-      console.log(`🔧 [PYTHON] Executing: python3 upload_to_dashboard.py ${homeNameForPython}`);
-      const uploadResult = await execAsync(`python3 upload_to_dashboard.py ${homeNameForPython}`, {
+      const uploadArgs = year && month && day 
+        ? ['upload_to_dashboard.py', homeNameForPython, year, month, day]
+        : ['upload_to_dashboard.py', homeNameForPython];
+      console.log(`🔧 [PYTHON] Executing: python3 ${uploadArgs.join(' ')}`);
+      console.log('📊 [PYTHON] Live output:');
+      console.log('='.repeat(80));
+      
+      const uploadResult = await execPythonWithLiveOutput('python3', uploadArgs, {
         cwd: chainDir,
         env: { ...process.env, HOME_ID: homeNameForPython }
       });
+      console.log('='.repeat(80));
       const uploadDuration = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
       await updateProgress(jobId, 100, `Processing completed successfully in ${uploadDuration}s!`, 'complete');
       console.log(`✅ [PYTHON] Dashboard uploaded successfully in ${uploadDuration}s`);

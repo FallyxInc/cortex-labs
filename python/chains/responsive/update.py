@@ -51,7 +51,7 @@ class FirebaseSynchronizer:
            })
 
            firebase_admin.initialize_app(cred, {
-               'databaseURL': 'https://fallyx-9d599-default-rtdb.firebaseio.com/'
+               'databaseURL': os.getenv('FIREBASE_DATABASE_URL')
            })
 
        self.db_ref = db.reference()
@@ -203,15 +203,22 @@ class FirebaseSynchronizer:
 
        print(f"Updated CSV file saved: {filepath}")
 
-def process_merged_csv_files(analyzed_folder, firebase_credentials_path):
+def process_merged_csv_files(analyzed_folder, firebase_credentials_path, home_id=None, year=None, month=None, day=None):
     
    synchronizer = FirebaseSynchronizer(firebase_credentials_path)
    print("Processing")
 
-   for root, dirs, files in os.walk(analyzed_folder):
-       for file in files:
+   if home_id and year and month and day:
+       date_folder = f"{year}_{month}_{day}"
+       target_path = os.path.join(analyzed_folder, date_folder)
+       
+       if not os.path.exists(target_path):
+           print(f"Error: Path does not exist: {target_path}")
+           return
+       
+       for file in os.listdir(target_path):
            if file.endswith('merged.csv'):
-               full_filepath = os.path.join(root, file)
+               full_filepath = os.path.join(target_path, file)
                print(f"Processing file: {full_filepath}")
 
                try:
@@ -220,18 +227,41 @@ def process_merged_csv_files(analyzed_folder, firebase_credentials_path):
                    print(f"Error processing {full_filepath}: {e}")
                    import traceback
                    traceback.print_exc()
+   else:
+       for root, dirs, files in os.walk(analyzed_folder):
+           for file in files:
+               if file.endswith('merged.csv'):
+                   full_filepath = os.path.join(root, file)
+                   print(f"Processing file: {full_filepath}")
+
+                   try:
+                       synchronizer.sync_firebase_with_csv(full_filepath)
+                   except Exception as e:
+                       print(f"Error processing {full_filepath}: {e}")
+                       import traceback
+                       traceback.print_exc()
 
 def main():
+   import sys
    FIREBASE_CREDENTIALS_PATH = 'fallyx-9d599-firebase-adminsdk-9la8z-5a980c16fd.json'
    ANALYZED_FOLDER_PATH = 'analyzed'
 
-   # Check if credentials file exists
-#    if not os.path.exists(FIREBASE_CREDENTIALS_PATH):
-#        print(f"Warning: Firebase credentials file not found at {FIREBASE_CREDENTIALS_PATH}")
-#        print("Skipping Firebase sync operations.")
-#        return
-   print("HELLO")
-   process_merged_csv_files(ANALYZED_FOLDER_PATH, FIREBASE_CREDENTIALS_PATH)
+   home_id = None
+   year = None
+   month = None
+   day = None
+
+   if len(sys.argv) >= 5:
+       home_id = sys.argv[1]
+       year = sys.argv[2]
+       month = sys.argv[3]
+       day = sys.argv[4]
+       print(f"Processing for home_id={home_id}, year={year}, month={month}, day={day}")
+   else:
+       print("Usage: python3 update.py [home_id] [year] [month] [day]")
+       print("If no arguments provided, will process all merged.csv files in analyzed folder")
+
+   process_merged_csv_files(ANALYZED_FOLDER_PATH, FIREBASE_CREDENTIALS_PATH, home_id, year, month, day)
 
 if __name__ == "__main__":
    main()

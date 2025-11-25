@@ -927,12 +927,6 @@ def main(api_key: str):
     if not os.path.exists(analyzed_dir):
         os.makedirs(analyzed_dir)
 
-    # Create subdirectories for each home
-    for home in homes:
-        home_dir = os.path.join(analyzed_dir, home.replace(" ", "_").replace("-", "_").lower())
-        if not os.path.exists(home_dir):
-            os.makedirs(home_dir)
-
     for pdf_path in pdf_files:
         logging.info(f"Starting PDF parsing process for: {pdf_path}")
         
@@ -943,33 +937,25 @@ def main(api_key: str):
         
         entries = getAllFallNotesInfo(pagesText)
         
-        # Determine the home name from the PDF file name
-        home_name = next((home for home in homes if home.lower().replace(" ", "_") in pdf_path.lower()), None)
-
-        if home_name:
-            home_dir = os.path.join(analyzed_dir, home_name.replace(" ", "_").replace("-", "_").lower())
+        # Extract date information from the filename
+        _, year, month, day = extract_info_from_filename(os.path.basename(pdf_path))
+        if year and month and day:
+            date_dir = os.path.join(analyzed_dir, f"{year}_{month}_{day}")
+            if not os.path.exists(date_dir):
+                os.makedirs(date_dir)
             
-            # Extract date information from the filename
-            _, year, month, day = extract_info_from_filename(os.path.basename(pdf_path))
-            if year and month and day:
-                date_dir = os.path.join(home_dir, f"{year}_{month}_{day}")
-                if not os.path.exists(date_dir):
-                    os.makedirs(date_dir)
-                
-                # Save the CSV in the date-specific subdirectory
-                output_csv = os.path.join(date_dir, f"{os.path.splitext(os.path.basename(pdf_path))[0]}_behaviour_incidents.csv")
-                save_to_csv(entries, output_csv)
-                csvLook(output_csv)
-                csvRemoveHeader(output_csv)
-                add_previous_day_injuries(output_csv)
-                add_injuries_column(output_csv)
-                clean_injury_list(output_csv)
-                add_head_injury_column(output_csv)
-                searchFalls(output_csv)
-            else:
-                logging.error(f"Date information not found in PDF file: {pdf_path}")
+            # Save the CSV in the date-specific subdirectory (no home subfolder)
+            output_csv = os.path.join(date_dir, f"{os.path.splitext(os.path.basename(pdf_path))[0]}_behaviour_incidents.csv")
+            save_to_csv(entries, output_csv)
+            csvLook(output_csv)
+            csvRemoveHeader(output_csv)
+            add_previous_day_injuries(output_csv)
+            add_injuries_column(output_csv)
+            clean_injury_list(output_csv)
+            add_head_injury_column(output_csv)
+            searchFalls(output_csv)
         else:
-            logging.error(f"Home name not found in PDF file: {pdf_path}")
+            logging.error(f"Date information not found in PDF file: {pdf_path}")
     
     logging.info("Process completed")
 

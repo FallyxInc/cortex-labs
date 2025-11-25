@@ -93,33 +93,27 @@ def extract_info_from_filename(filename):
         return dashboard, year, month
     return None, None, None
 
-def process_csv_files(base_directory):
-    # Dictionary to store files by dashboard and date
-    files_by_dashboard = {}
-
-    for root, dirs, files in os.walk(base_directory):
-        for file in files:
-            if file.endswith('_merged.csv') or file.endswith('_follow.csv'):
-                filename = os.path.join(root, file)
-                dashboard, year, month = extract_info_from_filename(filename)
-
-                if dashboard and year and month:
-                    # Create a key for the dashboard
-                    if dashboard not in files_by_dashboard:
-                        files_by_dashboard[dashboard] = []
-                    
-                    # Add the file to the list for this dashboard
-                    files_by_dashboard[dashboard].append((filename, year, month))
-
-    # Process all files for each dashboard
-    for dashboard, files in files_by_dashboard.items():
-        print(f'\nProcessing Dashboard: {dashboard}')
-        for filename, year, month in files:
-            print(f'\nUploading file: {filename}')
-            print(f'Year: {year}, Month: {month}')
-            
-            
-            if dashboard != 'unknown':
+def process_csv_files(base_directory, home_id=None, year=None, month=None, day=None):
+    if home_id and year and month and day:
+        date_folder = f"{year}_{month}_{day}"
+        target_path = os.path.join(base_directory, date_folder)
+        
+        if not os.path.exists(target_path):
+            print(f"Error: Path does not exist: {target_path}")
+            return
+        
+        dashboard = homes_dict.get(home_id, 'unknown')
+        
+        if dashboard == 'unknown':
+            print(f"Error: Unknown home_id: {home_id}")
+            dashboard = home_id
+        
+        for file in os.listdir(target_path):
+            if file.endswith('merged.csv') or file.endswith('follow.csv'):
+                filename = os.path.join(target_path, file)
+                print(f'\nUploading file: {filename}')
+                print(f'Year: {year}, Month: {month}')
+                
                 if filename.endswith('merged.csv'):
                     print("Uploading to behaviours")
                     upload_csv_to_firebase(filename, f'{dashboard}/behaviours', year, month)
@@ -128,10 +122,56 @@ def process_csv_files(base_directory):
                     print("Uploading to follow")
                     upload_csv_to_firebase(filename, f'{dashboard}/follow', year, month)
                     print(f"Successfully uploaded to firebase at {dashboard}/follow/{year}/{month}")
-                
-            else:
-                print(f"Skipping unknown dashboard for file: {filename}")
+    else:
+        files_by_dashboard = {}
 
-# Example usage
-base_directory = 'analyzed'
-process_csv_files(base_directory)  
+        for root, dirs, files in os.walk(base_directory):
+            for file in files:
+                if file.endswith('_merged.csv') or file.endswith('_follow.csv'):
+                    filename = os.path.join(root, file)
+                    dashboard, year, month = extract_info_from_filename(filename)
+
+                    if dashboard and year and month:
+                        if dashboard not in files_by_dashboard:
+                            files_by_dashboard[dashboard] = []
+                        
+                        files_by_dashboard[dashboard].append((filename, year, month))
+
+        for dashboard, files in files_by_dashboard.items():
+            print(f'\nProcessing Dashboard: {dashboard}')
+            for filename, year, month in files:
+                print(f'\nUploading file: {filename}')
+                print(f'Year: {year}, Month: {month}')
+                
+                if dashboard != 'unknown':
+                    if filename.endswith('merged.csv'):
+                        print("Uploading to behaviours")
+                        upload_csv_to_firebase(filename, f'{dashboard}/behaviours', year, month)
+                        print(f"Successfully uploaded to firebase at {dashboard}/behaviours/{year}/{month}")
+                    elif filename.endswith('follow.csv'):
+                        print("Uploading to follow")
+                        upload_csv_to_firebase(filename, f'{dashboard}/follow', year, month)
+                        print(f"Successfully uploaded to firebase at {dashboard}/follow/{year}/{month}")
+                else:
+                    print(f"Skipping unknown dashboard for file: {filename}")
+
+if __name__ == "__main__":
+    import sys
+    base_directory = 'analyzed'
+    
+    home_id = None
+    year = None
+    month = None
+    day = None
+
+    if len(sys.argv) >= 5:
+        home_id = sys.argv[1]
+        year = sys.argv[2]
+        month = sys.argv[3]
+        day = sys.argv[4]
+        print(f"Processing for home_id={home_id}, year={year}, month={month}, day={day}")
+    else:
+        print("Usage: python3 upload_to_dashboard.py [home_id] [year] [month] [day]")
+        print("If no arguments provided, will process all CSV files in analyzed folder")
+    
+    process_csv_files(base_directory, home_id, year, month, day)  
