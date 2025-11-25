@@ -64,7 +64,7 @@ except Exception as e:
 # Function to upload CSV data to Firebase
 def upload_csv_to_firebase(csv_file_path, dashboard, year, month):
     # Construct the database reference path (no subfolders)
-    ref_path = f'{dashboard}'
+    ref_path = f'{dashboard}/{year}/{month}'
     ref = db.reference(ref_path)
 
     try:

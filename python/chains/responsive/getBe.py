@@ -407,6 +407,7 @@ def collect_other_notes(row, df_notes):
 
     for index, r in df_notes.iterrows():
         if (r['Type'] in other_note_types and 
+            pd.notna(r['Resident Name']) and
             r['Resident Name'] == row['name']):
             note_datetime = pd.to_datetime(r['Effective Date'])
             time_diff = abs(note_datetime - row['datetime'])

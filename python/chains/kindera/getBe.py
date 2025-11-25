@@ -8,6 +8,7 @@ from homes_db import homes_dict
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../.env'))
+# load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), './.env'))
 
 def get_poa_contact_status(text):
     """
@@ -428,7 +429,7 @@ def collect_other_notes(row, df_notes):
 
     for index, r in df_notes.iterrows():
         if (r['Type'] in other_note_types and 
-            pd.notna(r['name']) and
+            pd.notna(r['Resident Name']) and
             r['Resident Name'] == row['name']):
             note_datetime = pd.to_datetime(r['Effective Date'])
             time_diff = abs(note_datetime - row['datetime'])
@@ -658,8 +659,11 @@ def merge_behaviour_data(processed_csv, behaviour_csv, output_file, openai_api_k
     df_processed['datetime'] = pd.to_datetime(df_processed['date'] + ' ' + df_processed['time'])
     df_behaviour['Effective Date'] = pd.to_datetime(df_behaviour['Effective Date'])
     
+    print("Processing behaviour notes...")
     # Process behaviour notes
     df_behaviour_processed = process_behaviour_notes(df_behaviour)
+    
+    print("Behaviour notes processed")
     
     # Initialize the merged dataframe with processed data
     df_merged = df_processed.copy()
@@ -736,6 +740,7 @@ def merge_behaviour_data(processed_csv, behaviour_csv, output_file, openai_api_k
         df_merged['who_affected'] = 'Resident Initiated'  # fallback if no key provided
     df_merged['code_white'] = df_merged.apply(check_code_white, axis=1)
     df_merged['prn'] = df_merged.apply(check_prn, axis=1)
+    print("Code white and PRN added")
     
     # Add other_notes column
     df_merged['other_notes'] = df_merged.apply(
@@ -743,13 +748,14 @@ def merge_behaviour_data(processed_csv, behaviour_csv, output_file, openai_api_k
         axis=1,
         df_notes=df_behaviour
     )
+    print("Other notes added")
     # Add summary column using OpenAI
     if openai_api_key:
         print("\nGenerating summaries for each incident using OpenAI...")
         df_merged['summary'] = df_merged.apply(lambda row: gpt_summarize_incident(row, openai_api_key), axis=1)
     else:
         df_merged['summary'] = ''
-    
+    print("Summaries added")
     # Add CI column
     if openai_api_key:
         print("\nDetermining CI status for each incident...")
