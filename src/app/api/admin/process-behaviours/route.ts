@@ -23,11 +23,27 @@ async function execPythonWithLiveOutput(
   args: string[],
   options: { cwd: string; env: NodeJS.ProcessEnv }
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  // Find zlib library path dynamically
+  const findZlibCmd = 'find /nix/store -name "libz.so.1" -exec dirname {} \\; 2>/dev/null | head -1';
+  let zlibPath = '';
+  try {
+    const { stdout: zlibOut } = await execAsync(findZlibCmd);
+    zlibPath = zlibOut.trim();
+  } catch {
+    console.warn('⚠️ Could not find zlib path, continuing without it');
+  }
+
+  // Set LD_LIBRARY_PATH with zlib location
+  const env = {
+    ...process.env,
+    ...options.env,
+    LD_LIBRARY_PATH: zlibPath ? `${zlibPath}:${process.env.LD_LIBRARY_PATH || ''}` : process.env.LD_LIBRARY_PATH || ''
+  };
+
   const fullCommand = `cd ${options.cwd} && ${PYTHON_PATH} ${args.join(' ')}`;
   console.log('🐍 [PYTHON] Executing:', fullCommand);
   try {
-    const { stdout, stderr } = await execAsync(fullCommand, {
-    });
+    const { stdout, stderr } = await execAsync(fullCommand, { env });
     console.log(stdout);
     if (stderr) {
       console.error(stderr);
