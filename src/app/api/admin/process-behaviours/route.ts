@@ -23,11 +23,9 @@ async function execPythonWithLiveOutput(
   args: string[],
   options: { cwd: string; env: NodeJS.ProcessEnv }
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
-  const fullCommand = `${command} ${args.join(' ')}`;
+  const fullCommand = `cd ${options.cwd} && ${command} ${args.join(' ')}`;
   try {
     const { stdout, stderr } = await execAsync(fullCommand, {
-      cwd: options.cwd,
-      env: { ...process.env, ...options.env }
     });
     console.log(stdout);
     if (stderr) {
@@ -348,8 +346,6 @@ export async function POST(request: NextRequest) {
       console.log(`🔧 [PYTHON] Executing: python3 getExcelInfo.py ${homeNameForPython}`);
       console.log(`📁 [PYTHON] Working directory: ${chainDir}`);
       console.log(`🏠 [PYTHON] Home ID: ${homeNameForPython}`);
-      console.log('📊 [PYTHON] Live output:');
-      console.log('='.repeat(80));
       
       const excelResult = await execPythonWithLiveOutput('python3', ['getExcelInfo.py', homeNameForPython], {
         cwd: chainDir,
@@ -410,8 +406,6 @@ export async function POST(request: NextRequest) {
       console.log(`🏠 [PYTHON] Home ID: ${homeNameForPython}`);
       console.log(`⏳ [PYTHON] Starting PDF processing at ${new Date().toISOString()}...`);
       console.log(`💡 [PYTHON] This step involves text extraction and AI processing, which can take several minutes...`);
-      console.log('📊 [PYTHON] Live output:');
-      console.log('='.repeat(80));
       
       const pdfResult = await execPythonWithLiveOutput('python3', ['getPdfInfo.py', homeNameForPython], {
         cwd: chainDir,
@@ -456,8 +450,6 @@ export async function POST(request: NextRequest) {
     try {
       await updateProgress(jobId, 65, 'Executing behaviour data generation script...', 'generating_behaviour');
       console.log(`🔧 [PYTHON] Executing: python3 getBe.py ${homeNameForPython}`);
-      console.log('📊 [PYTHON] Live output:');
-      console.log('='.repeat(80));
       
       const behaviourResult = await execPythonWithLiveOutput('python3', ['getBe.py', homeNameForPython], {
         cwd: chainDir,
@@ -493,8 +485,6 @@ export async function POST(request: NextRequest) {
         ? ['update.py', homeNameForPython, year, month, day]
         : ['update.py', homeNameForPython];
       console.log(`🔧 [PYTHON] Executing: python3 ${updateArgs.join(' ')}`);
-      console.log('📊 [PYTHON] Live output:');
-      console.log('='.repeat(80));
       
       const dashboardResult = await execPythonWithLiveOutput('python3', updateArgs, {
         cwd: chainDir,
@@ -530,8 +520,6 @@ export async function POST(request: NextRequest) {
         ? ['upload_to_dashboard.py', homeNameForPython, year, month, day]
         : ['upload_to_dashboard.py', homeNameForPython];
       console.log(`🔧 [PYTHON] Executing: python3 ${uploadArgs.join(' ')}`);
-      console.log('📊 [PYTHON] Live output:');
-      console.log('='.repeat(80));
       
       const uploadResult = await execPythonWithLiveOutput('python3', uploadArgs, {
         cwd: chainDir,
