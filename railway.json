@@ -8,7 +8,7 @@
     }
   },
   "deploy": {
-    "startCommand": "source /opt/venv/bin/activate.sh; npm run start",
+    "startCommand": "source /opt/venv/bin/activate; npm run start",
     "healthcheckPath": "/",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",

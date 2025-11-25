@@ -13,7 +13,7 @@ cmds = [
 cmds = ["npm run build"]
 
 [start]
-cmd = "source /opt/venv/bin/activate.sh; npm run start"
+cmd = "source /opt/venv/bin/activate; npm run start"
 
 [variables]
 NODE_ENV = "production"
