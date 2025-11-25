@@ -6,6 +6,7 @@ export default function ONCB() {
   return (
     <BehavioursDashboard
       name="ONCB"
+      firebaseId="oneill"
       title="The O'Neill Centre Behaviours Dashboard"
       goal={15}
     />

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import MixpanelProvider from "@/components/MixpanelProvider";
 
 export const metadata: Metadata = {
   title: "Fallyx Behaviours Dashboard",
@@ -13,7 +14,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      {/* Inter variable font is loaded via @import in globals.css with full weight range (100-900) */}
+      {/* Next.js automatically handles preconnect optimization for Google Fonts */}
+      <body>
+        <MixpanelProvider>{children}</MixpanelProvider>
+      </body>
     </html>
   );
 }

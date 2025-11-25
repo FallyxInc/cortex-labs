@@ -80,33 +80,43 @@ const BeTrackingTable = ({filteredData, cleanDuplicateText, storageKey = 'behavi
                         const triggersHasCompliance = triggersText.includes('No Progress') && triggersText.includes('24hrs of RIM');
                         const interventionsHasCompliance = interventionsText.includes('No Progress') && interventionsText.includes('24hrs of RIM');
 
+                        // Strikethrough style for selected rows
+                        const strikethroughStyle = isSelected ? { textDecoration: 'line-through', opacity: 0.6 } : {};
+
                         return (
                             <tr key={i} style={s.tableRow}>
-                                <td style={{ ...s.tableCell, ...s.radioCell }}>
+                                <td 
+                                    style={{ ...s.tableCell, ...s.radioCell }}
+                                    onClick={() => handleRadioChange(item.incident_number)}
+                                >
                                     <input
                                         type="radio"
                                         name="table-selection"
                                         checked={isSelected}
                                         onChange={() => handleRadioChange(item.incident_number)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRadioChange(item.incident_number);
+                                        }}
                                         style={s.radioInput}
                                     />
                                 </td>
-                                <td style={s.tableCell}>{item.incident_number}</td>
-                                <td style={s.tableCell}>{item.name}</td>
-                                <td style={s.tableCell}>{item.date}</td>
-                                <td style={s.tableCell}>{item.incident_location}</td>
-                                <td style={s.tableCell}>{item.incident_type}</td>
-                                <td style={s.tableCell}>{item.who_affected}</td>
-                                <td style={s.tableCell}>{item.prn}</td>
-                                <td style={s.tableCell}>{item.code_white}</td>
-                                <td style={{ ...s.tableCell, ...(summaryHasCompliance ? s.highlightRed : {}) }}>{item.summary}</td>
-                                <td style={{ ...s.tableCell, ...(triggersHasCompliance ? s.highlightRed : {}) }}>{triggersText}</td>
-                                <td style={{ ...s.tableCell, ...(interventionsHasCompliance ? s.highlightRed : {}) }}>{interventionsText}</td>
-                                <td style={s.tableCell}>{item.injuries}</td>
-                                <td style={{ ...s.tableCell, ...(filteredData && !filteredData.some(dataItem => dataItem.other_notes) ? s.lastCell : {}) }}>{item.CI || "Still Gathering Data/Unknown"}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.incident_number}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.name}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.date}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.incident_location}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.incident_type}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.who_affected}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.prn}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.code_white}</td>
+                                <td style={{ ...s.tableCell, ...(summaryHasCompliance ? s.highlightRed : {}), ...strikethroughStyle }}>{item.summary}</td>
+                                <td style={{ ...s.tableCell, ...(triggersHasCompliance ? s.highlightRed : {}), ...strikethroughStyle }}>{triggersText}</td>
+                                <td style={{ ...s.tableCell, ...(interventionsHasCompliance ? s.highlightRed : {}), ...strikethroughStyle }}>{interventionsText}</td>
+                                <td style={{ ...s.tableCell, ...strikethroughStyle }}>{item.injuries}</td>
+                                <td style={{ ...s.tableCell, ...(filteredData && !filteredData.some(dataItem => dataItem.other_notes) ? s.lastCell : {}), ...strikethroughStyle }}>{item.CI || "Still Gathering Data/Unknown"}</td>
                                 {/* Conditionally render Other Notes cell if any item has other_notes */}
                                 {filteredData && filteredData.some(dataItem => dataItem.other_notes) && (
-                                    <td style={{ ...s.tableCell, ...s.lastCell, whiteSpace: 'pre-wrap' }}>
+                                    <td style={{ ...s.tableCell, ...s.lastCell, whiteSpace: 'pre-wrap', ...strikethroughStyle }}>
                                         {item.other_notes ? 
                                             (() => {
                                                 const cleanedText = item.other_notes
@@ -169,7 +179,7 @@ const s = {
         width: '100%',
         backgroundColor: '#fff',
         borderRadius: '8px',
-        overflow: 'hidden',
+        overflowX: 'auto',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         border: '1px solid #e5e7eb',
     },
@@ -207,6 +217,7 @@ const s = {
     },
     tableCell: {
         borderRight: '1px solid #e5e7eb',
+        borderBottom: '1px solid #d1d5db',
         borderLeft: 'none',
         borderTop: 'none',
         padding: '12px 16px',
@@ -223,6 +234,8 @@ const s = {
         verticalAlign: 'middle',
         borderLeft: '1px solid #e5e7eb',
         borderRight: '1px solid #e5e7eb',
+        borderBottom: '1px solid #d1d5db',
+        cursor: 'pointer',
     },
     radioInput: {
         width: '18px',

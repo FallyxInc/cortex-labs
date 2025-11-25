@@ -11,6 +11,7 @@
   left: 0;
   right: 0;
   bottom: 0;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
 .login-container {
@@ -47,13 +48,11 @@
 .login-title {
   font-size: 28px;
   font-weight: 700;
-  background: linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 48px;
+  color: #000000;
+  margin-bottom: 24px;
   text-align: center;
   letter-spacing: -0.5px;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
 .login-input-group {
@@ -66,7 +65,7 @@
 .login-input-group label {
   font-size: 14px;
   font-weight: 600;
-  color: #0e7490;
+  color: #000000;
   margin-bottom: 8px;
   display: block;
   letter-spacing: 0.2px;
@@ -83,6 +82,7 @@
   background-color: #f8fafc;
   color: #0f172a;
   box-sizing: border-box;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
 .login-input-group input:hover {
@@ -111,6 +111,7 @@
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
   letter-spacing: 0.3px;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
 .login-button:hover {

@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Inter font - Variable font support with preconnect for better performance */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -23,7 +24,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
   font-size: 12px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -33,18 +34,19 @@ h1,
 h2 {
   color: #0f0f0f;
   font-size: 28px;
-  font-family: 'Inter' !important;
+  font-family: 'Inter', Arial, Helvetica, sans-serif !important;
   font-weight: 600;
 }
 
 h3 {
   font-size: 18px;
   font-weight: 500;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
 p {
   color: #0f0f0f;
-  font-family: 'Inter', sans-serif !important;
+  font-family: 'Inter', Arial, Helvetica, sans-serif !important;
 }
 
 select {
@@ -54,7 +56,7 @@ select {
   border-radius: 8px;
   background-color: #f8fafc;
   transition: all 0.3s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
 select:hover {

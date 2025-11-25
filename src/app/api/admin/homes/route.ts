@@ -14,22 +14,28 @@ export async function GET() {
     }
 
     const data = snapshot.val();
-    const homes: string[] = [];
+    const homes: Array<{ id: string; name: string; chainId?: string }> = [];
 
     for (const key in data) {
-      if (key === 'users' || key === 'reviews') {
+      if (key === 'users' || key === 'reviews' || key === 'chains') {
         continue;
       }
 
       const homeData = data[key];
       if (homeData && typeof homeData === 'object' && 'behaviours' in homeData) {
-        homes.push(key);
+        // Use displayName from mapping if available, otherwise use the key
+        const displayName = homeData.mapping?.displayName || key;
+        homes.push({
+          id: key,
+          name: displayName,
+          chainId: homeData.chainId || null
+        });
       }
     }
 
     return NextResponse.json({
       success: true,
-      homes: homes.sort()
+      homes: homes.sort((a, b) => a.name.localeCompare(b.name))
     });
 
   } catch (error) {
@@ -41,10 +47,27 @@ export async function GET() {
   }
 }
 
+// Helper function to convert display name to camelCase for Firebase ID
+function toCamelCase(str: string): string {
+  return str
+    .replace(/\s+(.)/g, (_, c) => c.toUpperCase())
+    .replace(/\s+/g, '')
+    .replace(/^(.)/, (_, c) => c.toLowerCase());
+}
+
+// Helper function to generate Python directory name (lowercase, no spaces/underscores)
+function generatePythonDir(homeName: string, pythonDirOverride?: string): string {
+  if (pythonDirOverride) {
+    return pythonDirOverride.trim().toLowerCase().replace(/\s+/g, '').replace(/_/g, '');
+  }
+  // Auto-generate: lowercase, remove spaces and underscores
+  return homeName.trim().toLowerCase().replace(/\s+/g, '').replace(/_/g, '');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { homeName } = body;
+    const { homeName, chainId } = body;
 
     if (!homeName || typeof homeName !== 'string') {
       return NextResponse.json(
@@ -53,7 +76,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!chainId || typeof chainId !== 'string') {
+      return NextResponse.json(
+        { error: 'Chain ID is required' },
+        { status: 400 }
+      );
+    }
+
     const sanitizedName = homeName.trim().toLowerCase().replace(/\s+/g, '_');
+    const displayName = homeName.trim();
+    const firebaseId = toCamelCase(displayName);
 
     // Check if home already exists
     const homeRef = adminDb.ref(`/${sanitizedName}`);
@@ -66,27 +98,176 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Firebase structure
+    // Verify chain exists
+    const chainRef = adminDb.ref(`/chains/${chainId}`);
+    const chainSnapshot = await chainRef.once('value');
+    
+    if (!chainSnapshot.exists()) {
+      return NextResponse.json(
+        { error: 'Chain not found' },
+        { status: 404 }
+      );
+    }
+
+    // Create Firebase structure with mappings
     await homeRef.set({
       behaviours: {
         createdAt: new Date().toISOString()
       },
+      chainId: chainId,
+      createdAt: new Date().toISOString(),
+      // Store mapping information (pythonDir no longer needed - uses chain directory)
+      mapping: {
+        firebaseId: firebaseId,
+        homeName: sanitizedName,
+        displayName: displayName
+      }
     });
-    
 
-    console.log(`✅ Created home: ${homeName} (${sanitizedName})`);
+    // Store mapping in a centralized location for easy lookup
+    const mappingsRef = adminDb.ref('/homeMappings');
+    const mappingsSnapshot = await mappingsRef.once('value');
+    const existingMappings = mappingsSnapshot.exists() ? mappingsSnapshot.val() : {};
+    
+    // Add multiple entry points for the same home
+    const newMappings = {
+      ...existingMappings,
+      [sanitizedName]: {
+        firebaseId: firebaseId,
+        homeName: sanitizedName,
+        displayName: displayName
+      },
+      [firebaseId]: {
+        firebaseId: firebaseId,
+        homeName: sanitizedName,
+        displayName: displayName
+      }
+    };
+    
+    await mappingsRef.set(newMappings);
+
+    // Add home to chain's homes list
+    const chainData = chainSnapshot.val();
+    const homes = chainData.homes || [];
+    if (!homes.includes(sanitizedName)) {
+      homes.push(sanitizedName);
+      await chainRef.update({ homes });
+    }
+
+    console.log(`✅ Created home: ${displayName} (${sanitizedName}) in chain ${chainId}`);
+    console.log(`📋 Mapping: firebaseId=${firebaseId}, will use chain's Python directory: chains/${chainId}`);
 
     return NextResponse.json({
       success: true,
       message: 'Home created successfully',
       homeName: sanitizedName,
-      displayName: homeName
+      displayName: displayName,
+      chainId: chainId,
+      mapping: {
+        firebaseId: firebaseId,
+        homeName: sanitizedName,
+        displayName: displayName
+      }
     });
 
   } catch (error) {
     console.error('Error creating home:', error);
     return NextResponse.json(
       { error: 'Failed to create home', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { homeId } = await request.json();
+    
+    if (!homeId) {
+      return NextResponse.json(
+        { error: 'Home ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if home exists
+    const homeRef = adminDb.ref(`/${homeId}`);
+    const homeSnapshot = await homeRef.once('value');
+    
+    if (!homeSnapshot.exists()) {
+      return NextResponse.json(
+        { error: 'Home not found' },
+        { status: 404 }
+      );
+    }
+
+    const homeData = homeSnapshot.val();
+    const chainId = homeData?.chainId;
+
+    // Check if there are users assigned to this home
+    const usersRef = adminDb.ref('/users');
+    const usersSnapshot = await usersRef.once('value');
+    
+    if (usersSnapshot.exists()) {
+      const users = usersSnapshot.val();
+      const usersWithHome = Object.keys(users).filter(
+        userId => users[userId]?.homeId === homeId
+      );
+      
+      if (usersWithHome.length > 0) {
+        return NextResponse.json(
+          { error: `Cannot delete home: ${usersWithHome.length} user(s) are assigned to this home. Please reassign or delete users first.` },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Remove home from chain's homes list if chain exists
+    if (chainId) {
+      const chainRef = adminDb.ref(`/chains/${chainId}`);
+      const chainSnapshot = await chainRef.once('value');
+      
+      if (chainSnapshot.exists()) {
+        const chainData = chainSnapshot.val();
+        const homes = chainData.homes || [];
+        const updatedHomes = homes.filter((h: string) => h !== homeId);
+        await chainRef.update({ homes: updatedHomes });
+      }
+    }
+
+    // Remove from homeMappings
+    const mappingsRef = adminDb.ref('/homeMappings');
+    const mappingsSnapshot = await mappingsRef.once('value');
+    
+    if (mappingsSnapshot.exists()) {
+      const mappings = mappingsSnapshot.val();
+      const updatedMappings = { ...mappings };
+      
+      // Remove all entries for this home (by homeId and firebaseId)
+      Object.keys(updatedMappings).forEach(key => {
+        const mapping = updatedMappings[key];
+        if (mapping?.homeName === homeId || mapping?.firebaseId === homeId) {
+          delete updatedMappings[key];
+        }
+      });
+      
+      await mappingsRef.set(updatedMappings);
+    }
+
+    // Delete the home
+    await homeRef.remove();
+
+    console.log(`✅ Deleted home: ${homeId}`);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Home deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting home:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete home', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

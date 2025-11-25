@@ -25,7 +25,8 @@ export async function GET() {
         try {
           const userRecord = await auth.getUser(userId);
           email = userRecord.email;
-          username = userRecord.email?.replace('@example.com', '') || userRecord.displayName || null;
+          // Use stored username from Firebase, fallback to displayName or email
+          username = usersData[userId]?.username || userRecord.displayName || email?.split('@')[0] || null;
         } catch {
           console.log(`Could not fetch auth data for user ${userId}`);
         }

@@ -277,7 +277,7 @@ const AnalysisChart = ({data, desiredYear, desiredMonth, threeMonthData, getTime
                     color: '#495057', // Example: dark gray for y-axis labels
                 },
                 grid: {
-                    color: 'rgba(0, 0, 0, 0.1)', // Light grid lines
+                    display: false,
                 }
             },
         },
@@ -291,8 +291,8 @@ const AnalysisChart = ({data, desiredYear, desiredMonth, threeMonthData, getTime
 
     return (
         <div className={styles.chart} style={{display: 'flex', justifyContent: 'space-between', flexDirection: 'column', flex: '1'}}>
-            <div className={styles.topHeader}>
-                <h3>{analysisHeaderText}</h3>
+            <div className={styles.topHeader} style={{ marginBottom: '12px' }}>
+                <h3 style={{ margin: 0 }}>{analysisHeaderText}</h3>
                 <select
                     className={styles.selector}
                     id="fallsAnalysisType"

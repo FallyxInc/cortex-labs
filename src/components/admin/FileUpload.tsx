@@ -1,41 +1,127 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from "react";
+import HelpIcon from "./HelpIcon";
+import {
+  trackFileUpload,
+  trackBulkFileProcessing,
+  trackFormInteraction,
+  trackError,
+} from "@/lib/mixpanel";
+import { auth } from "@/lib/firebase";
 
 export default function FileUpload() {
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [excelFiles, setExcelFiles] = useState<File[]>([]);
-  const [selectedHome, setSelectedHome] = useState('');
-  const [homes, setHomes] = useState<string[]>([]);
+  const [selectedHome, setSelectedHome] = useState("");
+  const [homes, setHomes] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [loadingHomes, setLoadingHomes] = useState(true);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
+  const [progress, setProgress] = useState({
+    percentage: 0,
+    message: "",
+    step: "",
+  });
+  const [jobId, setJobId] = useState<string | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Overview metrics state
+  const [antipsychoticsPercentage, setAntipsychoticsPercentage] = useState("");
+  const [antipsychoticsChange, setAntipsychoticsChange] = useState("");
+  const [antipsychoticsResidents, setAntipsychoticsResidents] = useState("");
+
+  const [worsenedPercentage, setWorsenedPercentage] = useState("");
+  const [worsenedChange, setWorsenedChange] = useState("");
+  const [worsenedResidents, setWorsenedResidents] = useState("");
+
+  const [improvedPercentage, setImprovedPercentage] = useState("");
+  const [improvedChange, setImprovedChange] = useState("");
+  const [improvedResidents, setImprovedResidents] = useState("");
+  const formStartTime = useRef<number>(Date.now());
+
+  // Poll for progress updates
+  useEffect(() => {
+    if (!jobId) return;
+
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(
+          `/api/admin/process-progress?jobId=${jobId}`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setProgress({
+            percentage: data.percentage || 0,
+            message: data.message || "",
+            step: data.step || "",
+          });
+
+          // Stop polling if complete or error
+          if (
+            data.percentage >= 100 ||
+            data.step === "error" ||
+            data.step === "complete"
+          ) {
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
+            if (data.step === "complete") {
+              setMessage("Files processed successfully!");
+            } else if (data.step === "error") {
+              setMessage(`Error: ${data.message}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error polling progress:", error);
+      }
+    };
+
+    // Poll every 500ms
+    progressIntervalRef.current = setInterval(pollProgress, 500);
+    pollProgress(); // Initial poll
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, [jobId]);
 
   useEffect(() => {
     const fetchHomes = async () => {
       try {
         setLoadingHomes(true);
-        const response = await fetch('/api/admin/homes');
-        
+        const response = await fetch("/api/admin/homes");
+
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Error response:', response.status, errorText);
+          console.error("Error response:", response.status, errorText);
           throw new Error(`Failed to fetch homes: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
+          // Convert homes array to format expected by component
+          const homesList = data.homes.map(
+            (home: { id: string; name: string }) => home.id,
+          );
           setHomes(data.homes);
-          
-          if (data.homes.length === 0) {
-            setMessage('No homes found. Please ensure homes are configured.');
+
+          if (homesList.length === 0) {
+            setMessage("No homes found. Please ensure homes are configured.");
           }
         } else {
           setMessage(`Error loading homes: ${data.error}`);
         }
       } catch (error) {
-        setMessage(`Error loading homes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setMessage(
+          `Error loading homes: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
       } finally {
         setLoadingHomes(false);
       }
@@ -48,6 +134,15 @@ export default function FileUpload() {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       setPdfFiles(files);
+      // Track file selection
+      files.forEach((file) => {
+        trackFileUpload({
+          homeId: selectedHome || "unknown",
+          fileType: "pdf",
+          fileName: file.name,
+          fileSize: file.size,
+        });
+      });
     }
   };
 
@@ -55,73 +150,270 @@ export default function FileUpload() {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       setExcelFiles(files);
+      // Track file selection
+      files.forEach((file) => {
+        const fileType = file.name.endsWith(".xlsx") ? "xlsx" : "xls";
+        trackFileUpload({
+          homeId: selectedHome || "unknown",
+          fileType: fileType as "excel" | "xls" | "xlsx",
+          fileName: file.name,
+          fileSize: file.size,
+        });
+      });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
+    setMessage("");
 
-    if (pdfFiles.length === 0 || excelFiles.length === 0 || !selectedHome) {
-      setMessage('Please select at least one PDF file, one Excel file, and a home');
+    const processingStartTime = Date.now();
+    formStartTime.current = Date.now();
+
+    // Track form submission
+    trackFormInteraction({
+      formName: "file_upload",
+      action: "submitted",
+      homeId: selectedHome,
+    });
+
+    // Files are optional - only require home selection
+    if (!selectedHome) {
+      setMessage("Please select a home");
       setLoading(false);
+      trackFormInteraction({
+        formName: "file_upload",
+        action: "validated",
+        validationErrors: ["no_home_selected"],
+      });
       return;
     }
 
+    // If files are provided, both PDF and Excel are required
+    // If no files, metrics are optional (will keep most recent value if nothing provided)
+    if (pdfFiles.length > 0 || excelFiles.length > 0) {
+      if (pdfFiles.length === 0 || excelFiles.length === 0) {
+        setMessage(
+          "Please select both PDF and Excel files, or provide only overview metrics",
+        );
+        setLoading(false);
+        trackFormInteraction({
+          formName: "file_upload",
+          action: "validated",
+          validationErrors: ["mismatched_file_types"],
+        });
+        return;
+      }
+    }
+    // If no files and no metrics, that's okay - will just keep existing values
+
     try {
       const formData = new FormData();
-      
+
       pdfFiles.forEach((file, index) => {
         formData.append(`pdf_${index}`, file);
       });
-      
+
       excelFiles.forEach((file, index) => {
         formData.append(`excel_${index}`, file);
       });
-      
-      formData.append('home', selectedHome);
-      formData.append('pdfCount', pdfFiles.length.toString());
-      formData.append('excelCount', excelFiles.length.toString());
 
-      const response = await fetch('/api/admin/process-behaviours', {
-        method: 'POST',
+      formData.append("home", selectedHome);
+      formData.append("pdfCount", pdfFiles.length.toString());
+      formData.append("excelCount", excelFiles.length.toString());
+
+      // Add overview metrics if provided
+      if (antipsychoticsPercentage) {
+        formData.append("antipsychoticsPercentage", antipsychoticsPercentage);
+        formData.append("antipsychoticsChange", antipsychoticsChange || "0");
+        formData.append(
+          "antipsychoticsResidents",
+          antipsychoticsResidents || "",
+        );
+      }
+      if (worsenedPercentage) {
+        formData.append("worsenedPercentage", worsenedPercentage);
+        formData.append("worsenedChange", worsenedChange || "0");
+        formData.append("worsenedResidents", worsenedResidents || "");
+      }
+      if (improvedPercentage) {
+        formData.append("improvedPercentage", improvedPercentage);
+        formData.append("improvedChange", improvedChange || "0");
+        formData.append("improvedResidents", improvedResidents || "");
+      }
+
+      console.log("formData", formData.values());
+      const response = await fetch("/api/admin/process-behaviours", {
+        method: "POST",
         body: formData,
       });
 
       const result = await response.json();
+      const processingTime = Date.now() - processingStartTime;
+
+      // Start tracking progress if jobId is returned
+      if (result.jobId) {
+        setJobId(result.jobId);
+        setProgress({
+          percentage: 0,
+          message: "Processing started...",
+          step: "initializing",
+        });
+      }
 
       if (response.ok) {
-        setMessage('Files processed successfully!');
+        // Wait for progress to reach 100% before showing success
+        if (!result.jobId) {
+          setMessage("Files and metrics processed successfully!");
+        }
+
+        // Track successful bulk processing
+        const totalFiles = pdfFiles.length + excelFiles.length;
+        const recordsExtracted = result.recordsExtracted || 0;
+
+        trackBulkFileProcessing({
+          homeId: selectedHome,
+          totalFiles,
+          successCount: totalFiles,
+          failureCount: 0,
+          totalProcessingTime: processingTime,
+          totalRecordsExtracted: recordsExtracted,
+        });
+
+        trackFormInteraction({
+          formName: "file_upload",
+          action: "submitted",
+          timeToComplete: Date.now() - formStartTime.current,
+          homeId: selectedHome,
+        });
+
         setPdfFiles([]);
         setExcelFiles([]);
-        setSelectedHome('');
-        const pdfInput = document.getElementById('pdf') as HTMLInputElement;
-        const excelInput = document.getElementById('excel') as HTMLInputElement;
-        if (pdfInput) pdfInput.value = '';
-        if (excelInput) excelInput.value = '';
+        setSelectedHome("");
+        setAntipsychoticsPercentage("");
+        setAntipsychoticsChange("");
+        setAntipsychoticsResidents("");
+        setWorsenedPercentage("");
+        setWorsenedChange("");
+        setWorsenedResidents("");
+        setImprovedPercentage("");
+        setImprovedChange("");
+        setImprovedResidents("");
+        setJobId(null);
+        setProgress({ percentage: 0, message: "", step: "" });
+        const pdfInput = document.getElementById("pdf") as HTMLInputElement;
+        const excelInput = document.getElementById("excel") as HTMLInputElement;
+        if (pdfInput) pdfInput.value = "";
+        if (excelInput) excelInput.value = "";
       } else {
+        setJobId(null);
+        setProgress({ percentage: 0, message: "", step: "" });
         setMessage(`Error: ${result.error}`);
+
+        // Track processing error
+        trackBulkFileProcessing({
+          homeId: selectedHome,
+          totalFiles: pdfFiles.length + excelFiles.length,
+          successCount: 0,
+          failureCount: pdfFiles.length + excelFiles.length,
+          totalProcessingTime: processingTime,
+          totalRecordsExtracted: 0,
+        });
+
+        trackError({
+          errorType: "processing_error",
+          errorMessage: result.error || "Unknown error",
+          page: "upload",
+          homeId: selectedHome,
+          context: {
+            pdfCount: pdfFiles.length,
+            excelCount: excelFiles.length,
+          },
+        });
       }
-    } catch (error) {
-      setMessage(`Error: ${error}`);
+    } catch (error: unknown) {
+      setJobId(null);
+      setProgress({ percentage: 0, message: "", step: "" });
+      setMessage(
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+
+      trackError({
+        errorType: "processing_error",
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        errorStack: error instanceof Error ? error.stack : undefined,
+        page: "upload",
+        homeId: selectedHome,
+        context: {
+          pdfCount: pdfFiles.length,
+          excelCount: excelFiles.length,
+        },
+      });
     } finally {
-      setLoading(false);
+      // Only set loading to false if we're not tracking progress
+      if (!jobId) {
+        setLoading(false);
+      }
     }
   };
+
+  // Update loading state based on progress
+  useEffect(() => {
+    if (
+      progress.percentage >= 100 ||
+      progress.step === "error" ||
+      progress.step === "complete"
+    ) {
+      setLoading(false);
+      if (progress.step === "complete") {
+        // Clean up after a delay
+        setTimeout(() => {
+          setJobId(null);
+          setProgress({ percentage: 0, message: "", step: "" });
+        }, 3000);
+      }
+    }
+  }, [progress]);
 
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-base leading-6 font-medium text-gray-900 mb-6">
-          Upload Behaviour Files
-        </h3>
-        
+        <div className="flex items-center mb-6">
+          <h3 className="text-base leading-6 font-medium text-gray-900">
+            Upload Behaviour Files
+          </h3>
+          <HelpIcon
+            title="Upload Behaviour Files"
+            content="Upload and process behavioural data files for homes.
+
+• PDF Files: Behaviour notes in PDF format. Upload one or more PDF files.
+
+• Excel Files: Incident reports in Excel format (.xls or .xlsx). Must upload the same number of Excel files as PDF files.
+
+• Overview Metrics: Optional metrics that can be entered manually or will be extracted from files. These include:
+  - % of Residents with Potentially Inappropriate Use of Antipsychotics
+  - % of Behaviours Worsened
+  - % of Behaviours Improved
+
+You can upload files only, enter metrics only, or do both. If no files are uploaded, only metrics will be saved."
+          />
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="pdf" className="block text-sm font-medium text-gray-700">
-              Behaviour Notes PDF
-            </label>
+            <div className="flex items-center">
+              <label
+                htmlFor="pdf"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Behaviour Notes PDF
+              </label>
+              <HelpIcon
+                title="Behaviour Notes PDF"
+                content="Upload PDF files containing behaviour notes. You can upload multiple PDF files. The system will process these files to extract behavioural data."
+              />
+            </div>
             <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
               <div className="space-y-1 text-center">
                 <svg
@@ -141,9 +433,13 @@ export default function FileUpload() {
                   <label
                     htmlFor="pdf"
                     className="relative cursor-pointer bg-white rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
-                    style={{ color: '#0cc7ed' }}
-                    onMouseEnter={(e) => (e.target as HTMLLabelElement).style.color = '#0aa8c7'}
-                    onMouseLeave={(e) => (e.target as HTMLLabelElement).style.color = '#0cc7ed'}
+                    style={{ color: "#0cc7ed" }}
+                    onMouseEnter={(e) =>
+                      ((e.target as HTMLLabelElement).style.color = "#0aa8c7")
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.target as HTMLLabelElement).style.color = "#0cc7ed")
+                    }
                   >
                     <span>Upload a file</span>
                     <input
@@ -163,10 +459,14 @@ export default function FileUpload() {
             </div>
             {pdfFiles.length > 0 && (
               <div className="mt-2">
-                <p className="text-sm font-medium" style={{ color: '#06b6d4' }}>Selected {pdfFiles.length} file(s):</p>
+                <p className="text-sm font-medium" style={{ color: "#06b6d4" }}>
+                  Selected {pdfFiles.length} file(s):
+                </p>
                 <ul className="mt-1 text-sm text-gray-600">
                   {pdfFiles.map((file, index) => (
-                    <li key={index} className="truncate">• {file.name}</li>
+                    <li key={index} className="truncate">
+                      • {file.name}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -174,9 +474,18 @@ export default function FileUpload() {
           </div>
 
           <div>
-            <label htmlFor="excel" className="block text-sm font-medium text-gray-700">
-              Incident Report Excel
-            </label>
+            <div className="flex items-center">
+              <label
+                htmlFor="excel"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Incident Report Excel
+              </label>
+              <HelpIcon
+                title="Incident Report Excel"
+                content="Upload Excel files (.xls or .xlsx) containing incident reports. You must upload the same number of Excel files as PDF files. The system will process these files to extract incident data."
+              />
+            </div>
             <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
               <div className="space-y-1 text-center">
                 <svg
@@ -196,9 +505,13 @@ export default function FileUpload() {
                   <label
                     htmlFor="excel"
                     className="relative cursor-pointer bg-white rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2"
-                    style={{ color: '#0cc7ed' }}
-                    onMouseEnter={(e) => (e.target as HTMLLabelElement).style.color = '#0aa8c7'}
-                    onMouseLeave={(e) => (e.target as HTMLLabelElement).style.color = '#0cc7ed'}
+                    style={{ color: "#0cc7ed" }}
+                    onMouseEnter={(e) =>
+                      ((e.target as HTMLLabelElement).style.color = "#0aa8c7")
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.target as HTMLLabelElement).style.color = "#0cc7ed")
+                    }
                   >
                     <span>Upload a file</span>
                     <input
@@ -218,20 +531,214 @@ export default function FileUpload() {
             </div>
             {excelFiles.length > 0 && (
               <div className="mt-2">
-                <p className="text-sm font-medium" style={{ color: '#06b6d4' }}>Selected {excelFiles.length} file(s):</p>
+                <p className="text-sm font-medium" style={{ color: "#06b6d4" }}>
+                  Selected {excelFiles.length} file(s):
+                </p>
                 <ul className="mt-1 text-sm text-gray-600">
                   {excelFiles.map((file, index) => (
-                    <li key={index} className="truncate">• {file.name}</li>
+                    <li key={index} className="truncate">
+                      • {file.name}
+                    </li>
                   ))}
                 </ul>
               </div>
             )}
           </div>
 
+          <div className="border-t border-gray-200 pt-6 mt-6">
+            <div className="flex items-center mb-4">
+              <h4 className="text-base font-medium text-gray-900">
+                Overview Metrics (Optional)
+              </h4>
+              <HelpIcon
+                title="Overview Metrics"
+                content="Enter high-level metrics for the behaviours dashboard. These metrics can be entered manually or will be extracted from uploaded files.
+
+• Percentage Value: The main percentage metric
+• Change (+ or -): The change from the previous period
+• Resident Names: Comma-separated list of residents associated with this metric
+
+If no files are uploaded, these metrics will be saved directly. If files are uploaded, metrics are optional and will supplement the file data."
+              />
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Enter overview metrics for the behaviours dashboard. If no files
+              are uploaded, these metrics will be saved. If files are uploaded,
+              metrics are optional.
+            </p>
+
+            <div className="space-y-6">
+              {/* Antipsychotics Section */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <h5 className="text-sm font-medium text-gray-700">
+                    % of Residents with Potentially Inappropriate Use of
+                    Antipsychotics
+                  </h5>
+                  <HelpIcon
+                    title="Antipsychotics Metric"
+                    content="Track the percentage of residents who have potentially inappropriate use of antipsychotics. Enter the percentage value, change from previous period, and list of affected residents."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Percentage Value
+                    </label>
+                    <input
+                      type="number"
+                      value={antipsychoticsPercentage}
+                      onChange={(e) =>
+                        setAntipsychoticsPercentage(e.target.value)
+                      }
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                      placeholder="e.g., 15"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Change (+ or -)
+                    </label>
+                    <input
+                      type="number"
+                      value={antipsychoticsChange}
+                      onChange={(e) => setAntipsychoticsChange(e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                      placeholder="e.g., -3"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Resident Names (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={antipsychoticsResidents}
+                    onChange={(e) => setAntipsychoticsResidents(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                    placeholder="e.g., John Smith, Mary Johnson"
+                  />
+                </div>
+              </div>
+
+              {/* Worsened Section */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <h5 className="text-sm font-medium text-gray-700">
+                    % of Behaviours Worsened
+                  </h5>
+                  <HelpIcon
+                    title="Behaviours Worsened"
+                    content="Track the percentage of behaviours that have worsened. Enter the percentage value, change from previous period, and list of residents whose behaviours worsened."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Percentage Value
+                    </label>
+                    <input
+                      type="number"
+                      value={worsenedPercentage}
+                      onChange={(e) => setWorsenedPercentage(e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                      placeholder="e.g., 28"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Change (+ or -)
+                    </label>
+                    <input
+                      type="number"
+                      value={worsenedChange}
+                      onChange={(e) => setWorsenedChange(e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                      placeholder="e.g., 5"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Resident Names (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={worsenedResidents}
+                    onChange={(e) => setWorsenedResidents(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                    placeholder="e.g., Sarah Wilson, Michael Brown"
+                  />
+                </div>
+              </div>
+
+              {/* Improved Section */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <h5 className="text-sm font-medium text-gray-700">
+                    % of Behaviours Improved
+                  </h5>
+                  <HelpIcon
+                    title="Behaviours Improved"
+                    content="Track the percentage of behaviours that have improved. Enter the percentage value, change from previous period, and list of residents whose behaviours improved."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Percentage Value
+                    </label>
+                    <input
+                      type="number"
+                      value={improvedPercentage}
+                      onChange={(e) => setImprovedPercentage(e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                      placeholder="e.g., 57"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Change (+ or -)
+                    </label>
+                    <input
+                      type="number"
+                      value={improvedChange}
+                      onChange={(e) => setImprovedChange(e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                      placeholder="e.g., 8"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Resident Names (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={improvedResidents}
+                    onChange={(e) => setImprovedResidents(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                    placeholder="e.g., David Miller, Jennifer Taylor"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div>
-            <label htmlFor="home" className="block text-sm font-medium text-gray-700">
-              Select Home
-            </label>
+            <div className="flex items-center">
+              <label
+                htmlFor="home"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Select Home
+              </label>
+              <HelpIcon
+                title="Select Home"
+                content="Select the home (care facility) that these files and metrics belong to. The data will be associated with this home in the dashboard."
+              />
+            </div>
             <select
               id="home"
               name="home"
@@ -239,25 +746,28 @@ export default function FileUpload() {
               onChange={(e) => setSelectedHome(e.target.value)}
               disabled={loadingHomes}
               className="mt-1 block w-full px-4 py-3 text-gray-900 border-gray-300 rounded-md shadow-sm text-base bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-              style={{ 
-                '--tw-ring-color': '#0cc7ed',
-                '--tw-border-color': '#0cc7ed'
-              } as React.CSSProperties}
+              style={
+                {
+                  "--tw-ring-color": "#0cc7ed",
+                  "--tw-border-color": "#0cc7ed",
+                } as React.CSSProperties
+              }
               onFocus={(e) => {
-                (e.target as HTMLSelectElement).style.borderColor = '#0cc7ed';
-                (e.target as HTMLSelectElement).style.boxShadow = '0 0 0 3px rgba(12, 199, 237, 0.1)';
+                (e.target as HTMLSelectElement).style.borderColor = "#0cc7ed";
+                (e.target as HTMLSelectElement).style.boxShadow =
+                  "0 0 0 3px rgba(12, 199, 237, 0.1)";
               }}
               onBlur={(e) => {
-                (e.target as HTMLSelectElement).style.borderColor = '#d1d5db';
-                (e.target as HTMLSelectElement).style.boxShadow = 'none';
+                (e.target as HTMLSelectElement).style.borderColor = "#d1d5db";
+                (e.target as HTMLSelectElement).style.boxShadow = "none";
               }}
             >
               <option value="">
-                {loadingHomes ? 'Loading homes...' : 'Select a home...'}
+                {loadingHomes ? "Loading homes..." : "Select a home..."}
               </option>
               {homes.map((home) => (
-                <option key={home} value={home}>
-                  {home}
+                <option key={home.id} value={home.id}>
+                  {home.name}
                 </option>
               ))}
             </select>
@@ -271,26 +781,68 @@ export default function FileUpload() {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={loading || loadingHomes || pdfFiles.length === 0 || excelFiles.length === 0 || !selectedHome}
+              disabled={loading || loadingHomes || !selectedHome}
               className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
-              style={{ backgroundColor: '#0cc7ed' }}
+              style={{ backgroundColor: "#0cc7ed" }}
               onMouseEnter={(e) => {
                 if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.backgroundColor = '#0aa8c7';
+                  e.currentTarget.style.backgroundColor = "#0aa8c7";
                 }
               }}
               onMouseLeave={(e) => {
                 if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.backgroundColor = '#0cc7ed';
+                  e.currentTarget.style.backgroundColor = "#0cc7ed";
                 }
               }}
             >
-              {loading ? 'Processing...' : 'Process Files'}
+              {loading ? "Processing..." : "Process Files"}
             </button>
           </div>
 
+          {/* Progress Bar */}
+          {(loading || progress.percentage > 0) && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  {progress.message || "Processing..."}
+                </span>
+                <span className="text-sm font-semibold text-gray-700">
+                  {progress.percentage}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-full transition-all duration-300 ease-out rounded-full"
+                  style={{
+                    width: `${progress.percentage}%`,
+                    background:
+                      progress.step === "error"
+                        ? "linear-gradient(90deg, #ef4444 0%, #dc2626 100%)"
+                        : "linear-gradient(90deg, #06b6d4 0%, #0cc7ed 100%)",
+                    transition: "width 0.5s ease-out",
+                  }}
+                />
+              </div>
+              {progress.step &&
+                progress.step !== "initializing" &&
+                progress.step !== "complete" &&
+                progress.step !== "error" && (
+                  <p className="mt-1 text-xs text-gray-500 capitalize">
+                    Step: {progress.step.replace(/_/g, " ")}
+                  </p>
+                )}
+            </div>
+          )}
+
           {message && (
-            <div className={`text-sm ${message.includes('Error') ? 'text-red-600' : ''}`} style={!message.includes('Error') ? { color: '#06b6d4' } : {}}>
+            <div
+              className={`text-sm ${message.includes("Error") ? "text-red-600" : "text-green-600"}`}
+              style={
+                !message.includes("Error") && !message.includes("success")
+                  ? { color: "#06b6d4" }
+                  : {}
+              }
+            >
               {message}
             </div>
           )}
@@ -299,4 +851,3 @@ export default function FileUpload() {
     </div>
   );
 }
-

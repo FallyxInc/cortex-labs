@@ -11,6 +11,13 @@ import { db, auth } from '@/lib/firebase';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { 
+  trackPageVisit, 
+  trackExportButtonClick, 
+  trackTableEdit, 
+  trackDashboardInteraction,
+  trackTimeOnPage
+} from '@/lib/mixpanel';
 import {
   markPostFallNotes,
   countFallsByExactInjury,
@@ -27,20 +34,16 @@ import AnalysisChart from './subcomponents/BeAnalysisChart.js';
 import BeTrackingTable from './subcomponents/BeTrackingTable.js';
 import FollowUpChart from './subcomponents/BeFollowUpChart.js';
 import BeFollowUpTable from './subcomponents/BeFollowUpTable.js';
+import BehavioursReports from './subcomponents/BehavioursReports.js';
+import TrendsAndAnalysis from './subcomponents/TrendsAndAnalysis.js';
+import firebase from 'firebase/compat/app';
 
 Chart.register(ArcElement, PointElement, LineElement);
 
-export default function BehavioursDashboard({ name, title, goal} ) {
+export default function BehavioursDashboard({ name, firebaseId, title, goal} ) {
   const router = useRouter();
-  const altName = name === 'ONCB'
-    ? 'oneill'
-    : name === 'MCB'
-      ? 'millCreek'
-      : name === 'berkshire'
-        ? 'berkshire'
-        : name === 'banwell'
-          ? 'banwell'
-      : name;
+  
+  const altName = firebaseId;
   const months_forward = {
     '01': 'January',
     '02': 'February',
@@ -114,7 +117,11 @@ export default function BehavioursDashboard({ name, title, goal} ) {
   const [isLoading, setIsLoading] = useState(true);
   const [threeMonthData, setThreeMonthData] = useState(new Map());
   const [followUpData, setFollowUpData] = useState([]);
+  const [activeSection, setActiveSection] = useState('overview'); // 'overview', 'reports', 'trends'
+  const [activeOverviewTab, setActiveOverviewTab] = useState('behaviours'); // 'behaviours', 'followups'
   const [showFollowUpTable, setShowFollowUpTable] = useState(false);
+  const [showReports, setShowReports] = useState(false);
+  const [showTrendsAndAnalysis, setShowTrendsAndAnalysis] = useState(false);
   const [followUpLoading, setFollowUpLoading] = useState(true);
   const getCurrentMonth = () => {
     const today = new Date();
@@ -123,14 +130,26 @@ export default function BehavioursDashboard({ name, title, goal} ) {
   };
   const [desiredMonth, setDesiredMonth] = useState(getCurrentMonth());
   const [desiredYear, setDesiredYear] = useState(new Date().getFullYear());
+  
+  // Universal date range picker - default to current month
+  const getCurrentMonthRange = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return {
+      startDate: firstDay.toISOString().split('T')[0],
+      endDate: lastDay.toISOString().split('T')[0]
+    };
+  };
+  const [startDate, setStartDate] = useState(getCurrentMonthRange().startDate);
+  const [endDate, setEndDate] = useState(getCurrentMonthRange().endDate);
+  
   const [filterResident, setFilterResident] = useState("Any Resident");
 const [filterBehaviorType, setFilterBehaviorType] = useState("All Types");
 const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   
   // Follow-up specific filters
   const [filterFollowUpResident, setFilterFollowUpResident] = useState("Any Resident");
-  const [filterStartDate, setFilterStartDate] = useState("");
-  const [filterEndDate, setFilterEndDate] = useState("");
   // const [desiredMonth, setDesiredMonth] = useState('January');
   // const [desiredYear, setDesiredYear] = useState(2025);
   const [availableYearMonth, setAvailableYearMonth] = useState({});
@@ -154,6 +173,13 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showResidentNames, setShowResidentNames] = useState(false);
 
+  // Overview metrics state
+  const [overviewMetrics, setOverviewMetrics] = useState({
+    antipsychotics: { percentage: 15, change: -3, residents: ['John Smith', 'Mary Johnson', 'Robert Davis'] },
+    worsened: { percentage: 28, change: 5, residents: ['Sarah Wilson', 'Michael Brown', 'Lisa Anderson'] },
+    improved: { percentage: 57, change: 8, residents: ['David Miller', 'Jennifer Taylor', 'Thomas White'] }
+  });
+
   const [currentCauseOfFall, setCurrentCauseOfFall] = useState('');
   const [currentCauseRowIndex, setCurrentCauseRowIndex] = useState(null);
   const [isCauseModalOpen, setIsCauseModalOpen] = useState(false);
@@ -170,6 +196,46 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   const [insightOutcomes, setInsightOutcomes] = useState({});
   const [reviewedInsights, setReviewedInsights] = useState({});
   const [insights, setInsights] = useState([]);
+
+  // Track page visits with count
+  const pageVisitCountRef = useRef(0);
+  const lastVisitTimeRef = useRef(null);
+  const exportClickCountRef = useRef(0);
+  const tableEditCountsRef = useRef({});
+  const pageStartTimeRef = useRef(Date.now());
+
+  // Track page visit on mount
+  useEffect(() => {
+    pageVisitCountRef.current += 1;
+    const timeSinceLastVisit = lastVisitTimeRef.current 
+      ? Math.floor((Date.now() - lastVisitTimeRef.current) / 1000)
+      : undefined;
+    
+    trackPageVisit({
+      pageName: `dashboard_${name}`,
+      visitCount: pageVisitCountRef.current,
+      homeId: altName,
+      timeSinceLastVisit,
+    });
+    
+    lastVisitTimeRef.current = Date.now();
+  }, [name, altName]);
+
+  // Track time on page periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const timeSpent = Math.floor((Date.now() - pageStartTimeRef.current) / 1000);
+      if (timeSpent > 0 && timeSpent % 30 === 0) {
+        trackTimeOnPage({
+          pageName: `dashboard_${name}`,
+          timeSpent,
+          homeId: altName,
+        });
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [name, altName]);
 
   const MOCK_INCIDENT_DATA = {
     'Falls': {
@@ -392,6 +458,15 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   };
 
   const filteredData = data.filter((item) => {
+  // Date range filter
+  if (startDate && endDate && item.date) {
+    const itemDate = new Date(item.date);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    if (itemDate < start || itemDate > end) return false;
+  }
+
   // Resident filter
   if (filterResident !== "Any Resident" && item.name !== filterResident) return false;
 
@@ -410,12 +485,17 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
 
   // Filter follow-up data
   const filteredFollowUpData = followUpData.filter((item) => {
+    // Date range filter
+    if (startDate && endDate && item.date) {
+      const itemDate = new Date(item.date);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (itemDate < start || itemDate > end) return false;
+    }
+
     // Resident filter for follow-ups
     if (filterFollowUpResident !== "Any Resident" && item.resident_name !== filterFollowUpResident) return false;
-
-    // Date range filter
-    if (filterStartDate && item.date && new Date(item.date) < new Date(filterStartDate)) return false;
-    if (filterEndDate && item.date && new Date(item.date) > new Date(filterEndDate)) return false;
 
     return true;
   });
@@ -503,6 +583,20 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   const tableRef = useRef(null);
 
   const handleSavePDF = async () => {
+    exportClickCountRef.current += 1;
+    trackInteraction();
+    
+    // Track export click
+    trackExportButtonClick({
+      exportType: 'pdf',
+      pageName: `dashboard_${name}`,
+      section: showFollowUpTable ? 'follow_up' : 'overview',
+      homeId: altName,
+      dataType: showFollowUpTable ? 'follow_up' : 'behaviours',
+      recordCount: showFollowUpTable ? (followUpData.length > 0 ? filteredFollowUpData.length : DUMMY_FOLLOW_UP_DATA.length) : data.length,
+      clickCount: exportClickCountRef.current,
+    });
+
     // work no blank but last pages lack
 
     if (tableRef.current) {
@@ -559,6 +653,9 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   };
 
   const handleSaveCSV = () => {
+    exportClickCountRef.current += 1;
+    trackInteraction();
+    
     let modifiedData;
     let filename;
     
@@ -575,6 +672,17 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       
       const monthNum = months_backword[desiredMonth];
       filename = `${name}_${desiredYear}_${monthNum}_follow_ups.csv`;
+      
+      // Track export click
+      trackExportButtonClick({
+        exportType: 'csv',
+        pageName: `dashboard_${name}`,
+        section: 'follow_up',
+        homeId: altName,
+        dataType: 'follow_up',
+        recordCount: dataToExport.length,
+        clickCount: exportClickCountRef.current,
+      });
     } else {
       // Export behaviors data
       modifiedData = data.map(item => ({
@@ -595,6 +703,17 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       
       const monthNum = months_backword[desiredMonth];
       filename = `${name}_${desiredYear}_${monthNum}_behaviours_data.csv`;
+      
+      // Track export click
+      trackExportButtonClick({
+        exportType: 'csv',
+        pageName: `dashboard_${name}`,
+        section: 'overview',
+        homeId: altName,
+        dataType: 'behaviours',
+        recordCount: data.length,
+        clickCount: exportClickCountRef.current,
+      });
     }
     
     const csv = Papa.unparse(modifiedData);
@@ -604,6 +723,8 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   };
 
   const handleUpdateCSV = async (index, newValue, name, changeType) => {
+    trackInteraction();
+    
     const collectionRef = ref(db, `/${altName}/${desiredYear}/${months_backword[desiredMonth]}`);
 
     try {
@@ -612,19 +733,22 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       if (snapshot.exists()) {
         const rows = snapshot.val();
         let targetRowKey = null;
+        let targetRow = null;
 
         for (const [key, row] of Object.entries(rows)) {
           if (row.id === String(index)) {  
             targetRowKey = key;
+            targetRow = row;
             break;
           }
         }
 
-        if (targetRowKey) {
+        if (targetRowKey && targetRow) {
           const rowRef = child(collectionRef, targetRowKey);
           const currentRowData = rows[targetRowKey];
 
           let updates = {};
+          const oldValue = currentRowData[changeType];
 
           switch (changeType) {
             case 'hir':
@@ -659,6 +783,25 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
 
           await update(rowRef, updates);
           console.log(`Row with id ${index} updated successfully.`);
+
+          // Track table edit
+          const fieldKey = `${changeType}_edits`;
+          if (!tableEditCountsRef.current[fieldKey]) {
+            tableEditCountsRef.current[fieldKey] = 0;
+          }
+          tableEditCountsRef.current[fieldKey] += 1;
+
+          trackTableEdit({
+            tableType: 'behaviours',
+            fieldName: changeType,
+            fieldType: changeType === 'hir' ? 'dropdown' : changeType.includes('Ref') ? 'boolean' : 'text',
+            rowId: String(index),
+            oldValue: oldValue,
+            newValue: newValue,
+            homeId: altName,
+            editCount: tableEditCountsRef.current[fieldKey],
+            residentName: targetRow.name || name,
+          });
 
           const updatedData = data.map(item => 
             item.id === String(index) 
@@ -805,6 +948,32 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       off(followUpRef, followUpListener);
     };
   }, [desiredMonth, desiredYear]);
+
+  // Fetch overview metrics from Firebase
+  useEffect(() => {
+    const metricsRef = ref(db, `/${altName}/overviewMetrics`);
+    const metricsListener = onValue(metricsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const metricsData = snapshot.val();
+        // Default values if not present
+        const defaultMetrics = {
+          antipsychotics: { percentage: 15, change: -3, residents: ['John Smith', 'Mary Johnson', 'Robert Davis'] },
+          worsened: { percentage: 28, change: 5, residents: ['Sarah Wilson', 'Michael Brown', 'Lisa Anderson'] },
+          improved: { percentage: 57, change: 8, residents: ['David Miller', 'Jennifer Taylor', 'Thomas White'] }
+        };
+        setOverviewMetrics({
+          antipsychotics: metricsData.antipsychotics || defaultMetrics.antipsychotics,
+          worsened: metricsData.worsened || defaultMetrics.worsened,
+          improved: metricsData.improved || defaultMetrics.improved
+        });
+      }
+      // If no data exists, keep the default values (no error)
+    });
+
+    return () => {
+      off(metricsRef, metricsListener);
+    };
+  }, [altName]);
 
   useEffect(() => {
     updateFallsChart();
@@ -1150,87 +1319,261 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     }
   };
 
+  // Update showFollowUpTable, showReports based on activeSection and activeOverviewTab
+  useEffect(() => {
+    if (activeSection === 'overview') {
+      setShowFollowUpTable(activeOverviewTab === 'followups');
+      setShowReports(false);
+      setShowTrendsAndAnalysis(false);
+    } else if (activeSection === 'reports') {
+      setShowFollowUpTable(false);
+      setShowReports(true);
+      setShowTrendsAndAnalysis(false);
+    } else if (activeSection === 'trends') {
+      setShowFollowUpTable(false);
+      setShowReports(false);
+      setShowTrendsAndAnalysis(true);
+    }
+  }, [activeSection, activeOverviewTab]);
+
   return (
     <div className={styles.dashboard} ref={tableRef}>
-      {/* Main Header */}
-      <div className={styles.mainHeader}>
-        <div className={styles.headerLeft}>
-          <h1 className={styles.dashboardTitle}>{title}</h1>
-          <div className={styles.navTabs}>
-            <button 
-              className={`${styles.navTab} ${!showFollowUpTable ? styles.navTabActive : ''}`}
-              onClick={() => setShowFollowUpTable(false)}
+      <div className={styles.dashboardLayout}>
+        {/* Left Sidebar Navigation */}
+        <div className={styles.sidebar}>
+          <div className={styles.sidebarHeader}>
+            <div className={styles.sidebarTitle}>Behaviours</div>
+          </div>
+          
+          <nav className={styles.sidebarNav}>
+            {/* Overview Section with Sub-items */}
+            <div className={styles.navSection}>
+              <button
+                onClick={() => {
+                  setActiveSection('overview');
+                  trackDashboardInteraction({
+                    action: 'view_table',
+                    dashboardType: 'behaviours',
+                    homeId: altName,
+                  });
+                }}
+                className={`${styles.navMainItem} ${activeSection === 'overview' ? styles.navMainItemActive : ''}`}
+              >
+                <div className={styles.navItemContent}>
+                  <svg className={styles.navIcon} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="14" height="14" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                    <path d="M3 7H17" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M7 3V17" stroke="currentColor" strokeWidth="1.5"/>
+                  </svg>
+                  <span>Overview</span>
+                </div>
+                {activeSection === 'overview' && <span className={styles.navArrow}>▼</span>}
+              </button>
+              {activeSection === 'overview' && (
+                <div className={styles.navSubItems}>
+                  <button
+                    onClick={() => setActiveOverviewTab('behaviours')}
+                    className={`${styles.navSubItem} ${activeOverviewTab === 'behaviours' ? styles.navSubItemActive : ''}`}
+                  >
+                    <div className={styles.navSubItemContent}>
+                      <div className={styles.navSubItemIndicator}></div>
+                      <svg className={styles.navSubIcon} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 4H14M2 8H14M2 12H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        <circle cx="12" cy="4" r="1.5" fill="currentColor"/>
+                        <circle cx="12" cy="8" r="1.5" fill="currentColor"/>
+                      </svg>
+                      <span>Behaviours</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveOverviewTab('followups')}
+                    className={`${styles.navSubItem} ${activeOverviewTab === 'followups' ? styles.navSubItemActive : ''}`}
+                  >
+                    <div className={styles.navSubItemContent}>
+                      <div className={styles.navSubItemIndicator}></div>
+                      <svg className={styles.navSubIcon} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 4L8 10L14 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                        <circle cx="3" cy="12" r="1.5" fill="currentColor"/>
+                        <path d="M6 12H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                      <span>Follow-ups</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Reports Section */}
+            <div className={styles.navSection}>
+              <button
+                onClick={() => {
+                  setActiveSection('reports');
+                  trackDashboardInteraction({
+                    action: 'view_report',
+                    dashboardType: 'reports',
+                    homeId: altName,
+                  });
+                }}
+                className={`${styles.navMainItem} ${activeSection === 'reports' ? styles.navMainItemActive : ''}`}
+              >
+                <div className={styles.navItemContent}>
+                  <svg className={styles.navIcon} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="14" height="14" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                    <path d="M5 12L8 9L11 12L15 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    <path d="M15 8V14H5V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  </svg>
+                  <span>Reports</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Trends and Analysis Section */}
+            <div className={styles.navSection}>
+              <button
+                onClick={() => {
+                  setActiveSection('trends');
+                  trackDashboardInteraction({
+                    action: 'view_trends',
+                    dashboardType: 'trends',
+                    homeId: altName,
+                  });
+                }}
+                className={`${styles.navMainItem} ${activeSection === 'trends' ? styles.navMainItemActive : ''}`}
+              >
+                <div className={styles.navItemContent}>
+                  <svg className={styles.navIcon} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 15L6 9L10 12L18 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    <circle cx="6" cy="9" r="2" fill="currentColor"/>
+                    <circle cx="10" cy="12" r="2" fill="currentColor"/>
+                    <circle cx="18" cy="4" r="2" fill="currentColor"/>
+                  </svg>
+                  <span>Trends and Analysis</span>
+                </div>
+              </button>
+            </div>
+
+          </nav>
+
+          {/* Support Section */}
+          <div className={styles.sidebarFooter}>
+            <div className={styles.sidebarFooterTitle}>Support</div>
+            <a 
+              href="https://drive.google.com/file/d/1zcHk-ieWInvWwgw1tILMqLCXovh-SeIP/view" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={styles.sidebarFooterItem}
             >
-              Behaviours Tracking
-            </button>
-            <button 
-              className={`${styles.navTab} ${showFollowUpTable ? styles.navTabActive : ''}`}
-              onClick={() => setShowFollowUpTable(true)}
+              <span>Privacy Policy</span>
+            </a>
+            <div className={styles.sidebarFooterItem}>
+              <span>info@fallyx.com</span>
+            </div>
+            <a 
+              href="https://docs.google.com/forms/d/e/1FAIpQLScBz8aYbjqQfc_exkvGPG86S9dTdfHA84MWxEynPgiJGSe6Mg/viewform" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={styles.sidebarFooterItem}
             >
-              Follow-ups
+              <span>Report A Problem</span>
+            </a>
+            <button className={styles.sidebarLogout} onClick={handleLogout}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px' }}>
+                <path d="M6 14H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M10 11L13 8L10 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M13 8H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              Logout
             </button>
           </div>
         </div>
-        <div className={styles.headerRight}>
-          <div className={styles.userInfo}>
-            <span className={styles.welcomeText}>
-              Welcome, {auth.currentUser?.email || 'User'} ({title})
-            </span>
+
+        {/* Main Content Area */}
+        <div className={styles.mainContent}>
+          {/* Top Header Bar */}
+          <div className={styles.topHeaderBar}>
+            <div className={styles.topHeaderLeft}>
+              {/* Universal Date Range Picker */}
+              <div className={styles.universalDateRangePicker}>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    const newStartDate = e.target.value;
+                    setStartDate(newStartDate);
+                    // If end date is before new start date, update end date
+                    if (endDate && newStartDate > endDate) {
+                      setEndDate(newStartDate);
+                    }
+                  }}
+                  className={styles.dateRangeInput}
+                  title="Start Date"
+                />
+                <span className={styles.dateRangeSeparator}>to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    const newEndDate = e.target.value;
+                    setEndDate(newEndDate);
+                    // If start date is after new end date, update start date
+                    if (startDate && newEndDate < startDate) {
+                      setStartDate(newEndDate);
+                    }
+                  }}
+                  className={styles.dateRangeInput}
+                  title="End Date"
+                  min={startDate}
+                />
+              </div>
+            </div>
+            <div className={styles.topHeaderRight}>
+              <div className={styles.userInfo}>
+                <span className={styles.welcomeText}>
+                  Welcome, {auth.currentUser?.email || 'User'} ({title})
+                </span>
+              </div>
+            </div>
           </div>
-          <button className={styles['logout-button']} onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </div>
 
-      {/* Filters Section */}
-      <div className={styles.filtersSection}>
-        <div className={styles.dateSelector}>
-          <button
-            onClick={() => setShowFollowUpTable(!showFollowUpTable)}
-            className={`${styles.toggleButton} ${showFollowUpTable ? styles.active : styles.inactive}`}
-            style={{height: '50px'}}
-          >
-            {showFollowUpTable ? 'Show Behaviours' : 'Show Follow-ups'}
-          </button>
-
-          <select className={styles.selector} style={{height: '50px'}}onChange={handleYearChange} value={desiredYear}>
-            {Object.keys(availableYearMonth).map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-
-          <select className={styles.selector}  style={{height: '50px'}} onChange={handleMonthChange} value={desiredMonth}>
-            {(availableYearMonth[desiredYear] || []).map((month) => (
-              <option key={month} value={month}>
-                {month}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className={styles['chart-container']}>
-          {/* {analysisChartData.datasets.length > 0 && <Bar data={analysisChartData} options={analysisChartOptions} />} */}
-        {showFollowUpTable &&
-          <FollowUpChart
-            data={(followUpData.length > 0 ? filteredFollowUpData : DUMMY_FOLLOW_UP_DATA)}
-            desiredYear={desiredYear}
-            desiredMonth={desiredMonth}
-          />
-        }
-        
-        { !showFollowUpTable &&
-          <AnalysisChart 
-            data={data} 
-            desiredYear={desiredYear} 
-            desiredMonth={desiredMonth} 
-            threeMonthData={threeMonthData}
-            getTimeOfDay={getTimeOfDay}
-            />
-        }
+      {showTrendsAndAnalysis ? (
+        <TrendsAndAnalysis 
+          name={name}
+          altName={altName}
+          data={data}
+          getTimeOfDay={getTimeOfDay}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      ) : showReports ? (
+        <BehavioursReports 
+          name={name}
+          altName={altName}
+          data={data}
+          getTimeOfDay={getTimeOfDay}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      ) : (
+        <React.Fragment key="main-content">
+          <div className={styles['chart-container']}>
+            {/* {analysisChartData.datasets.length > 0 && <Bar data={analysisChartData} options={analysisChartOptions} />} */}
+            {showFollowUpTable &&
+              <FollowUpChart
+                data={(followUpData.length > 0 ? filteredFollowUpData : DUMMY_FOLLOW_UP_DATA)}
+                desiredYear={desiredYear}
+                desiredMonth={desiredMonth}
+              />
+            }
+            
+            { !showFollowUpTable &&
+              <AnalysisChart 
+                data={filteredData} 
+                desiredYear={desiredYear} 
+                desiredMonth={desiredMonth}
+                threeMonthData={threeMonthData}
+                getTimeOfDay={getTimeOfDay}
+                />
+            }
 
         <div className={styles.chart}>
           <div className={styles['gauge-container']}>
@@ -1267,16 +1610,19 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     backgroundColor: '#06b6d4', 
                     borderRadius: '20%', 
                     padding: '10px',
-                    width: '60px', 
+                    minWidth: '60px', 
+                    width: '60px',
                     height: '60px', 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
                     color: 'white',
                     fontSize: '24px',
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
+                    flexShrink: 0,
+                    boxSizing: 'border-box'
                   }}>
-                    15%
+                    {overviewMetrics.antipsychotics.percentage}
                   </div>
                   <div style={{ textAlign: 'left' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D0E10', marginBottom: '5px' }}>
@@ -1287,13 +1633,15 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     </p>
                     {showResidentNames && (
                       <div style={{ marginTop: '10px', fontSize: '18px', color: '#676879' }}>
-                        <strong>Residents:</strong> John Smith, Mary Johnson, Robert Davis
+                        <strong>Residents:</strong> {overviewMetrics.antipsychotics.residents.join(', ')}
                       </div>
                     )}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#06b6d4' }}>-3%</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#06b6d4' }}>
+                    {overviewMetrics.antipsychotics.change > 0 ? '+' : ''}{overviewMetrics.antipsychotics.change}%
+                  </div>
                   <div style={{ fontSize: '12px', color: '#676879' }}>vs last month</div>
                 </div>
               </div>
@@ -1314,16 +1662,19 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     backgroundColor: '#06b6d4', 
                     borderRadius: '20%', 
                     padding: '10px',
-                    width: '60px', 
+                    minWidth: '60px', 
+                    width: '60px',
                     height: '60px', 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
                     color: 'white',
                     fontSize: '24px',
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
+                    flexShrink: 0,
+                    boxSizing: 'border-box'
                   }}>
-                    28%
+                    {overviewMetrics.worsened.percentage}
                   </div>
                   <div style={{ textAlign: 'left' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D0E10', marginBottom: '5px' }}>
@@ -1334,13 +1685,15 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     </p>
                     {showResidentNames && (
                       <div style={{ marginTop: '10px', fontSize: '18px', color: '#676879' }}>
-                        <strong>Residents:</strong> Sarah Wilson, Michael Brown, Lisa Anderson
+                        <strong>Residents:</strong> {overviewMetrics.worsened.residents.join(', ')}
                       </div>
                     )}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#06b6d4' }}>+5%</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#06b6d4' }}>
+                    {overviewMetrics.worsened.change > 0 ? '+' : ''}{overviewMetrics.worsened.change}%
+                  </div>
                   <div style={{ fontSize: '12px', color: '#676879' }}>vs last month</div>
                 </div>
               </div>
@@ -1361,16 +1714,19 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     backgroundColor: '#06b6d4', 
                     borderRadius: '20%', 
                     padding: '10px',
-                    width: '60px', 
+                    minWidth: '60px', 
+                    width: '60px',
                     height: '60px', 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
                     color: 'white',
                     fontSize: '24px',
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
+                    flexShrink: 0,
+                    boxSizing: 'border-box'
                   }}>
-                    57%
+                    {overviewMetrics.improved.percentage}
                   </div>
                   <div style={{ textAlign: 'left' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D0E10', marginBottom: '5px' }}>
@@ -1381,13 +1737,15 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     </p>
                     {showResidentNames && (
                       <div style={{ marginTop: '10px', fontSize: '18px', color: '#676879' }}>
-                        <strong>Residents:</strong> David Miller, Jennifer Taylor, Thomas White
+                        <strong>Residents:</strong> {overviewMetrics.improved.residents.join(', ')}
                       </div>
                     )}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#06b6d4' }}>+8%</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#06b6d4' }}>
+                    {overviewMetrics.improved.change > 0 ? '+' : ''}{overviewMetrics.improved.change}%
+                  </div>
                   <div style={{ fontSize: '12px', color: '#676879' }}>vs last month</div>
                 </div>
               </div>
@@ -1405,10 +1763,9 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       
       <div className={styles['table-header']}>
         <div className={styles['header']}>
-
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: '10px' }}>
         {!showFollowUpTable ? (
-          <>
+          <React.Fragment key="behaviours-filters">
             {/* Behavior Tracking Filters */}
             <select className={styles.selector}value={filterResident} onChange={(e) => setFilterResident(e.target.value)}>
                 <option>Any Resident</option>
@@ -1432,64 +1789,38 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                 <option>Evening</option>
                 <option>Night</option>
               </select>
-          </>
+          </React.Fragment>
         ) : (
-          <>
-            {/* Follow-up Filters */}
-            <select className={styles.selector} value={filterFollowUpResident} onChange={(e) => setFilterFollowUpResident(e.target.value)}>
+          <React.Fragment key="followup-filters">
+            {/* Follow-up Filters - Aligned horizontally */}
+            <select 
+              className={styles.selector} 
+              value={filterFollowUpResident} 
+              onChange={(e) => setFilterFollowUpResident(e.target.value)}
+              style={{ padding: '8px 32px 8px 12px', height: '36px' }}
+            >
               <option>Any Resident</option>
               {[...new Set(followUpData.map((d) => d.resident_name))].map((name) => (
                 <option key={name}>{name}</option>
               ))}
             </select>
-
-            {/* Start Date Filter */}
-            <input
-              type="date"
-              className={styles.selector}
-              value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              placeholder="Start Date"
-              style={{ padding: '8px' }}
-            />
-
-            {/* End Date Filter */}
-            <input
-              type="date"
-              className={styles.selector}
-              value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              placeholder="End Date"
-              style={{ padding: '8px' }}
-            />
-
-            {/* Clear Date Filters Button */}
-            <button
-              onClick={() => {
-                setFilterStartDate("");
-                setFilterEndDate("");
-              }}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              Clear Dates
-            </button>
-          </>
+          </React.Fragment>
         )}
-      </div>
+          </div>
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button className={styles['download-button']} onClick={handleSaveCSV}>
             Download as CSV
           </button>
-          <button className={styles['download-button']} onClick={handleSavePDF}>
+          <button 
+            className={styles['download-button']} 
+            onClick={handleSavePDF}
+            style={{
+              background: '#ffffff',
+              border: '2px solid #06b6d4',
+              color: '#06b6d4'
+            }}
+          >
             Download as PDF
           </button>
         </div>
@@ -1510,7 +1841,9 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
           />
         )}
       </div>
-      {isModalOpen && (
+        </React.Fragment>
+      )}
+          {isModalOpen && (
         <div className={styles.modal}>
           <div className={styles.modalContent}>
             <div>
@@ -1604,6 +1937,8 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
           }
         />
       )}
+        </div>
+      </div>
     </div>
   );
 }
