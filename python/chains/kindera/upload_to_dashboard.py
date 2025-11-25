@@ -94,7 +94,7 @@ def extract_info_from_filename(filename):
         return dashboard, year, month
     return None, None, None
 
-def process_csv_files(base_directory, home_id=None, year=None, month=None, day=None):
+def process_csv_files(base_directory, home_id, year, month, day):
     if home_id and year and month and day:
         date_folder = f"{year}_{month}_{day}"
         target_path = os.path.join(base_directory, date_folder)
@@ -102,12 +102,6 @@ def process_csv_files(base_directory, home_id=None, year=None, month=None, day=N
         if not os.path.exists(target_path):
             print(f"Error: Path does not exist: {target_path}")
             return
-        
-        dashboard = homes_dict.get(home_id, 'unknown')
-        
-        if dashboard == 'unknown':
-            print(f"Error: Unknown home_id: {home_id}")
-            dashboard = home_id
         
         for file in os.listdir(target_path):
             if file.endswith('merged.csv') or file.endswith('follow.csv'):
@@ -117,12 +111,12 @@ def process_csv_files(base_directory, home_id=None, year=None, month=None, day=N
                 
                 if filename.endswith('merged.csv'):
                     print("Uploading to behaviours")
-                    upload_csv_to_firebase(filename, f'{dashboard}/behaviours', year, month)
-                    print(f"Successfully uploaded to firebase at {dashboard}/behaviours")
+                    upload_csv_to_firebase(filename, f'{home_id}/behaviours', year, month)
+                    print(f"Successfully uploaded to firebase at {home_id}/behaviours")
                 elif filename.endswith('follow.csv'):
                     print("Uploading to follow")
-                    upload_csv_to_firebase(filename, f'{dashboard}/follow', year, month)
-                    print(f"Successfully uploaded to firebase at {dashboard}/follow")
+                    upload_csv_to_firebase(filename, f'{home_id}/follow', year, month)
+                    print(f"Successfully uploaded to firebase at {home_id}/follow")
     else:
         files_by_dashboard = {}
 
@@ -172,7 +166,6 @@ if __name__ == "__main__":
         day = sys.argv[4]
         print(f"Processing for home_id={home_id}, year={year}, month={month}, day={day}")
     else:
-        print("Usage: python3 upload_to_dashboard.py [home_id] [year] [month] [day]")
-        print("If no arguments provided, will process all CSV files in analyzed folder")
+        raise ValueError("Usage: python3 upload_to_dashboard.py [home_id] [year] [month] [day]\nIf no arguments provided, will process all CSV files in analyzed folder")
     
     process_csv_files(base_directory, home_id, year, month, day)  

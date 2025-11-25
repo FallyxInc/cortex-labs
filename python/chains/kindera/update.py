@@ -203,7 +203,7 @@ class FirebaseSynchronizer:
 
        print(f"Updated CSV file saved: {filepath}")
 
-def process_merged_csv_files(analyzed_folder, firebase_credentials_path, home_id=None, year=None, month=None, day=None):
+def process_merged_csv_files(analyzed_folder, firebase_credentials_path, home_id, year, month, day):
     
    synchronizer = FirebaseSynchronizer(firebase_credentials_path)
    print("Processing")
@@ -258,8 +258,7 @@ def main():
        day = sys.argv[4]
        print(f"Processing for home_id={home_id}, year={year}, month={month}, day={day}")
    else:
-       print("Usage: python3 update.py [home_id] [year] [month] [day]")
-       print("If no arguments provided, will process all merged.csv files in analyzed folder")
+       raise ValueError("Usage: python3 update.py [home_id] [year] [month] [day]")
 
    process_merged_csv_files(ANALYZED_FOLDER_PATH, FIREBASE_CREDENTIALS_PATH, home_id, year, month, day)
 
