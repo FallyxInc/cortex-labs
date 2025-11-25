@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "python312", "chromium", "chromedriver", "zlib", "gcc", "gnumake"]
+nixPkgs = ["nodejs_20", "python312", "chromium", "chromedriver"]
 
 [phases.install]
 cmds = [
@@ -17,5 +17,5 @@ cmd = "npm run start"
 
 [variables]
 NODE_ENV = "production"
-PYTHON_PATH = "/opt/venv/bin/python3"
+PYTHON_PATH = "/opt/venv/bin/python"
 

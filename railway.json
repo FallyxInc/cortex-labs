@@ -4,7 +4,7 @@
     "builder": "NIXPACKS",
     "buildCommand": "npm install && npm run build",
     "env": {
-      "PYTHON_PATH": "/opt/venv/bin/python"
+      "PYTHON_PATH": "/opt/venv/bin/python3"
     }
   },
   "deploy": {

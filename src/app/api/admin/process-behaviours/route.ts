@@ -11,6 +11,27 @@ const execAsync = promisify(exec);
 
 const PYTHON_PATH = process.env.PYTHON_PATH || 'python3';
 
+// Cache zlib path to avoid repeated expensive searches
+let cachedZlibPath: string | null = null;
+
+async function getZlibPath(): Promise<string> {
+  if (cachedZlibPath !== null) {
+    return cachedZlibPath;
+  }
+
+  const findZlibCmd = 'find /nix/store -name "libz.so.1" -exec dirname {} \\; 2>/dev/null | head -1';
+  try {
+    const { stdout } = await execAsync(findZlibCmd);
+    cachedZlibPath = stdout.trim();
+    console.log(`📚 [PYTHON] Found zlib at: ${cachedZlibPath}`);
+  } catch {
+    console.warn('⚠️ [PYTHON] Could not find zlib path, continuing without it');
+    cachedZlibPath = '';
+  }
+
+  return cachedZlibPath;
+}
+
 // Helper function to update progress
 async function updateProgress(jobId: string, percentage: number, message: string, step: string) {
   // Store progress in memory
@@ -23,15 +44,8 @@ async function execPythonWithLiveOutput(
   args: string[],
   options: { cwd: string; env: NodeJS.ProcessEnv }
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
-  // Find zlib library path dynamically
-  const findZlibCmd = 'find /nix/store -name "libz.so.1" -exec dirname {} \\; 2>/dev/null | head -1';
-  let zlibPath = '';
-  try {
-    const { stdout: zlibOut } = await execAsync(findZlibCmd);
-    zlibPath = zlibOut.trim();
-  } catch {
-    console.warn('⚠️ Could not find zlib path, continuing without it');
-  }
+  // Get cached zlib path (only searches once)
+  const zlibPath = await getZlibPath();
 
   // Set LD_LIBRARY_PATH with zlib location
   const env = {
