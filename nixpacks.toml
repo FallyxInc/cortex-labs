@@ -6,14 +6,15 @@ cmds = [
   "npm ci",
   "python3 -m venv /opt/venv",
   "/opt/venv/bin/pip install --upgrade pip",
-  "/opt/venv/bin/pip install -r requirements.txt"
+  "/opt/venv/bin/pip install -r requirements.txt",
+  "source /opt/venv/bin/activate.sh"
 ]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
-cmd = "npm run start"
+cmd = "source /opt/venv/bin/activate.sh; npm run start"
 
 [variables]
 NODE_ENV = "production"
