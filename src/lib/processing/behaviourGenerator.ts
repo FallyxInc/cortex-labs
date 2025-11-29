@@ -637,11 +637,14 @@ export async function saveFollowupNotesCsv(
     summary_of_behaviour: string;
   }> = [];
 
-  const targetTypes = new Set(["Behaviour - Follow up"]);
-  const extraTargetTypes = new Set([
-    "Family/Resident Involvment",
-    "Physician Note",
-  ]);
+  // Use config-defined follow-up note types
+  const targetTypes = new Set(config.followUpNoteTypes);
+  const extraTargetTypes = new Set(
+    config.extraFollowUpNoteTypes || [
+      "Family/Resident Involvment",
+      "Physician Note",
+    ],
+  );
 
   // Read the behaviour CSV
   const behaviourContent = await readFile(behaviourCsvPath, "utf-8");
@@ -684,14 +687,17 @@ export async function saveFollowupNotesCsv(
         summaryText = dataText.split("Note Text :")[1].trim();
       }
 
-      followupRecords.push({
-        id: "",
-        resident_name: cleanName(note["Resident Name"]),
-        date: noteDate.toISOString().split("T")[0],
-        time: noteDate.toTimeString().split(" ")[0],
-        other_notes: "",
-        summary_of_behaviour: summaryText,
-      });
+      // Only add if dataText is not empty
+      if (dataText !== "" && dataText !== ",") {
+        followupRecords.push({
+          id: "",
+          resident_name: cleanName(note["Resident Name"]),
+          date: noteDate.toISOString().split("T")[0],
+          time: noteDate.toTimeString().split(" ")[0],
+          other_notes: "",
+          summary_of_behaviour: summaryText,
+        });
+      }
     }
   }
 

@@ -113,6 +113,7 @@ export interface FieldExtractionConfig {
 export interface ChainExtractionConfig {
   behaviourNoteTypes: string[];
   followUpNoteTypes: string[];
+  extraFollowUpNoteTypes?: string[]; // Optional extra note types to append to follow-up records
   injuryColumns: {
     start: number;
     end: number;

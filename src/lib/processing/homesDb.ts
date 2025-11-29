@@ -50,6 +50,10 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       NOTE_TYPES.BEHAVIOUR_FOLLOWUP,
       NOTE_TYPES.BEHAVIOUR_NOTE,
     ],
+    extraFollowUpNoteTypes: [
+      NOTE_TYPES.FAMILY_RESIDENT,
+      NOTE_TYPES.PHYSICIAN_NOTE,
+    ],
     injuryColumns: {
       start: 13,
       end: 37,
@@ -94,6 +98,10 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
   responsive: {
     behaviourNoteTypes: [NOTE_TYPES.BEHAVIOUR_RESPONSIVE],
     followUpNoteTypes: [NOTE_TYPES.BEHAVIOUR_FOLLOWUP],
+    extraFollowUpNoteTypes: [
+      NOTE_TYPES.FAMILY_RESIDENT,
+      NOTE_TYPES.PHYSICIAN_NOTE,
+    ],
     injuryColumns: {
       start: 13,
       end: 87,
@@ -142,6 +150,10 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
   test: {
     behaviourNoteTypes: [NOTE_TYPES.BEHAVIOUR_RESPONSIVE],
     followUpNoteTypes: [NOTE_TYPES.BEHAVIOUR_FOLLOWUP],
+    extraFollowUpNoteTypes: [
+      NOTE_TYPES.FAMILY_RESIDENT,
+      NOTE_TYPES.PHYSICIAN_NOTE,
+    ],
     injuryColumns: {
       start: 13,
       end: 34,

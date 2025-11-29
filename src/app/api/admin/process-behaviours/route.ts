@@ -290,6 +290,17 @@ export async function POST(request: NextRequest) {
       console.log("ℹ️ [API] Downloads directory empty or doesn't exist yet");
     }
 
+    // Clear analyzed directory
+    try {
+      const existingFiles = await readdir(analyzedDir);
+      for (const file of existingFiles) {
+        await unlink(join(analyzedDir, file));
+      }
+      console.log(`✅ [API] Cleared ${existingFiles.length} existing file(s)`);
+    } catch (err) {
+      console.log("ℹ️ [API] Analyzed directory empty or doesn't exist yet");
+    }
+
     // Save PDF files
     for (const file of pdfFiles) {
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -336,30 +347,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("🚀 [PROCESSOR] Starting behaviour files processing...");
-
-    // Clear analyzed directory if date is provided
-    if (year && month && day) {
-      const dateDir = join(analyzedDir, `${year}_${month}_${day}`);
-      await mkdir(dateDir, { recursive: true });
-
-      try {
-        const analyzeEntries = await readdir(dateDir, { withFileTypes: true });
-        for (const entry of analyzeEntries) {
-          const fullPath = join(dateDir, entry.name);
-          if (entry.isDirectory()) {
-            const { rm } = await import("fs/promises");
-            await rm(fullPath, { recursive: true, force: true });
-          } else {
-            await unlink(fullPath);
-          }
-        }
-        console.log(
-          `✅ Cleared ${analyzeEntries.length} item(s) from analyze directory`,
-        );
-      } catch (err) {
-        console.log("ℹ️ Analyze directory empty or doesn't exist yet");
-      }
-    }
 
     await updateProgress(
       jobId,

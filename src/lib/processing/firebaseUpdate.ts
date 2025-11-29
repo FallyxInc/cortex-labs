@@ -227,12 +227,7 @@ export async function processMergedCsvFiles(
 
       // Filter for merged.csv files that belong to this home
       const mergedFiles = files.filter((file) => {
-        const normalizedFile = file.toLowerCase();
-        const normalizedHome = homeId.toLowerCase().replace(/_/g, "_");
-        return (
-          normalizedFile.includes(normalizedHome) &&
-          file.endsWith("_merged.csv")
-        );
+        return file.endsWith("_merged.csv");
       });
 
       if (mergedFiles.length === 0) {
