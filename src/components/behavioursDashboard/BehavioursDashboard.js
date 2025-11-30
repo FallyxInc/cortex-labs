@@ -846,9 +846,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
 
   useEffect(() => {
     let dataRef = ref(db, `/${altName}/behaviours/${desiredYear}/${months_backword[desiredMonth]}`);
-    if (altName === 'berkshire' || altName === 'banwell') {
-      dataRef = ref(db, `/${altName}/${desiredYear}/${months_backword[desiredMonth]}`);
-    } 
 
     const currentYear = desiredYear;
     const currentMonth = parseInt(months_backword[desiredMonth]);
@@ -870,10 +867,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
 
     pastThreeMonths.forEach(({ year, month }) => {
       let monthRef = ref(db, `/${altName}/behaviours/${year}/${month}`);
-
-      if (altName === 'berkshire' || altName === 'banwell') {
-        monthRef = ref(db, `/${altName}/${year}/${month}`);
-      } 
 
       const listener = onValue(monthRef, (snapshot) => {
         if (snapshot.exists()) {
@@ -1058,11 +1051,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
 
   useEffect(() => {
     let yearsRef;
-    if (altName === 'berkshire' || altName === 'banwell') {
-      yearsRef = ref(db, `/${altName}`);
-    } else {
-      yearsRef = ref(db, `/${altName}/behaviours`);
-    }
+    yearsRef = ref(db, `/${altName}/behaviours`);
     
     onValue(yearsRef, (snapshot) => {
       const yearMonthMapping = {};
