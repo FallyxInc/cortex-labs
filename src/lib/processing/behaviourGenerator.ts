@@ -576,11 +576,12 @@ export async function mergeBehaviourData(
       poa_notified: DEFAULT_NO_PROGRESS_TEXT_SHORT,
     };
 
-    // Find matching behaviour note within 24 hours (kindera uses 24, responsive uses 20)
+    // Find matching behaviour note within chain-specific time window
+    const matchingWindowHours = config.matchingWindowHours ?? 24;
     const matching = behaviourProcessed.find((beh) => {
       if (beh.name !== cleanName(procRow.name as string)) return false;
       const timeDiff = Math.abs(beh.datetime.getTime() - datetime.getTime());
-      return timeDiff <= 24 * 60 * 60 * 1000;
+      return timeDiff <= matchingWindowHours * 60 * 60 * 1000;
     });
 
     if (matching) {

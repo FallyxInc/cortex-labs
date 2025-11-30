@@ -59,6 +59,7 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       start: 13,
       end: 37,
     },
+    matchingWindowHours: 24,
     // Default extraction markers (fallback if no specific config)
     fieldExtractionMarkers: {
       description: {
@@ -261,6 +262,7 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       start: 13,
       end: 87,
     },
+    matchingWindowHours: 20,
     fieldExtractionMarkers: {
       behaviour_type: {
         fieldName: "Type of Behaviour :",
@@ -313,6 +315,7 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       start: 13,
       end: 34,
     },
+    matchingWindowHours: 20,
     fieldExtractionMarkers: {
       behaviour_type: {
         fieldName: "Type of Behaviour :",

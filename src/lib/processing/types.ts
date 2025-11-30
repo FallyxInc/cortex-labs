@@ -126,6 +126,7 @@ export interface ChainExtractionConfig {
     start: number;
     end: number;
   };
+  matchingWindowHours?: number; // Hours window for matching behaviour notes to incidents (default: 24)
 
   // Default extraction config (used when no specific config exists for a note type)
   fieldExtractionMarkers: Record<string, FieldExtractionConfig>;
