@@ -261,6 +261,8 @@ export default function FileUpload() {
       const result = await response.json();
       const processingTime = Date.now() - processingStartTime;
 
+      console.log("result", result);
+
       // Start tracking progress if jobId is returned
       if (result.jobId) {
         setJobId(result.jobId);
@@ -272,6 +274,7 @@ export default function FileUpload() {
       }
 
       if (response.ok) {
+        console.log("Behaviour files processed successfully!");
         setMessage("Files uploaded successfully!");
         setShowSuccess(true);
         // Clear success message after 10 seconds

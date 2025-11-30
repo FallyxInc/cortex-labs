@@ -820,30 +820,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     }
   };
 
-  const getDataLengths = async () => {
-    setIsLoading(true);
-    
-    if (incidentType !== 'Falls') {
-      // Use mock data for other incident types
-      const mockData = MOCK_INCIDENT_DATA[incidentType];
-      setIsLoading(false);
-      return mockData;
-    }
-
-    // Original falls data fetching logic
-    const homes = ['home1', 'home2', 'home3', 'home4', 'vmltc', 'oneill', 'lancaster', 'goderich'];
-    const dataLengths = {};
-    
-    try {
-      // ... rest of the original function ...
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      return {};
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
     let dataRef = ref(db, `/${altName}/behaviours/${desiredYear}/${months_backword[desiredMonth]}`);
 
@@ -995,6 +971,59 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     }
   }, [data]);
 
+  const handleYearChange = (e) => {
+    const selectedYear = e.target.value;
+    setDesiredYear(selectedYear);
+
+    // When year changes, set month to the first available month for that year
+    const availableMonths = availableYearMonth[selectedYear] || [];
+    if (availableMonths.length > 0) {
+      setDesiredMonth(availableMonths[0]);
+    }
+  };
+
+  const handleMonthChange = (event) => {
+    const selectedMonth = event.target.value;
+    setDesiredMonth(selectedMonth);
+  };
+
+
+  const handleUnitChange = (event) => {
+    // setDesiredUnit(event.target.value);
+  };
+
+  // Calculate behavior metrics for overview
+  const calculateBehaviorMetrics = () => {
+    if (!data || data.length === 0) return { antipsychotics: 0, worsened: 0, improved: 0 };
+    
+    let antipsychoticsCount = 0;
+    let worsenedCount = 0;
+    let improvedCount = 0;
+    let totalCount = data.length;
+    
+    data.forEach(item => {
+      // Check for antipsychotics without prescription
+      if (item.antipsychotic === 'yes' && (!item.prescription || item.prescription === 'no')) {
+        antipsychoticsCount++;
+      }
+      
+      // Check for behaviors worsened
+      if (item.behavior_change === 'worsened' || item.behavior_change === 'worse') {
+        worsenedCount++;
+      }
+      
+      // Check for behaviors improved
+      if (item.behavior_change === 'improved' || item.behavior_change === 'better') {
+        improvedCount++;
+      }
+    });
+    
+    return {
+      antipsychotics: totalCount > 0 ? Math.round((antipsychoticsCount / totalCount) * 100) : 0,
+      worsened: totalCount > 0 ? Math.round((worsenedCount / totalCount) * 100) : 0,
+      improved: totalCount > 0 ? Math.round((improvedCount / totalCount) * 100) : 0
+    };
+  };
 
   useEffect(() => {
     let yearsRef;
@@ -1020,6 +1049,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             return months_backword[a] - months_backword[b];
           });
         });
+        
 
         const sortedYears = Object.keys(yearMonthMapping).sort((a, b) => b - a);
         const sortedMapping = {};
