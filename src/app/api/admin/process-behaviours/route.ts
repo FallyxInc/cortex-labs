@@ -417,7 +417,7 @@ export async function POST(request: NextRequest) {
         downloadsDir,
         analyzedDir,
         homeNameForPython,
-        chain,
+        chainId,
       );
       const pdfDuration = ((Date.now() - pdfStartTime) / 1000).toFixed(2);
       const pdfDurationMinutes = (parseFloat(pdfDuration) / 60).toFixed(2);

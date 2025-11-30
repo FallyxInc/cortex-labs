@@ -6,14 +6,11 @@ import { join } from "path";
 import OpenAI from "openai";
 import {
   BehaviourEntry,
-  ProcessedIncident,
-  MergedBehaviourData,
-  FollowUpNote,
   DEFAULT_NO_PROGRESS_TEXT,
   DEFAULT_NO_PROGRESS_TEXT_SHORT,
-  NOTE_TYPES,
   ChainExtractionConfig,
   ExtractedBehaviourFields,
+  FieldExtractionConfig,
 } from "./types";
 import { CHAIN_EXTRACTION_CONFIGS } from "./homesDb";
 
@@ -38,52 +35,102 @@ function cleanName(name: string | null | undefined): string {
 
 /**
  * Extract a single field from behaviour note data using chain-specific markers
+ * Supports multiple field names to handle different note formats
  */
 function extractField(
   text: string,
-  fieldName: string,
+  fieldName: string | string[],
   endMarkers: string[],
 ): string {
   try {
-    const startIdx = text.indexOf(fieldName);
-    if (startIdx === -1) {
-      return DEFAULT_NO_PROGRESS_TEXT;
-    }
+    // Convert single fieldName to array for unified processing
+    const fieldNames = Array.isArray(fieldName) ? fieldName : [fieldName];
 
-    const actualStart = startIdx + fieldName.length;
+    // Try each field name until we find one that exists in the text
+    for (const name of fieldNames) {
+      const startIdx = text.indexOf(name);
+      if (startIdx !== -1) {
+        const actualStart = startIdx + name.length;
 
-    if (endMarkers.length === 0) {
-      const result = text.substring(actualStart).trim();
-      return result || DEFAULT_NO_PROGRESS_TEXT;
-    }
+        if (endMarkers.length === 0) {
+          const result = text.substring(actualStart).trim();
+          return result || DEFAULT_NO_PROGRESS_TEXT;
+        }
 
-    let endIdx = text.length;
-    for (const marker of endMarkers) {
-      const pos = text.indexOf(marker, actualStart);
-      if (pos !== -1 && pos < endIdx) {
-        endIdx = pos;
+        let endIdx = text.length;
+        for (const marker of endMarkers) {
+          const pos = text.indexOf(marker, actualStart);
+          if (pos !== -1 && pos < endIdx) {
+            endIdx = pos;
+          }
+        }
+
+        const result = text.substring(actualStart, endIdx).trim();
+        return result || DEFAULT_NO_PROGRESS_TEXT;
       }
     }
 
-    const result = text.substring(actualStart, endIdx).trim();
-    return result || DEFAULT_NO_PROGRESS_TEXT;
-  } catch (error) {
+    // None of the field names were found
+    return DEFAULT_NO_PROGRESS_TEXT;
+  } catch {
     return DEFAULT_NO_PROGRESS_TEXT;
   }
 }
 
 /**
- * Extract all fields from behaviour note data using chain-specific configuration
+ * Get extraction config for a specific note type
+ * Returns note-type-specific config if available, otherwise returns default config
+ */
+function getExtractionConfigForNoteType(
+  noteType: string,
+  chainConfig: ChainExtractionConfig,
+  isFollowUpNote: boolean = false,
+): {
+  markers: Record<string, FieldExtractionConfig>;
+  hasTimeFrequency: boolean;
+  hasEvaluation: boolean;
+} {
+  // Check for note-type-specific config
+  const specificConfigs = isFollowUpNote
+    ? chainConfig.followUpNoteConfigs
+    : chainConfig.behaviourNoteConfigs;
+
+  if (specificConfigs && specificConfigs[noteType]) {
+    const specificConfig = specificConfigs[noteType];
+    return {
+      markers: specificConfig.extractionMarkers,
+      hasTimeFrequency: specificConfig.hasTimeFrequency ?? false,
+      hasEvaluation: specificConfig.hasEvaluation ?? false,
+    };
+  }
+
+  // Fall back to default config
+  return {
+    markers: chainConfig.fieldExtractionMarkers,
+    hasTimeFrequency: chainConfig.hasTimeFrequency ?? false,
+    hasEvaluation: chainConfig.hasEvaluation ?? false,
+  };
+}
+
+/**
+ * Extract all fields from behaviour note data using note-type-specific or default configuration
  */
 function extractAllFields(
   data: string,
-  config: ChainExtractionConfig,
+  noteType: string,
+  chainConfig: ChainExtractionConfig,
+  isFollowUpNote: boolean = false,
 ): ExtractedBehaviourFields {
   const fields: ExtractedBehaviourFields = {};
 
-  for (const [fieldKey, fieldConfig] of Object.entries(
-    config.fieldExtractionMarkers,
-  )) {
+  // Get the appropriate extraction config for this note type
+  const { markers } = getExtractionConfigForNoteType(
+    noteType,
+    chainConfig,
+    isFollowUpNote,
+  );
+
+  for (const [fieldKey, fieldConfig] of Object.entries(markers)) {
     fields[fieldKey as keyof ExtractedBehaviourFields] = extractField(
       data,
       fieldConfig.fieldName,
@@ -113,6 +160,35 @@ interface BehaviourIncident {
   evaluation?: string;
 }
 
+interface MergedRow extends Record<string, unknown> {
+  datetime: Date;
+  date?: string;
+  time?: string;
+  name?: string;
+  incident_number?: string;
+  incident_location?: string;
+  room?: string;
+  injuries?: string;
+  incident_type?: string;
+  behaviour_type: string;
+  triggers: string;
+  description: string;
+  consequences: string;
+  interventions: string;
+  medication_changes: string;
+  risks: string;
+  outcome: string;
+  poa_notified: string;
+  who_affected?: string;
+  code_white?: string;
+  prn?: string;
+  other_notes?: string;
+  summary?: string;
+  CI?: string;
+  time_frequency?: string;
+  evaluation?: string;
+}
+
 /**
  * Process behaviour notes using chain-specific extraction configuration
  */
@@ -128,8 +204,15 @@ function processBehaviourNotes(
       const data = row.Data;
       const datetime = new Date(row["Effective Date"]);
 
-      // Extract all fields using chain configuration
-      const extractedFields = extractAllFields(data, config);
+      // Extract all fields using note-type-specific or default configuration
+      const extractedFields = extractAllFields(data, row.Type, config, false);
+
+      // Get the config for this specific note type to check flags
+      const noteTypeConfig = getExtractionConfigForNoteType(
+        row.Type,
+        config,
+        false,
+      );
 
       // Build incident with extracted fields
       const incident: BehaviourIncident = {
@@ -149,11 +232,11 @@ function processBehaviourNotes(
         injuries: row.Injuries || "No Injury",
       };
 
-      // Add optional fields based on chain configuration
-      if (config.hasTimeFrequency && extractedFields.time_frequency) {
+      // Add optional fields based on note-type-specific or default configuration
+      if (noteTypeConfig.hasTimeFrequency && extractedFields.time_frequency) {
         incident.time_frequency = extractedFields.time_frequency;
       }
-      if (config.hasEvaluation && extractedFields.evaluation) {
+      if (noteTypeConfig.hasEvaluation && extractedFields.evaluation) {
         incident.evaluation = extractedFields.evaluation;
       }
       if (extractedFields.triggers !== undefined) {
@@ -177,7 +260,7 @@ function processBehaviourNotes(
 }
 
 async function gptDetermineWhoAffected(
-  row: any,
+  row: Record<string, unknown>,
   apiKey: string,
 ): Promise<string> {
   const client = initOpenAI(apiKey);
@@ -231,7 +314,7 @@ Answer with a comma-separated list of the categories above. If unclear, answer w
   }
 }
 
-function checkCodeWhite(row: any): string {
+function checkCodeWhite(row: Record<string, unknown>): string {
   const fieldsToCheck = [
     "description",
     "consequences",
@@ -252,7 +335,7 @@ function checkCodeWhite(row: any): string {
   return "no";
 }
 
-function checkPrn(row: any): string {
+function checkPrn(row: Record<string, unknown>): string {
   const fieldsToCheck = [
     "description",
     "consequences",
@@ -275,17 +358,17 @@ function checkPrn(row: any): string {
  * Collect other notes (follow-ups, family notes, physician notes) using chain-specific configuration
  */
 function collectOtherNotes(
-  row: any,
+  row: Record<string, unknown>,
   notes: BehaviourEntry[],
   config: ChainExtractionConfig,
 ): string {
   const collectedNotes: string[] = [];
-  const rowDatetime = new Date(row.datetime);
+  const rowDatetime = new Date(row.datetime as string | Date);
 
   for (const note of notes) {
     if (
       config.followUpNoteTypes.includes(note.Type) &&
-      note["Resident Name"] === row.name
+      note["Resident Name"] === (row.name as string)
     ) {
       const noteDatetime = new Date(note["Effective Date"]);
       const timeDiff = Math.abs(noteDatetime.getTime() - rowDatetime.getTime());
@@ -328,7 +411,7 @@ function collectOtherNotes(
     : "No other notes";
 }
 
-async function gptSummarizeIncident(row: any, apiKey: string): Promise<string> {
+async function gptSummarizeIncident(row: Record<string, unknown>, apiKey: string): Promise<string> {
   const defaultIndicators = [
     "No Progress Note Found Within 24hrs of RIM",
     DEFAULT_NO_PROGRESS_TEXT_SHORT,
@@ -420,7 +503,7 @@ Based on this, was the action intentional? Answer only with 'yes' or 'no'.
   }
 }
 
-async function determineCiStatus(row: any, apiKey: string): Promise<string> {
+async function determineCiStatus(row: Record<string, unknown>, apiKey: string): Promise<string> {
   const incidentType = String(row.incident_type || "").toLowerCase();
   const whoAffected = String(row.who_affected || "").toLowerCase();
   const summary = String(row.summary || "");
@@ -467,19 +550,19 @@ export async function mergeBehaviourData(
   const behaviourContent = await readFile(behaviourCsvPath, "utf-8");
 
   const processedRows = parseCsv(processedContent);
-  const behaviourRows = parseCsv(behaviourContent) as BehaviourEntry[];
+  const behaviourRows = parseCsv(behaviourContent) as unknown as BehaviourEntry[];
 
   // Process behaviour notes with chain-specific extraction
   const behaviourProcessed = processBehaviourNotes(behaviourRows, config);
   console.log(`Processed ${behaviourProcessed.length} behaviour incidents`);
 
   // Merge data
-  const merged: any[] = [];
+  const merged: MergedRow[] = [];
 
   for (const procRow of processedRows) {
     const datetime = new Date(`${procRow.date} ${procRow.time}`);
 
-    const mergedRow: any = {
+    const mergedRow: MergedRow = {
       ...procRow,
       datetime,
       behaviour_type: DEFAULT_NO_PROGRESS_TEXT,
@@ -495,13 +578,16 @@ export async function mergeBehaviourData(
 
     // Find matching behaviour note within 24 hours (kindera uses 24, responsive uses 20)
     const matching = behaviourProcessed.find((beh) => {
-      if (beh.name !== cleanName(procRow.name)) return false;
+      if (beh.name !== cleanName(procRow.name as string)) return false;
       const timeDiff = Math.abs(beh.datetime.getTime() - datetime.getTime());
       return timeDiff <= 24 * 60 * 60 * 1000;
     });
 
     if (matching) {
-      Object.assign(mergedRow, matching);
+      // Exclude datetime/date/time/name from behaviour note (keep incident report values)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { datetime: _dt, date: _d, time: _t, name: _n, ...behaviorFields } = matching;
+      Object.assign(mergedRow, behaviorFields);
       console.log(
         `Found matching behaviour note for ${procRow.name} at ${datetime}`,
       );
@@ -520,14 +606,19 @@ export async function mergeBehaviourData(
 
   // Format final data
   const finalData = merged.map((row, index) => {
-    const dt = new Date(row.date);
-    const baseData: any = {
+    // Fix day of week calculation - use local date to avoid timezone issues
+    const dateStr = (row.date as string) || "";
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const dt = new Date(year, month - 1, day); // month is 0-indexed
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    const baseData: Record<string, unknown> = {
       id: index,
       date: row.date,
       time: row.time,
-      "Day of the Week": dt.toLocaleDateString("en-US", { weekday: "long" }),
-      name: row.name,
+      "Day of the Week": daysOfWeek[dt.getDay()],
       incident_number: row.incident_number,
+      name: row.name,
       incident_location: row.incident_location,
       room: row.room,
       injuries: row.injuries,
@@ -536,30 +627,36 @@ export async function mergeBehaviourData(
       triggers: row.triggers,
       interventions: row.interventions,
       poa_notified: row.poa_notified,
-      who_affected: row.who_affected,
-      code_white: row.code_white,
-      prn: row.prn,
-      other_notes: row.other_notes,
-      summary: row.summary,
-      CI: row.CI,
     };
 
-    // Add chain-specific fields if present
-    if (config?.hasTimeFrequency && row.time_frequency) {
-      baseData.time_frequency = row.time_frequency;
+    // Add chain-specific fields BEFORE who_affected to match Python column order
+    if (config?.hasTimeFrequency) {
+      baseData.time_frequency = row.time_frequency || DEFAULT_NO_PROGRESS_TEXT_SHORT;
     }
-    if (config?.hasEvaluation && row.evaluation) {
-      baseData.evaluation = row.evaluation;
+    if (config?.hasEvaluation) {
+      baseData.evaluation = row.evaluation || DEFAULT_NO_PROGRESS_TEXT_SHORT;
     }
+
+    // Add remaining fields
+    baseData.who_affected = row.who_affected;
+    baseData.code_white = row.code_white;
+    baseData.prn = row.prn;
+    baseData.other_notes = row.other_notes;
+    baseData.summary = row.summary;
+    baseData.CI = row.CI;
 
     return baseData;
   });
 
   // Sort by date and time descending
   finalData.sort((a, b) => {
-    const dateCompare = b.date.localeCompare(a.date);
+    const dateA = (a.date as string) || "";
+    const dateB = (b.date as string) || "";
+    const timeA = (a.time as string) || "";
+    const timeB = (b.time as string) || "";
+    const dateCompare = dateB.localeCompare(dateA);
     if (dateCompare !== 0) return dateCompare;
-    return b.time.localeCompare(a.time);
+    return timeB.localeCompare(timeA);
   });
 
   // Write to CSV
@@ -568,20 +665,20 @@ export async function mergeBehaviourData(
 }
 
 // CSV parsing/writing helpers
-function parseCsv(content: string): Record<string, any>[] {
+function parseCsv(content: string): Record<string, unknown>[] {
   const lines = content.trim().split("\n");
   if (lines.length < 2) return [];
 
   const headers = lines[0]
     .split(",")
     .map((h) => h.trim().replace(/^"|"$/g, ""));
-  const rows: Record<string, any>[] = [];
+  const rows: Record<string, unknown>[] = [];
 
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i]
       .split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
       .map((v) => v.trim().replace(/^"|"$/g, ""));
-    const row: Record<string, any> = {};
+    const row: Record<string, unknown> = {};
     headers.forEach((header, index) => {
       row[header] = values[index] || "";
     });
@@ -593,7 +690,7 @@ function parseCsv(content: string): Record<string, any>[] {
 
 async function writeCsv(
   filePath: string,
-  data: Record<string, any>[],
+  data: Record<string, unknown>[],
 ): Promise<void> {
   if (data.length === 0) return;
 
@@ -603,7 +700,7 @@ async function writeCsv(
     ...data.map((row) =>
       headers
         .map((header) => {
-          const value = row[header] || "";
+          const value = row[header] !== undefined && row[header] !== null ? row[header] : "";
           const escaped = String(value).replace(/"/g, '""');
           return escaped.includes(",") ||
             escaped.includes("\n") ||
@@ -648,15 +745,18 @@ export async function saveFollowupNotesCsv(
 
   // Read the behaviour CSV
   const behaviourContent = await readFile(behaviourCsvPath, "utf-8");
-  const notes = parseCsv(behaviourContent) as BehaviourEntry[];
+  const notes = parseCsv(behaviourContent) as unknown as BehaviourEntry[];
 
   // Find follow-up notes
   for (const note of notes) {
+    if (!note || !note.Type || !note["Effective Date"] || !note.Data) {
+      continue;
+    }
     if (targetTypes.has(note.Type)) {
       const noteDate = new Date(note["Effective Date"]);
 
       // Clean data similar to collectOtherNotes
-      let dataText = note.Data;
+      let dataText = String(note.Data || "").trim();
       const junkMarkers = ["Facility #", "Effective Date Range"];
 
       for (const marker of junkMarkers) {
@@ -688,7 +788,7 @@ export async function saveFollowupNotesCsv(
       }
 
       // Only add if dataText is not empty
-      if (dataText !== "" && dataText !== ",") {
+      if (dataText && dataText !== "" && dataText !== ",") {
         followupRecords.push({
           id: "",
           resident_name: cleanName(note["Resident Name"]),
@@ -720,6 +820,9 @@ export async function saveFollowupNotesCsv(
     console.log("Finding matching follow-up notes for extra notes...");
 
     for (const famNote of notes) {
+      if (!famNote || !famNote.Type || !famNote["Effective Date"] || !famNote.Data || !famNote["Resident Name"]) {
+        continue;
+      }
       if (extraTargetTypes.has(famNote.Type)) {
         const resident = cleanName(famNote["Resident Name"]);
         if (!nameToIndices[resident]) continue;
@@ -727,7 +830,7 @@ export async function saveFollowupNotesCsv(
         const famDate = new Date(famNote["Effective Date"]);
 
         // Clean data similar to above
-        let famText = famNote.Data;
+        let famText = String(famNote.Data || "").trim();
         const junkMarkers = ["Facility #", "Effective Date Range"];
 
         for (const marker of junkMarkers) {
@@ -783,7 +886,7 @@ export async function saveFollowupNotesCsv(
   }
 
   if (followupRecords.length > 0) {
-    await writeCsv(outputFile, followupRecords);
+    await writeCsv(outputFile, followupRecords as Record<string, unknown>[]);
     console.log(`Successfully saved followup notes to ${outputFile}`);
     return outputFile;
   }

@@ -9,8 +9,6 @@ import {
   INJURY_TYPES_GROUP1,
   INJURY_TYPES_GROUP2,
   ALL_INJURY_TYPES,
-  NOTE_TYPES,
-  ChainExtractionConfig,
 } from "./types";
 
 import { LoadParameters } from "pdf-parse";
@@ -109,27 +107,10 @@ export function getAllFallNotesInfo(
       allowedNoteTypes = [
         ...config.behaviourNoteTypes,
         ...config.followUpNoteTypes,
-        NOTE_TYPES.FAMILY_RESIDENT,
-        NOTE_TYPES.PHYSICIAN_NOTE,
+        ...(config.extraFollowUpNoteTypes || []),
       ];
       console.log(`Using chain-specific note types for home: ${homeId}`);
     }
-  }
-
-  // If no config found or no homeId, use all possible note types
-  if (allowedNoteTypes.length === 0) {
-    allowedNoteTypes = [
-      NOTE_TYPES.BEHAVIOUR_RESPONSIVE,
-      NOTE_TYPES.BEHAVIOUR_FOLLOWUP,
-      NOTE_TYPES.BEHAVIOUR_NOTE,
-      NOTE_TYPES.FAMILY_RESIDENT,
-      NOTE_TYPES.PHYSICIAN_NOTE,
-      NOTE_TYPES.RESPONSIVE_PHYSICAL_AGGRESSION,
-      NOTE_TYPES.RESPONSIVE_VERBAL,
-      NOTE_TYPES.RESPONSIVE_POTENTIAL_HARM,
-      NOTE_TYPES.RESPONSIVE_WANDERING,
-    ];
-    console.log("Using all known note types");
   }
 
   // Build regex pattern from allowed note types

@@ -1,6 +1,6 @@
 // Central place for chains and homes configuration (TypeScript port of homes_db.py)
 
-import { ChainExtractionConfig, NOTE_TYPES } from "./types";
+import { ChainExtractionConfig } from "./types";
 
 export interface ChainConfig {
   name: string;
@@ -40,67 +40,222 @@ export function extractDateFromFilename(
 export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
   kindera: {
     behaviourNoteTypes: [
-      NOTE_TYPES.RESPONSIVE_PHYSICAL_AGGRESSION,
-      NOTE_TYPES.RESPONSIVE_VERBAL,
-      NOTE_TYPES.RESPONSIVE_POTENTIAL_HARM,
-      NOTE_TYPES.RESPONSIVE_WANDERING,
-      NOTE_TYPES.BEHAVIOUR_RESPONSIVE,
+      "Responsive Behaviour - Physical Agression",
+      "Responsive Behaviours - Other",
+      "Responsive Behaviour - Verbal",
+      "Responsive Behaviour - Potential to harm self",
+      "Responsive Behaviour - Wandering",
+      "Behaviour - Responsive Behaviour",
     ],
     followUpNoteTypes: [
-      NOTE_TYPES.BEHAVIOUR_FOLLOWUP,
-      NOTE_TYPES.BEHAVIOUR_NOTE,
+      "Behaviour Note",
+      "Behaviour - Follow up",
     ],
     extraFollowUpNoteTypes: [
-      NOTE_TYPES.FAMILY_RESIDENT,
-      NOTE_TYPES.PHYSICIAN_NOTE,
+      "Family/Resident Involvment",
+      "Physician Note",
     ],
     injuryColumns: {
       start: 13,
       end: 37,
     },
+    // Default extraction markers (fallback if no specific config)
     fieldExtractionMarkers: {
-      behaviour_type: {
-        fieldName: "Behaviour Displayed :",
-        endMarkers: ["Intervention :", "Time, Frequency", "Page"],
-      },
-      interventions: {
-        fieldName: "Intervention :",
-        endMarkers: ["Time, Frequency", "Evaluation of Intervention", "Page"],
-      },
-      time_frequency: {
-        fieldName: "Time, Frequency and # of Staff :",
-        endMarkers: ["Evaluation of Intervention", "Resident Response", "Page"],
-      },
-      evaluation: {
-        fieldName: "Evaluation of Intervention :",
-        endMarkers: ["Resident Response", "Page", "________________"],
-      },
-      outcome: {
-        fieldName: "Resident Response :",
-        endMarkers: ["Page", "________________", "SIGNED]"],
-      },
       description: {
         fieldName: "Data :",
         endMarkers: ["Action", "Page", "________________", "SIGNED]"],
       },
-      consequences: {
+      interventions: {
         fieldName: "Action :",
-        endMarkers: ["Response", "Page", "________________", "SIGNED]"],
+        endMarkers: ["Response", "Page"],
       },
-      poa_notified: {
+      evaluation: {
+        fieldName: "Response :",
+        endMarkers: ["Page", "________________", "SIGNED]"],
+      },
+      outcome: {
         fieldName: "Response :",
         endMarkers: ["Page", "________________", "SIGNED]"],
       },
     },
     hasTimeFrequency: true,
     hasEvaluation: true,
+    // Note-type-specific configs for different behaviour note formats
+    behaviourNoteConfigs: {
+      // Responsive Behaviour format (Data/Action/Response)
+      "Responsive Behaviour - Physical Agression": {
+        extractionMarkers: {
+          description: {
+            fieldName: "Data :",
+            endMarkers: ["Action", "Page", "________________", "SIGNED]"],
+          },
+          interventions: {
+            fieldName: "Action :",
+            endMarkers: ["Response", "Page"],
+          },
+          evaluation: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+          outcome: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+        },
+        hasTimeFrequency: false,
+        hasEvaluation: true,
+      },
+      "Responsive Behaviours - Other": {
+        extractionMarkers: {
+          description: {
+            fieldName: "Data :",
+            endMarkers: ["Action", "Page", "________________", "SIGNED]"],
+          },
+          interventions: {
+            fieldName: "Action :",
+            endMarkers: ["Response", "Page"],
+          },
+          evaluation: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+          outcome: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+        },
+        hasTimeFrequency: false,
+        hasEvaluation: true,
+      },
+      "Responsive Behaviour - Verbal": {
+        extractionMarkers: {
+          description: {
+            fieldName: "Data :",
+            endMarkers: ["Action", "Page", "________________", "SIGNED]"],
+          },
+          interventions: {
+            fieldName: "Action :",
+            endMarkers: ["Response", "Page"],
+          },
+          evaluation: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+          outcome: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+        },
+        hasTimeFrequency: false,
+        hasEvaluation: true,
+      },
+      "Responsive Behaviour - Potential to harm self": {
+        extractionMarkers: {
+          description: {
+            fieldName: "Data :",
+            endMarkers: ["Action", "Page", "________________", "SIGNED]"],
+          },
+          interventions: {
+            fieldName: "Action :",
+            endMarkers: ["Response", "Page"],
+          },
+          evaluation: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+          outcome: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+        },
+        hasTimeFrequency: false,
+        hasEvaluation: true,
+      },
+      "Responsive Behaviour - Wandering": {
+        extractionMarkers: {
+          description: {
+            fieldName: "Data :",
+            endMarkers: ["Action", "Page", "________________", "SIGNED]"],
+          },
+          interventions: {
+            fieldName: "Action :",
+            endMarkers: ["Response", "Page"],
+          },
+          evaluation: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+          outcome: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+        },
+        hasTimeFrequency: false,
+        hasEvaluation: true,
+      },
+      "Behaviour - Responsive Behaviour": {
+        extractionMarkers: {
+          description: {
+            fieldName: "Data :",
+            endMarkers: ["Action", "Page", "________________", "SIGNED]"],
+          },
+          interventions: {
+            fieldName: "Action :",
+            endMarkers: ["Response", "Page"],
+          },
+          evaluation: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+          outcome: {
+            fieldName: "Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+        },
+        hasTimeFrequency: false,
+        hasEvaluation: true,
+      },
+    },
+    followUpNoteConfigs: {
+      // Behaviour Note format (Behaviour Displayed/Intervention/etc.)
+      "Behaviour Note": {
+        extractionMarkers: {
+          behaviour_type: {
+            fieldName: "Behaviour Displayed :",
+            endMarkers: ["Intervention :", "Time, Frequency", "Page"],
+          },
+          description: {
+            fieldName: "Behaviour Displayed :",
+            endMarkers: ["Intervention :", "Time, Frequency", "Page"],
+          },
+          interventions: {
+            fieldName: "Intervention :",
+            endMarkers: ["Time, Frequency", "Evaluation of Intervention", "Page"],
+          },
+          time_frequency: {
+            fieldName: "Time, Frequency and # of Staff :",
+            endMarkers: ["Evaluation of Intervention", "Resident Response", "Page"],
+          },
+          evaluation: {
+            fieldName: "Evaluation of Intervention :",
+            endMarkers: ["Resident Response", "Page", "________________"],
+          },
+          outcome: {
+            fieldName: "Resident Response :",
+            endMarkers: ["Page", "________________", "SIGNED]"],
+          },
+        },
+        hasTimeFrequency: true,
+        hasEvaluation: true,
+      },
+    }
   },
   responsive: {
-    behaviourNoteTypes: [NOTE_TYPES.BEHAVIOUR_RESPONSIVE],
-    followUpNoteTypes: [NOTE_TYPES.BEHAVIOUR_FOLLOWUP],
+    behaviourNoteTypes: ["Behaviour - Responsive Behaviour"],
+    followUpNoteTypes: ["Behaviour - Follow up"],
     extraFollowUpNoteTypes: [
-      NOTE_TYPES.FAMILY_RESIDENT,
-      NOTE_TYPES.PHYSICIAN_NOTE,
+      "Family/Resident Involvment",
+      "Physician Note",
     ],
     injuryColumns: {
       start: 13,
@@ -148,11 +303,11 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
     hasEvaluation: false,
   },
   test: {
-    behaviourNoteTypes: [NOTE_TYPES.BEHAVIOUR_RESPONSIVE],
-    followUpNoteTypes: [NOTE_TYPES.BEHAVIOUR_FOLLOWUP],
+    behaviourNoteTypes: ["Behaviour - Responsive Behaviour"],
+    followUpNoteTypes: ["Behaviour - Follow up"],
     extraFollowUpNoteTypes: [
-      NOTE_TYPES.FAMILY_RESIDENT,
-      NOTE_TYPES.PHYSICIAN_NOTE,
+      "Family/Resident Involvment",
+      "Physician Note",
     ],
     injuryColumns: {
       start: 13,

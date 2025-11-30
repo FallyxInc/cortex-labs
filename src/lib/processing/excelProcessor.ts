@@ -77,8 +77,17 @@ export async function processExcelFile(
               : new Date(incidentDateTime as string);
 
           if (!isNaN(dt.getTime())) {
-            date = dt.toISOString().split("T")[0]; // YYYY-MM-DD
-            time = dt.toTimeString().split(" ")[0]; // HH:MM:SS
+            // Extract date in local timezone to avoid timezone shift
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, "0");
+            const day = String(dt.getDate()).padStart(2, "0");
+            date = `${year}-${month}-${day}`;
+
+            // Extract time in local timezone
+            const hours = String(dt.getHours()).padStart(2, "0");
+            const minutes = String(dt.getMinutes()).padStart(2, "0");
+            const seconds = String(dt.getSeconds()).padStart(2, "0");
+            time = `${hours}:${minutes}:${seconds}`;
           }
         }
 

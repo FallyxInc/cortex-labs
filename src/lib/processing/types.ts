@@ -94,6 +94,7 @@ export const NOTE_TYPES = {
   FAMILY_RESIDENT: "Family/Resident Involvement",
   PHYSICIAN_NOTE: "Physician Note",
   RESPONSIVE_PHYSICAL_AGGRESSION: "Responsive Behaviour - Physical Agression",
+  RESPONSIVE_OTHER: "Responsive Behaviours - Other",
   RESPONSIVE_VERBAL: "Responsive Behaviour - Verbal",
   RESPONSIVE_POTENTIAL_HARM: "Responsive Behaviour - Potential to harm self",
   RESPONSIVE_WANDERING: "Responsive Behaviour - Wandering",
@@ -106,8 +107,15 @@ export const DEFAULT_NO_PROGRESS_TEXT_SHORT =
 
 // Field extraction configuration for different chains
 export interface FieldExtractionConfig {
-  fieldName: string;
+  fieldName: string | string[]; // Support multiple field names for different note formats
   endMarkers: string[];
+}
+
+// Configuration for a specific note type's extraction
+export interface NoteTypeExtractionConfig {
+  extractionMarkers: Record<string, FieldExtractionConfig>;
+  hasTimeFrequency?: boolean;
+  hasEvaluation?: boolean;
 }
 
 export interface ChainExtractionConfig {
@@ -118,9 +126,15 @@ export interface ChainExtractionConfig {
     start: number;
     end: number;
   };
+
+  // Default extraction config (used when no specific config exists for a note type)
   fieldExtractionMarkers: Record<string, FieldExtractionConfig>;
   hasTimeFrequency?: boolean;
   hasEvaluation?: boolean;
+
+  // Note-type-specific extraction configs (overrides default)
+  behaviourNoteConfigs?: Record<string, NoteTypeExtractionConfig>;
+  followUpNoteConfigs?: Record<string, NoteTypeExtractionConfig>;
 }
 
 export interface ExtractedBehaviourFields {
