@@ -16,6 +16,11 @@ interface OnboardingConfig {
   }>;
 }
 
+interface StoredOnboardingConfig extends OnboardingConfig {
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const config: OnboardingConfig = await request.json();
@@ -29,22 +34,43 @@ export async function POST(request: NextRequest) {
 
     // Save to Firebase under /onboardingConfigs/{chainId}
     const configRef = adminDb.ref(`/onboardingConfigs/${config.chainId}`);
+    const snapshot = await configRef.once('value');
+    const exists = snapshot.exists();
     
-    const configData = {
-      chainId: config.chainId,
-      chainName: config.chainName,
-      behaviourNoteTypes: config.behaviourNoteTypes,
-      followUpNoteTypes: config.followUpNoteTypes,
-      noteTypeConfigs: config.noteTypeConfigs,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const now = new Date().toISOString();
+    
+    let configData: StoredOnboardingConfig;
 
-    await configRef.set(configData);
+    if (exists) {
+      // Update existing config
+      const existingData = snapshot.val() as StoredOnboardingConfig;
+      configData = {
+        chainId: config.chainId,
+        chainName: config.chainName,
+        behaviourNoteTypes: config.behaviourNoteTypes,
+        followUpNoteTypes: config.followUpNoteTypes,
+        noteTypeConfigs: config.noteTypeConfigs,
+        createdAt: existingData.createdAt || now,
+        updatedAt: now,
+      };
+      await configRef.update(configData);
+    } else {
+      // Create new config
+      configData = {
+        chainId: config.chainId,
+        chainName: config.chainName,
+        behaviourNoteTypes: config.behaviourNoteTypes,
+        followUpNoteTypes: config.followUpNoteTypes,
+        noteTypeConfigs: config.noteTypeConfigs,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await configRef.set(configData);
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Configuration saved successfully',
+      message: exists ? 'Configuration updated successfully' : 'Configuration saved successfully',
       chainId: config.chainId,
     });
   } catch (error) {
@@ -89,6 +115,34 @@ export async function GET() {
     console.error('Error fetching onboarding configs:', error);
     return NextResponse.json(
       { error: 'Failed to fetch configurations' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const chainId = searchParams.get('chainId');
+
+    if (!chainId) {
+      return NextResponse.json(
+        { error: 'Chain ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const configRef = adminDb.ref(`/onboardingConfigs/${chainId}`);
+    await configRef.remove();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Configuration deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting onboarding config:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete configuration' },
       { status: 500 }
     );
   }
