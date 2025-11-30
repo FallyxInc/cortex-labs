@@ -252,7 +252,7 @@ export default function FileUpload() {
         formData.append("improvedResidents", improvedResidents || "");
       }
 
-      console.log("formData", formData.values());
+      console.log("Processing behaviour files...");
       const response = await fetch("/api/admin/process-behaviours", {
         method: "POST",
         body: formData,
@@ -272,16 +272,13 @@ export default function FileUpload() {
       }
 
       if (response.ok) {
-        // Wait for progress to reach 100% before showing success
-        if (!result.jobId) {
-          setMessage("Files uploaded successfully!");
-          setShowSuccess(true);
-          // Clear success message after 10 seconds
-          setTimeout(() => {
-            setShowSuccess(false);
-            setMessage("");
-          }, 10000);
-        }
+        setMessage("Files uploaded successfully!");
+        setShowSuccess(true);
+        // Clear success message after 10 seconds
+        setTimeout(() => {
+          setShowSuccess(false);
+          setMessage("");
+        }, 10000);
 
         // Track successful bulk processing
         const totalFiles = pdfFiles.length + excelFiles.length;
