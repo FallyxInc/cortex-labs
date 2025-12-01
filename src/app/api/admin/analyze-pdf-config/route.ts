@@ -23,9 +23,8 @@ const EXCEL_FIELDS = [
   'incident_type', // Maps to "Type of incident" column
 ];
 
-// Fields that appear in both Excel and PDF (Excel values take precedence for name, date, time)
-// injuries defaults to Excel but can be replaced by PDF if matching note found
-const OVERLAPPING_FIELDS = ['name', 'date', 'time', 'injuries'];
+// Note: Excel is always the source of truth for Excel fields (name, date, time, injuries, etc.)
+// PDF fields are additional data that gets merged with Excel records
 
 interface AISuggestedField {
   fieldKey: string;
@@ -33,7 +32,7 @@ interface AISuggestedField {
   endMarkers: string[]; // Text that marks the end of this field
   confidence: number; // 0-1 confidence score
   reasoning: string; // Why this field was suggested
-  dataSource: 'PDF' | 'EXCEL' | 'BOTH';
+  dataSource: 'PDF' | 'EXCEL';
 }
 
 interface AISuggestedExcelField {
@@ -41,7 +40,7 @@ interface AISuggestedExcelField {
   excelColumn: string; // The exact column name/header in Excel
   confidence: number; // 0-1 confidence score
   reasoning: string; // Why this column maps to this field
-  dataSource: 'EXCEL' | 'BOTH';
+  dataSource: 'EXCEL';
 }
 
 interface AISuggestedNoteType {
@@ -119,9 +118,8 @@ FOR PDF FILES:
 CRITICAL DATA SOURCE MAPPING:
 - Excel files provide (8 columns): incident_number, name, date, time, incident_location, room, injuries, incident_type
 - PDF files provide (6 columns): behaviour_type, triggers, interventions, poa_notified, time_frequency (optional), evaluation (optional)
-- Overlapping fields: name, date, time, and injuries appear in both, but:
-  * Excel values are ALWAYS used for name, date, and time
-  * injuries defaults to Excel (from checkboxes) but can be replaced by PDF (AI-detected) if a matching PDF note is found
+- Excel is ALWAYS the source of truth for Excel fields (name, date, time, injuries, etc.)
+- PDF fields are additional data that gets merged with Excel records
 
 The final merged data combines Excel incident records (base) with PDF behaviour notes (matched by resident name and time window).
 
@@ -157,11 +155,9 @@ ${TARGET_OUTPUT_FIELDS.map(f => {
   return `- ${f} (${mapping[f] || ''})`;
 }).join('\n')}
 
-OVERLAPPING FIELDS:
-- name, date, time: Excel values are ALWAYS used (even if PDF has them)
-- injuries: Excel defaults (from checkboxes), but can be replaced by PDF if matching note found
-
 DATA SOURCE INFORMATION:
+- Excel is ALWAYS the source of truth for Excel fields
+- PDF provides additional behaviour note details that get merged with Excel records
 - Excel files provide base incident data: ${EXCEL_FIELDS.join(', ')}
 - PDF files provide behaviour note details: ${TARGET_OUTPUT_FIELDS.join(', ')}
 - The system merges Excel incidents with PDF notes by matching resident name and time window (typically 24 hours)
@@ -175,7 +171,7 @@ DATA SOURCE INFORMATION:
       userPrompt += `TASK 1: Map Excel columns to target fields. For each Excel field (${EXCEL_FIELDS.join(', ')}), identify:
 1. Which Excel column header contains this data (e.g., "Incident #" maps to "incident_number", "Resident Name" maps to "name")
 2. Your confidence level (0-1) and reasoning
-3. If this field also appears in PDF, mark dataSource as "BOTH", otherwise "EXCEL"
+3. Always mark dataSource as "EXCEL" (Excel is always the source of truth)
 
 `;
     }
@@ -186,7 +182,7 @@ DATA SOURCE INFORMATION:
 1. The exact field label/text that appears in the PDF (e.g., "Type of Behaviour :", "Interventions :")
 2. What text marks the end of that field (e.g., "Antecedent/Triggers", "Page", "Change in medication")
 3. Your confidence level (0-1) and reasoning
-4. Data source: "PDF" if only in PDF, "BOTH" if also in Excel
+4. Always mark dataSource as "PDF" (these are PDF-only fields that get merged with Excel records)
 
 Also identify:
 - Note type labels (e.g., "Behaviour - Responsive Behaviour", "Behaviour - Follow up")
@@ -208,19 +204,19 @@ Also identify:
       "excelColumn": "exact column header from Excel (should be 'Resident name' or similar)",
       "confidence": 0.9,
       "reasoning": "why this Excel column maps to name",
-      "dataSource": "BOTH"
+      "dataSource": "EXCEL"
     },
     "date": {
       "excelColumn": "exact column header from Excel (should be 'Incident date' or similar)",
       "confidence": 0.9,
       "reasoning": "why this Excel column maps to date",
-      "dataSource": "BOTH"
+      "dataSource": "EXCEL"
     },
     "time": {
       "excelColumn": "exact column header from Excel (should be 'Incident time' or similar)",
       "confidence": 0.9,
       "reasoning": "why this Excel column maps to time",
-      "dataSource": "BOTH"
+      "dataSource": "EXCEL"
     },
     "incident_location": {
       "excelColumn": "exact column header from Excel (should be 'Where it happened' or similar)",
@@ -237,8 +233,8 @@ Also identify:
     "injuries": {
       "excelColumn": "checkbox columns aggregated (describe which columns)",
       "confidence": 0.9,
-      "reasoning": "injuries come from checkbox columns, can be overwritten by PDF",
-      "dataSource": "BOTH"
+      "reasoning": "injuries come from checkbox columns in Excel",
+      "dataSource": "EXCEL"
     },
     "incident_type": {
       "excelColumn": "exact column header from Excel (should be 'Type of incident' or similar)",
@@ -283,13 +279,7 @@ Also identify:
   "dataSourceMapping": {
     "excel": ${JSON.stringify(EXCEL_FIELDS)},
     "pdf": ${JSON.stringify(TARGET_OUTPUT_FIELDS)},
-    "both": ${JSON.stringify(OVERLAPPING_FIELDS)},
-    "overlapRules": {
-      "name": "Excel value always used",
-      "date": "Excel value always used",
-      "time": "Excel value always used",
-      "injuries": "Excel defaults, can be replaced by PDF if matching note found"
-    }
+    "note": "Excel is always the source of truth. PDF fields are merged with Excel records."
   }
 }
 
@@ -300,7 +290,7 @@ IMPORTANT:
 - For endMarkers, look for text that appears after the field content
 - If a field is not found, omit it from the response
 - Provide confidence scores based on how certain you are
-- Mark dataSource as "BOTH" if a field appears in both Excel and PDF
+- Always mark Excel fields as "EXCEL" and PDF fields as "PDF"
 - Excel data is used as the base incident record and merged with PDF notes`;
 
     // Use Claude Sonnet 4.5 (recommended for best balance of intelligence, speed, and cost)
@@ -347,13 +337,7 @@ IMPORTANT:
       dataSourceMapping: parsedResponse.dataSourceMapping || {
         excel: EXCEL_FIELDS,
         pdf: TARGET_OUTPUT_FIELDS,
-        both: OVERLAPPING_FIELDS,
-        overlapRules: {
-          name: 'Excel value always used',
-          date: 'Excel value always used',
-          time: 'Excel value always used',
-          injuries: 'Excel defaults, can be replaced by PDF if matching note found',
-        },
+        note: 'Excel is always the source of truth. PDF fields are merged with Excel records.',
       },
     });
   } catch (error) {

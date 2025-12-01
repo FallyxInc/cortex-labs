@@ -29,7 +29,7 @@ interface ExcelFieldMapping {
   excelColumn: string;
   confidence: number;
   reasoning: string;
-  dataSource: 'EXCEL' | 'BOTH';
+  dataSource: 'EXCEL';
 }
 
 interface OnboardingConfig {
@@ -70,7 +70,6 @@ export default function OnboardingWizard() {
   const [dataSourceMapping, setDataSourceMapping] = useState<any>(null);
   const [excelFieldMappings, setExcelFieldMappings] = useState<Record<string, ExcelFieldMapping>>({});
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiProgress, setAiProgress] = useState({ percent: 0, message: '' });
   const textRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -163,56 +162,6 @@ export default function OnboardingWizard() {
 
       // Run AI analysis on both files
       setAiLoading(true);
-      setAiProgress({ percent: 0, message: 'Starting analysis...' });
-
-      // Simulate progress updates over ~45 seconds
-      const startTime = Date.now();
-      const totalDuration = 45000; // 45 seconds in milliseconds
-      const progressSteps = [
-        { time: 2000, percent: 5, message: 'Initializing analysis...' },
-        { time: 5000, percent: 12, message: 'Analyzing Excel columns...' },
-        { time: 10000, percent: 25, message: 'Mapping Excel fields...' },
-        { time: 15000, percent: 38, message: 'Analyzing PDF structure...' },
-        { time: 20000, percent: 50, message: 'Identifying note types...' },
-        { time: 25000, percent: 62, message: 'Extracting field markers...' },
-        { time: 30000, percent: 75, message: 'Processing field mappings...' },
-        { time: 35000, percent: 85, message: 'Finalizing analysis...' },
-        { time: 40000, percent: 92, message: 'Almost done...' },
-      ];
-
-      let currentStepIndex = 0;
-      const progressInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const currentStep = progressSteps[currentStepIndex];
-        
-        if (currentStep && elapsed >= currentStep.time) {
-          setAiProgress({ percent: currentStep.percent, message: currentStep.message });
-          currentStepIndex++;
-        } else if (currentStepIndex < progressSteps.length) {
-          // Linear interpolation between steps
-          const prevStep = currentStepIndex > 0 ? progressSteps[currentStepIndex - 1] : { time: 0, percent: 0, message: 'Starting...' };
-          const nextStep = progressSteps[currentStepIndex];
-          const timeDiff = nextStep.time - prevStep.time;
-          const percentDiff = nextStep.percent - prevStep.percent;
-          const elapsedSincePrev = elapsed - prevStep.time;
-          const interpolatedPercent = Math.min(
-            prevStep.percent + (elapsedSincePrev / timeDiff) * percentDiff,
-            nextStep.percent
-          );
-          setAiProgress({ percent: Math.floor(interpolatedPercent), message: prevStep.message || 'Processing...' });
-        } else if (elapsed < totalDuration) {
-          // Continue from last step to 90%
-          const lastStep = progressSteps[progressSteps.length - 1];
-          const remainingTime = totalDuration - lastStep.time;
-          const remainingPercent = 90 - lastStep.percent;
-          const progressSinceLast = elapsed - lastStep.time;
-          const interpolatedPercent = Math.min(
-            lastStep.percent + (progressSinceLast / remainingTime) * remainingPercent,
-            90
-          );
-          setAiProgress({ percent: Math.floor(interpolatedPercent), message: lastStep.message });
-        }
-      }, 500); // Update every 500ms for smooth progress
 
       try {
         const aiResponse = await fetch('/api/admin/analyze-pdf-config', {
@@ -225,9 +174,6 @@ export default function OnboardingWizard() {
             excelData: extractedExcelData || excelData || null,
           }),
         });
-
-        clearInterval(progressInterval);
-        setAiProgress({ percent: 100, message: 'Analysis complete!' });
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
@@ -249,21 +195,13 @@ export default function OnboardingWizard() {
           if (textToUse) {
             setStep('highlight');
           }
-
-          // Reset progress after a short delay
-          setTimeout(() => {
-            setAiProgress({ percent: 0, message: '' });
-          }, 1000);
         } else {
           console.warn('AI analysis failed, continuing without suggestions');
           alert('AI analysis failed. Please try again.');
-          setAiProgress({ percent: 0, message: '' });
         }
       } catch (aiError) {
-        clearInterval(progressInterval);
         console.error('Error running AI analysis:', aiError);
         alert('Failed to analyze files. Please try again.');
-        setAiProgress({ percent: 0, message: '' });
       } finally {
         setAiLoading(false);
       }
@@ -593,7 +531,6 @@ export default function OnboardingWizard() {
       setAiSuggestions(null);
       setDataSourceMapping(null);
       setExcelFieldMappings({});
-      setAiProgress({ percent: 0, message: '' });
     } catch (error) {
       console.error('Error saving configuration:', error);
       alert(`Failed to save configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1075,21 +1012,10 @@ export default function OnboardingWizard() {
 
           {aiLoading && (
             <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                  <p className="text-sm font-medium text-blue-700">
-                    {aiProgress.message || 'AI is analyzing the files and generating field mappings...'}
-                  </p>
-                </div>
-                <div className="w-full bg-blue-200 rounded-full h-2.5">
-                  <div
-                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${aiProgress.percent}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-blue-600 text-right">
-                  {aiProgress.percent}% complete
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                <p className="text-sm font-medium text-blue-700">
+                  AI is analyzing the files and generating field mappings...
                 </p>
               </div>
             </div>
@@ -1114,16 +1040,9 @@ export default function OnboardingWizard() {
                       <p className="font-semibold">Data Sources:</p>
                       <p><strong>Excel (8 fields):</strong> {dataSourceMapping.excel?.join(', ') || 'N/A'}</p>
                       <p><strong>PDF (6 fields):</strong> {dataSourceMapping.pdf?.join(', ') || 'N/A'}</p>
-                      {dataSourceMapping.both && dataSourceMapping.both.length > 0 && (
-                        <div className="mt-1">
-                          <p className="text-yellow-700 font-semibold">Overlapping Fields:</p>
-                          {dataSourceMapping.both.map((field: string) => (
-                            <p key={field} className="text-yellow-700 ml-2">
-                              • {field}: {dataSourceMapping.overlapRules?.[field] || 'Both sources'}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                      <p className="text-sm text-gray-600 mt-2 italic">
+                        Note: Excel is always the source of truth. PDF fields are merged with Excel records.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1295,161 +1214,53 @@ export default function OnboardingWizard() {
                 </button>
               </div>
 
-              {/* Separate sections for EXCEL, PDF, and BOTH */}
-              {(() => {
-                // Check which fields are in both PDF and Excel
-                const fieldsInBoth = highlights
-                  .filter(h => h.labelType === 'field-name' && h.fieldKey)
-                  .map(h => h.fieldKey!)
-                  .filter(fieldKey => Object.keys(excelFieldMappings).includes(fieldKey));
-
-                // Update mappings to mark fields as BOTH if they appear in PDF highlights
-                const updatedMappings = { ...excelFieldMappings };
-                fieldsInBoth.forEach(fieldKey => {
-                  if (updatedMappings[fieldKey] && updatedMappings[fieldKey].dataSource !== 'BOTH') {
-                    updatedMappings[fieldKey] = {
-                      ...updatedMappings[fieldKey],
-                      dataSource: 'BOTH' as const,
-                    };
-                  }
-                });
-                if (JSON.stringify(updatedMappings) !== JSON.stringify(excelFieldMappings)) {
-                  setExcelFieldMappings(updatedMappings);
-                }
-
-                const excelOnly = Object.entries(excelFieldMappings).filter(([fieldKey, m]) => 
-                  m.dataSource === 'EXCEL' && !fieldsInBoth.includes(fieldKey)
-                );
-                const bothFields = Object.entries(excelFieldMappings).filter(([fieldKey, m]) => 
-                  m.dataSource === 'BOTH' || fieldsInBoth.includes(fieldKey)
-                );
-
-                return (
-                  <div className="space-y-4">
-                    {/* Excel Only Fields */}
-                    {excelOnly.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold text-green-800 mb-2">Excel Only Fields</h4>
-                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                          {excelOnly.map(([fieldKey, mapping]) => (
-                            <div key={fieldKey} className="border-l-4 border-green-400 pl-3 py-2 bg-white rounded">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="font-semibold text-green-900">{fieldKey}</span>
-                                    {mapping.confidence && (
-                                      <span className="text-xs text-gray-500">
-                                        ({Math.round(mapping.confidence * 100)}% confidence)
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-gray-700 mt-1">
-                                    <strong>Excel Column:</strong> "{mapping.excelColumn || 'Not found'}"
-                                  </p>
-                                  {mapping.reasoning && (
-                                    <p className="text-xs text-gray-600 mt-1 italic">{mapping.reasoning}</p>
-                                  )}
-                                </div>
-                                <div className="flex space-x-2">
-                                  <button
-                                    onClick={() => {
-                                      const pdfHighlight = highlights.find(h => h.fieldKey === fieldKey && h.labelType === 'field-name');
-                                      if (pdfHighlight) {
-                                        setExcelFieldMappings({
-                                          ...excelFieldMappings,
-                                          [fieldKey]: {
-                                            ...mapping,
-                                            dataSource: 'BOTH' as const,
-                                          },
-                                        });
-                                      } else {
-                                        alert('This field is not found in PDF highlights. Please highlight it in the PDF first.');
-                                      }
-                                    }}
-                                    className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                                    title="Mark as BOTH if also in PDF"
-                                  >
-                                    Mark as BOTH
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      const newMappings = { ...excelFieldMappings };
-                                      delete newMappings[fieldKey];
-                                      setExcelFieldMappings(newMappings);
-                                    }}
-                                    className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
+              {/* Excel Fields Section */}
+              {Object.keys(excelFieldMappings).length > 0 && (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-green-800 mb-2">Excel Fields</h4>
+                    <p className="text-xs text-gray-600 mb-2">Excel is always the source of truth for these fields.</p>
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {Object.entries(excelFieldMappings).map(([fieldKey, mapping]) => (
+                        <div key={fieldKey} className="border-l-4 border-green-400 pl-3 py-2 bg-white rounded">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-semibold text-green-900">{fieldKey}</span>
+                                {mapping.confidence && (
+                                  <span className="text-xs text-gray-500">
+                                    ({Math.round(mapping.confidence * 100)}% confidence)
+                                  </span>
+                                )}
                               </div>
+                              <p className="text-sm text-gray-700 mt-1">
+                                <strong>Excel Column:</strong> "{mapping.excelColumn || 'Not found'}"
+                              </p>
+                              {mapping.reasoning && (
+                                <p className="text-xs text-gray-600 mt-1 italic">{mapping.reasoning}</p>
+                              )}
                             </div>
-                          ))}
+                            <button
+                              onClick={() => {
+                                const newMappings = { ...excelFieldMappings };
+                                delete newMappings[fieldKey];
+                                setExcelFieldMappings(newMappings);
+                              }}
+                              className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    {/* BOTH Fields */}
-                    {bothFields.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold text-purple-800 mb-2">Fields in Both Excel and PDF</h4>
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                          {bothFields.map(([fieldKey, mapping]) => {
-                            const pdfHighlight = highlights.find(h => h.fieldKey === fieldKey && h.labelType === 'field-name');
-                            return (
-                              <div key={fieldKey} className="border-l-4 border-purple-400 pl-3 py-2 bg-white rounded">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center space-x-2">
-                                      <span className="font-semibold text-purple-900">{fieldKey}</span>
-                                      <span className="px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-800">
-                                        BOTH
-                                      </span>
-                                    </div>
-                                    <div className="mt-2 space-y-1">
-                                      <p className="text-sm text-gray-700">
-                                        <strong>Excel Column:</strong> "{mapping.excelColumn || 'Not found'}"
-                                      </p>
-                                      {pdfHighlight ? (
-                                        <p className="text-sm text-gray-700">
-                                          <strong>PDF Field:</strong> "{pdfHighlight.text}"
-                                        </p>
-                                      ) : (
-                                        <p className="text-xs text-yellow-600 italic">
-                                          Not found in PDF highlights - please highlight this field in the PDF
-                                        </p>
-                                      )}
-                                    </div>
-                                    {mapping.reasoning && (
-                                      <p className="text-xs text-gray-600 mt-1 italic">{mapping.reasoning}</p>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => {
-                                      const newMappings = { ...excelFieldMappings };
-                                      delete newMappings[fieldKey];
-                                      setExcelFieldMappings(newMappings);
-                                    }}
-                                    className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                );
-              })()}
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Highlights Panel */}
-          <div className="space-y-4">
-              <div className="border rounded-lg p-4">
+              {/* Highlights Panel */}
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4">
                 <h3 className="font-semibold mb-3">Current Selection</h3>
                 {selectedText ? (
                   <div className="space-y-2">
@@ -1620,20 +1431,22 @@ export default function OnboardingWizard() {
                   })()}
                 </div>
               </div>
-
-              <button
-                onClick={() => setStep('configure')}
-                disabled={highlights.length === 0 && !pdfText}
-                className="w-full px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                Continue to Configuration
-              </button>
-              {highlights.length === 0 && pdfText && (
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  Tip: Select and label text in the PDF to identify note types and field names
-                </p>
-              )}
+            </div>
           </div>
+          )}
+
+          <button
+            onClick={() => setStep('configure')}
+            disabled={highlights.length === 0 && !pdfText}
+            className="w-full px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            Continue to Configuration
+          </button>
+          {highlights.length === 0 && pdfText && (
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Tip: Select and label text in the PDF to identify note types and field names
+            </p>
+          )}
 
           {/* Label Dialog */}
           {currentHighlight && (
@@ -1813,54 +1626,47 @@ export default function OnboardingWizard() {
             {config.excelFieldMappings && Object.keys(config.excelFieldMappings).length > 0 && (
               <div>
                 <h3 className="font-semibold mb-2">Excel Field Mappings</h3>
-                {(() => {
-                  const excelOnly = Object.entries(config.excelFieldMappings).filter(([_, m]) => m.dataSource === 'EXCEL');
-                  const bothFields = Object.entries(config.excelFieldMappings).filter(([_, m]) => m.dataSource === 'BOTH');
-
-                  return (
-                    <div className="space-y-3">
-                      {/* Excel Only Fields */}
-                      {excelOnly.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium text-green-700 mb-2">Excel Only Fields</h4>
-                          <ul className="text-sm text-gray-700 space-y-1">
-                            {excelOnly.map(([fieldKey, mapping]) => (
-                              <li key={fieldKey} className="border-l-2 border-green-400 pl-3">
-                                <span className="font-medium">{fieldKey}:</span>{' '}
-                                <span className="text-gray-600">Excel column "{mapping.excelColumn}"</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* BOTH Fields */}
-                      {bothFields.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium text-purple-700 mb-2">Fields in Both Excel and PDF</h4>
-                          <ul className="text-sm text-gray-700 space-y-1">
-                            {bothFields.map(([fieldKey, mapping]) => {
-                              // Find PDF field name for this field
-                              const pdfField = Object.values(config.noteTypeConfigs)
-                                .flatMap(nc => Object.entries(nc.fields || {}))
-                                .find(([fk]) => fk === fieldKey);
-                              
-                              return (
-                                <li key={fieldKey} className="border-l-2 border-purple-400 pl-3">
-                                  <span className="font-medium">{fieldKey}:</span>{' '}
-                                  <span className="text-gray-600">
-                                    Excel: "{mapping.excelColumn}"
-                                    {pdfField && ` • PDF: "${pdfField[1].fieldName}"`}
-                                  </span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      )}
+                <div className="space-y-3">
+                  {/* Excel Fields */}
+                  {Object.keys(config.excelFieldMappings || {}).length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-green-700 mb-2">Excel Fields</h4>
+                      <p className="text-xs text-gray-600 mb-2">Excel is always the source of truth for these fields.</p>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        {Object.entries(config.excelFieldMappings || {}).map(([fieldKey, mapping]) => (
+                          <li key={fieldKey} className="border-l-2 border-green-400 pl-3">
+                            <span className="font-medium">{fieldKey}:</span>{' '}
+                            <span className="text-gray-600">Excel column "{mapping.excelColumn}"</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  );
-                })()}
+                  )}
+
+                  {/* PDF Fields */}
+                  {Object.values(config.noteTypeConfigs).some(ntc => Object.keys(ntc.fields || {}).length > 0) && (
+                    <div>
+                      <h4 className="text-sm font-medium text-blue-700 mb-2">PDF Fields</h4>
+                      <p className="text-xs text-gray-600 mb-2">These fields are extracted from PDF and merged with Excel records.</p>
+                      {Object.entries(config.noteTypeConfigs).map(([noteType, noteConfig]) => {
+                        if (Object.keys(noteConfig.fields || {}).length === 0) return null;
+                        return (
+                          <div key={noteType} className="mb-3">
+                            <p className="text-xs font-semibold text-gray-700 mb-1">{noteType}:</p>
+                            <ul className="text-sm text-gray-700 space-y-1 ml-4">
+                              {Object.entries(noteConfig.fields || {}).map(([fieldKey, fieldConfig]) => (
+                                <li key={fieldKey} className="border-l-2 border-blue-400 pl-3">
+                                  <span className="font-medium">{fieldKey}:</span>{' '}
+                                  <span className="text-gray-600">PDF field "{fieldConfig.fieldName}"</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

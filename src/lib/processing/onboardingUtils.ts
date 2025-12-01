@@ -27,7 +27,7 @@ export interface AIOutputFormat {
     excelColumn: string;
     confidence?: number;
     reasoning?: string;
-    dataSource: 'EXCEL' | 'BOTH';
+    dataSource: 'EXCEL';
   }>;
 }
 
@@ -48,7 +48,7 @@ export interface OnboardingConfig {
     excelColumn: string;
     confidence: number;
     reasoning: string;
-    dataSource: 'EXCEL' | 'BOTH';
+    dataSource: 'EXCEL';
   }>;
 }
 
@@ -80,8 +80,8 @@ export function convertAIOutputToOnboardingConfig(aiOutput: AIOutputFormat): Onb
     // Add fields from fieldExtractionMarkers to this note type
     if (aiOutput.fieldExtractionMarkers) {
       for (const [fieldKey, fieldConfig] of Object.entries(aiOutput.fieldExtractionMarkers)) {
-        // Check if this field belongs to this note type (for now, assign to first behaviour note type)
-        if (behaviourNoteTypes.length === 1 || fieldConfig.dataSource === 'PDF') {
+        // All PDF fields belong to behaviour note types
+        if (behaviourNoteTypes.length === 1 || !fieldConfig.dataSource || fieldConfig.dataSource === 'PDF') {
           noteTypeConfigs[noteType].fields[fieldKey] = {
             fieldName: fieldConfig.fieldName,
             endMarkers: fieldConfig.endMarkers || []
@@ -107,11 +107,12 @@ export function convertAIOutputToOnboardingConfig(aiOutput: AIOutputFormat): Onb
   }
 
   // Convert excelFieldMappings to ensure required fields are present
+  // Excel is always the source of truth, so all Excel fields are marked as 'EXCEL'
   const excelFieldMappings: Record<string, {
     excelColumn: string;
     confidence: number;
     reasoning: string;
-    dataSource: 'EXCEL' | 'BOTH';
+    dataSource: 'EXCEL';
   }> = {};
   
   if (aiOutput.excelFieldMappings) {
@@ -120,7 +121,7 @@ export function convertAIOutputToOnboardingConfig(aiOutput: AIOutputFormat): Onb
         excelColumn: mapping.excelColumn,
         confidence: mapping.confidence ?? 0.8, // Default confidence if not provided
         reasoning: mapping.reasoning ?? 'AI-generated mapping',
-        dataSource: mapping.dataSource
+        dataSource: 'EXCEL' // Excel is always the source of truth
       };
     }
   }
