@@ -18,6 +18,7 @@ export default function FileUpload() {
   const [loading, setLoading] = useState(false);
   const [loadingHomes, setLoadingHomes] = useState(true);
   const [message, setMessage] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
   const [progress, setProgress] = useState({
     percentage: 0,
     message: "",
@@ -68,9 +69,16 @@ export default function FileUpload() {
               progressIntervalRef.current = null;
             }
             if (data.step === "complete") {
-              setMessage("Files processed successfully!");
+              setMessage("Files uploaded successfully!");
+              setShowSuccess(true);
+              // Clear success message after 10 seconds
+              setTimeout(() => {
+                setShowSuccess(false);
+                setMessage("");
+              }, 10000);
             } else if (data.step === "error") {
               setMessage(`Error: ${data.message}`);
+              setShowSuccess(false);
             }
           }
         }
@@ -167,6 +175,7 @@ export default function FileUpload() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
+    setShowSuccess(false);
 
     const processingStartTime = Date.now();
     formStartTime.current = Date.now();
@@ -243,7 +252,7 @@ export default function FileUpload() {
         formData.append("improvedResidents", improvedResidents || "");
       }
 
-      console.log("formData", formData.values());
+      console.log("Processing behaviour files...");
       const response = await fetch("/api/admin/process-behaviours", {
         method: "POST",
         body: formData,
@@ -251,6 +260,8 @@ export default function FileUpload() {
 
       const result = await response.json();
       const processingTime = Date.now() - processingStartTime;
+
+      console.log("result", result);
 
       // Start tracking progress if jobId is returned
       if (result.jobId) {
@@ -263,10 +274,14 @@ export default function FileUpload() {
       }
 
       if (response.ok) {
-        // Wait for progress to reach 100% before showing success
-        if (!result.jobId) {
-          setMessage("Files and metrics processed successfully!");
-        }
+        console.log("Behaviour files processed successfully!");
+        setMessage("Files uploaded successfully!");
+        setShowSuccess(true);
+        // Clear success message after 10 seconds
+        setTimeout(() => {
+          setShowSuccess(false);
+          setMessage("");
+        }, 10000);
 
         // Track successful bulk processing
         const totalFiles = pdfFiles.length + excelFiles.length;
@@ -310,6 +325,7 @@ export default function FileUpload() {
         setJobId(null);
         setProgress({ percentage: 0, message: "", step: "" });
         setMessage(`Error: ${result.error}`);
+        setShowSuccess(false);
 
         // Track processing error
         trackBulkFileProcessing({
@@ -338,6 +354,7 @@ export default function FileUpload() {
       setMessage(
         `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+      setShowSuccess(false);
 
       trackError({
         errorType: "processing_error",
@@ -367,11 +384,18 @@ export default function FileUpload() {
     ) {
       setLoading(false);
       if (progress.step === "complete") {
-        // Clean up after a delay
+        setMessage("Files uploaded successfully!");
+        setShowSuccess(true);
+        // Clean up progress tracking after a delay, but keep success message visible
         setTimeout(() => {
           setJobId(null);
           setProgress({ percentage: 0, message: "", step: "" });
         }, 3000);
+        // Clear success message after 10 seconds
+        setTimeout(() => {
+          setShowSuccess(false);
+          setMessage("");
+        }, 10000);
       }
     }
   }, [progress]);
@@ -399,6 +423,33 @@ export default function FileUpload() {
 You can upload files only, enter metrics only, or do both. If no files are uploaded, only metrics will be saved."
           />
         </div>
+
+        {showSuccess && (
+          <div className="mb-6 rounded-md bg-green-50 p-4 border border-green-200">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-green-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">
+                  {message || "Files uploaded successfully!"}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -799,44 +850,9 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
             </button>
           </div>
 
-          {/* Progress Bar */}
-          {(loading || progress.percentage > 0) && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">
-                  {progress.message || "Processing..."}
-                </span>
-                <span className="text-sm font-semibold text-gray-700">
-                  {progress.percentage}%
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className="h-full transition-all duration-300 ease-out rounded-full"
-                  style={{
-                    width: `${progress.percentage}%`,
-                    background:
-                      progress.step === "error"
-                        ? "linear-gradient(90deg, #ef4444 0%, #dc2626 100%)"
-                        : "linear-gradient(90deg, #06b6d4 0%, #0cc7ed 100%)",
-                    transition: "width 0.5s ease-out",
-                  }}
-                />
-              </div>
-              {progress.step &&
-                progress.step !== "initializing" &&
-                progress.step !== "complete" &&
-                progress.step !== "error" && (
-                  <p className="mt-1 text-xs text-gray-500 capitalize">
-                    Step: {progress.step.replace(/_/g, " ")}
-                  </p>
-                )}
-            </div>
-          )}
-
-          {message && (
+          {message && !showSuccess && (
             <div
-              className={`text-sm ${message.includes("Error") ? "text-red-600" : "text-green-600"}`}
+              className={`text-sm ${message.includes("Error") ? "text-red-600" : message.includes("success") ? "text-green-600" : ""}`}
               style={
                 !message.includes("Error") && !message.includes("success")
                   ? { color: "#06b6d4" }

@@ -1,0 +1,185 @@
+// TypeScript port of getExcelInfo.py - Excel file processing
+
+import * as XLSX from "xlsx";
+import { readFile, writeFile, readdir } from "fs/promises";
+import { join } from "path";
+import { ProcessedIncident } from "./types";
+import { CHAIN_EXTRACTION_CONFIGS, extractDateFromFilename } from "./homesDb";
+
+function getInjuries(
+  row: Record<string, unknown>,
+  allColumns: string[],
+  chain: string,
+): string {
+  const columns = CHAIN_EXTRACTION_CONFIGS[chain].injuryColumns;
+  // Get injury columns (columns 13-86, indices N to CO)
+  const injuryColumns = allColumns.slice(columns.start, columns.end);
+  const injuries = new Set<string>();
+
+  for (const col of injuryColumns) {
+    if (row[col] === "Y") {
+      // Remove the ".1" suffix if present
+      const injuryName = col.split(".")[0];
+      injuries.add(injuryName);
+    }
+  }
+
+  const injuryString = Array.from(injuries).sort().join(". ");
+
+  // Replace "Unable to determine" with "No Injury"
+  if (injuryString === "Unable to determine") {
+    return "No Injury";
+  }
+
+  return injuryString || "No Injury";
+}
+
+export async function processExcelFile(
+  inputFile: string,
+  outputFile: string,
+  chain: string,
+): Promise<void> {
+  try {
+    const fileBuffer = await readFile(inputFile);
+    const workbook = XLSX.read(fileBuffer, { type: "buffer", cellDates: true });
+
+    // Read the first sheet
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    // Convert to JSON with header row 8 (0-indexed row 7)
+    const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+    range.s.r = 7; // Start from row 8 (0-indexed)
+
+    const data = XLSX.utils.sheet_to_json(sheet, {
+      range,
+      defval: "",
+    }) as Record<string, unknown>[];
+    const allColumns = Object.keys(data[0] || {});
+
+    // Filter out "Struck Out" incidents
+    const filteredData = data.filter(
+      (row) => row["Incident Status"] !== "Struck Out",
+    );
+
+    // Process data
+    const processedData: ProcessedIncident[] = filteredData
+      .map((row) => {
+        // Parse date/time
+        const incidentDateTime = row["Incident Date/Time"];
+        let date = "";
+        let time = "";
+
+        if (incidentDateTime) {
+          const dt =
+            incidentDateTime instanceof Date
+              ? incidentDateTime
+              : new Date(incidentDateTime as string);
+
+          if (!isNaN(dt.getTime())) {
+            // Extract date in local timezone to avoid timezone shift
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, "0");
+            const day = String(dt.getDate()).padStart(2, "0");
+            date = `${year}-${month}-${day}`;
+
+            // Extract time in local timezone
+            const hours = String(dt.getHours()).padStart(2, "0");
+            const minutes = String(dt.getMinutes()).padStart(2, "0");
+            const seconds = String(dt.getSeconds()).padStart(2, "0");
+            time = `${hours}:${minutes}:${seconds}`;
+          }
+        }
+
+        return {
+          incident_number: String(row["Incident #"] || ""),
+          name: String(row["Resident Name"] || ""),
+          date,
+          time,
+          incident_location: String(row["Incident Location"] || ""),
+          room: row["Resident Room Number"],
+          injuries: getInjuries(row, allColumns, chain),
+          incident_type: String(row["Incident Type"] || ""),
+        } as ProcessedIncident;
+      })
+      .filter((row) => row.name || row.date); // Remove rows where name AND date are blank
+
+    // Save to CSV
+    if (processedData.length > 0) {
+      const headers = Object.keys(
+        processedData[0],
+      ) as (keyof ProcessedIncident)[];
+      const csvContent = [
+        headers.join(","),
+        ...processedData.map((row) =>
+          headers
+            .map((header) => {
+              const value = row[header] || "";
+              const escaped = String(value).replace(/"/g, '""');
+              return escaped.includes(",") || escaped.includes("\n")
+                ? `"${escaped}"`
+                : escaped;
+            })
+            .join(","),
+        ),
+      ].join("\n");
+
+      await writeFile(outputFile, csvContent, "utf-8");
+      console.log(`CSV file created successfully: ${outputFile}`);
+    }
+  } catch (error) {
+    console.error(`Error processing Excel file: ${error}`);
+    throw error;
+  }
+}
+
+export async function processExcelFiles(
+  downloadsDir: string,
+  analyzedDir: string,
+  chain: string,
+): Promise<void> {
+  try {
+    const files = await readdir(downloadsDir);
+    const xlsFiles = files.filter(
+      (f) =>
+        f.toLowerCase().endsWith(".xls") || f.toLowerCase().endsWith(".xlsx"),
+    );
+
+    if (xlsFiles.length === 0) {
+      console.log(`No XLS files found in ${downloadsDir}`);
+      return;
+    }
+
+    for (const xlsFile of xlsFiles) {
+      const xlsPath = join(downloadsDir, xlsFile);
+      console.log(`Starting Excel processing for: ${xlsPath}`);
+
+      try {
+        const date = extractDateFromFilename(xlsFile);
+        if (date) {
+          const dateDir = join(
+            analyzedDir,
+            `${date.year}_${date.month}_${date.day}`,
+          );
+
+          const { mkdir } = await import("fs/promises");
+          await mkdir(dateDir, { recursive: true });
+
+          const baseName = xlsFile.replace(/\.(xls|xlsx)$/i, "");
+          const outputCsv = join(
+            dateDir,
+            `${baseName}_processed_incidents.csv`,
+          );
+
+          await processExcelFile(xlsPath, outputCsv, chain);
+        } else {
+          console.log(`Date information not found in file name: ${xlsFile}`);
+        }
+      } catch (error) {
+        console.error(`Error processing ${xlsPath}: ${error}`);
+      }
+    }
+  } catch (error) {
+    console.error(`Error in processExcelFiles: ${error}`);
+  }
+}

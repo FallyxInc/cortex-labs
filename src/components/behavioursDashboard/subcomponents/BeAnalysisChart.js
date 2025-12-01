@@ -163,6 +163,39 @@ const AnalysisChart = ({data, desiredYear, desiredMonth, threeMonthData, getTime
     return counts;
   };
 
+  const countBehavioursByDayOfWeek = (data) => {
+    const dayCounts = {
+      Sunday: 0,
+      Monday: 0,
+      Tuesday: 0,
+      Wednesday: 0,
+      Thursday: 0,
+      Friday: 0,
+      Saturday: 0,
+    };
+    
+    data.forEach(item => {
+      if (!item.date) {
+        return;
+      }
+      
+      try {
+        const [year, month, day] = item.date.split('-').map(Number);
+        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+          const date = new Date(year, month - 1, day);
+          const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+          if (dayOfWeek in dayCounts) {
+            dayCounts[dayOfWeek]++;
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing date:', item.date, error);
+      }
+    });
+    
+    return dayCounts;
+  };
+
     const [residentsByTimeOfDay, setResidentsByTimeOfDay] = useState({});
     const updateAnalysisChart = () => {
         var filteredData = analysisTimeRange === '3months' ? Array.from(threeMonthData.values()).flat() : data;
@@ -219,6 +252,13 @@ const AnalysisChart = ({data, desiredYear, desiredMonth, threeMonthData, getTime
             setAnalysisHeaderText('Behaviours by Hour');
             newLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
             newData = countBehavioursByHour(filteredData);
+            break;
+
+        case 'dayOfWeek':
+            setAnalysisHeaderText('Behaviours by Day of Week');
+            const dayOfWeekCounts = countBehavioursByDayOfWeek(filteredData);
+            newLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            newData = newLabels.map(day => dayOfWeekCounts[day] || 0);
             break;
         }
 
@@ -307,6 +347,7 @@ const AnalysisChart = ({data, desiredYear, desiredMonth, threeMonthData, getTime
                     <option value="residents">Resident Name</option>
                     <option value="unit">Unit</option>
                     <option value="hour">By Hour (24hr)</option>
+                    <option value="dayOfWeek">Day of Week</option>
                 </select>
             </div>
 

@@ -107,7 +107,7 @@
         }
 
         // Generate all reports
-        const reportTypes = ['timeOfDay', 'behaviourType', 'behaviourBreakdown', 'resident', 'unit', 'hour'];
+        const reportTypes = ['timeOfDay', 'behaviourType', 'behaviourBreakdown', 'resident', 'unit', 'hour', 'dayOfWeek'];
         const allReports = {};
         
         reportTypes.forEach(type => {
@@ -231,6 +231,42 @@
           });
           chartLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
           chartValues = hourCounts;
+          tableData = chartLabels.map((label, idx) => ({
+            label,
+            count: chartValues[idx],
+            percentage: totalEvents > 0 ? ((chartValues[idx] / totalEvents) * 100).toFixed(1) : '0.0'
+          }));
+          break;
+
+        case 'dayOfWeek':
+          const dayOfWeekCounts = {
+            Sunday: 0,
+            Monday: 0,
+            Tuesday: 0,
+            Wednesday: 0,
+            Thursday: 0,
+            Friday: 0,
+            Saturday: 0,
+          };
+          filteredData.forEach(item => {
+            if (!item.date) {
+              return;
+            }
+            try {
+              const [year, month, day] = item.date.split('-').map(Number);
+              if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                const date = new Date(year, month - 1, day);
+                const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+                if (dayOfWeek in dayOfWeekCounts) {
+                  dayOfWeekCounts[dayOfWeek]++;
+                }
+              }
+            } catch (error) {
+              console.error('Error parsing date:', item.date, error);
+            }
+          });
+          chartLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          chartValues = chartLabels.map(day => dayOfWeekCounts[day] || 0);
           tableData = chartLabels.map((label, idx) => ({
             label,
             count: chartValues[idx],
@@ -616,7 +652,8 @@
         behaviourBreakdown: 'Behaviour Breakdown',
         resident: 'Resident Name',
         unit: 'Unit',
-        hour: 'By Hour (24hr)'
+        hour: 'By Hour (24hr)',
+        dayOfWeek: 'Day of Week'
       };
       return labels[type] || type;
     };

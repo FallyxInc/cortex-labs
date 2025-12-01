@@ -180,23 +180,8 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     improved: { percentage: 57, change: 8, residents: ['David Miller', 'Jennifer Taylor', 'Thomas White'] }
   });
 
-  const [currentCauseOfFall, setCurrentCauseOfFall] = useState('');
-  const [currentCauseRowIndex, setCurrentCauseRowIndex] = useState(null);
-  const [isCauseModalOpen, setIsCauseModalOpen] = useState(false);
-
   const [currentPostFallNotes, setCurrentPostFallNotes] = useState('');
   const [currentPostFallNotesRowIndex, setCurrentPostFallNotesRowIndex] = useState(null);
-  const [isPostFallNotesModalOpen, setIsPostFallNotesModalOpen] = useState(false);
-
-  const [residentsNeedingReview, setResidentsNeedingReview] = useState([]);
-  const [currentResidentIndex, setCurrentResidentIndex] = useState(0);
-  const [showModal, setShowModal] = useState(false);
-
-  const [incidentType, setIncidentType] = useState('Falls');
-  const [insightOutcomes, setInsightOutcomes] = useState({});
-  const [reviewedInsights, setReviewedInsights] = useState({});
-  const [insights, setInsights] = useState([]);
-
   // Track page visits with count
   const pageVisitCountRef = useRef(0);
   const lastVisitTimeRef = useRef(null);
@@ -237,129 +222,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     return () => clearInterval(interval);
   }, [name, altName]);
 
-  const MOCK_INCIDENT_DATA = {
-    'Falls': {
-      'home1': 12,
-      'home2': 8,
-      'home3': 15,
-      'home4': 6,
-      'vmltc': 10,
-      'oneill': 9,
-      'lancaster': 7,
-      'goderich': 11
-    },
-    'Abuse/Neglect/Personal Expression of Needs': {
-      'home1': 3,
-      'home2': 2,
-      'home3': 4,
-      'home4': 1,
-      'vmltc': 2,
-      'oneill': 3,
-      'lancaster': 1,
-      'goderich': 2
-    },
-    'Death': {
-      'home1': 1,
-      'home2': 2,
-      'home3': 1,
-      'home4': 1,
-      'vmltc': 2,
-      'oneill': 1,
-      'lancaster': 1,
-      'goderich': 1
-    },
-    'Injury': {
-      'home1': 7,
-      'home2': 5,
-      'home3': 8,
-      'home4': 4,
-      'vmltc': 6,
-      'oneill': 5,
-      'lancaster': 3,
-      'goderich': 6
-    },
-    'Elopement': {
-      'home1': 2,
-      'home2': 1,
-      'home3': 3,
-      'home4': 1,
-      'vmltc': 2,
-      'oneill': 2,
-      'lancaster': 1,
-      'goderich': 2
-    },
-    'Fire': {
-      'home1': 0,
-      'home2': 1,
-      'home3': 0,
-      'home4': 0,
-      'vmltc': 1,
-      'oneill': 0,
-      'lancaster': 0,
-      'goderich': 0
-    }
-  };
-
-  function expandedLog(item, maxDepth = 100, depth = 0) {
-    if (depth > maxDepth) {
-      console.log(item);
-      return;
-    }
-    if (typeof item === 'object' && item !== null) {
-      Object.entries(item).forEach(([key, value]) => {
-        console.group(key + ' : ' + typeof value);
-        expandedLog(value, maxDepth, depth + 1);
-        console.groupEnd();
-      });
-    } else {
-      console.log(item);
-    }
-  }
-
-  const [gaugeChartData, setGaugeChartData] = useState({
-    labels: [],
-    datasets: [],
-  });
-
-  const gaugeChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: '80%',
-    plugins: {
-      tooltip: { enabled: false },
-      legend: { display: false },
-    },
-  };
-
-  const [lineChartData, setLineChartData] = useState({
-    labels: [],
-    datasets: [],
-  });
-
-  // console.log('lineChartData');
-  // console.log(lineChartData);
-
-  const lineChartOptions = {
-    scales: {
-      y: {
-        beginAtZero: true,
-        min: 0,
-        max: 70,
-        ticks: {
-          stepSize: 10,
-        },
-      },
-    },
-    plugins: {
-      legend: { display: false },
-    },
-  };
-
-  const handleEditIntervention = (index) => {
-    setCurrentIntervention(data[index].interventions);
-    setCurrentRowIndex(index);
-    setIsModalOpen(true);
-  };
 
 
   const getTimeOfDay = (time) => {
@@ -369,43 +231,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     if (hour >= 12 && hour < 20) return "Evening";
     return "Night";
   };
-  const handleEditCauseOfFall = (index) => {
-    setCurrentCauseOfFall(data[index].cause);
-    setCurrentCauseRowIndex(index);
-    setIsCauseModalOpen(true);
-  };
-
-  const handleSubmitCauseOfFall = () => {
-    if (currentCauseOfFall === data[currentCauseRowIndex].cause) {
-      setIsCauseModalOpen(false);
-      return;
-    }
-
-    const updatedData = [...data];
-    updatedData[currentCauseRowIndex].cause = currentCauseOfFall;
-    updatedData[currentCauseRowIndex].isCauseUpdated = 'yes';
-
-    const rowRef = ref(
-      db,
-      `/${altName}/${desiredYear}/${months_backword[desiredMonth]}/row-${data[currentCauseRowIndex].id}`
-    );
-    update(rowRef, { cause: currentCauseOfFall, isCauseUpdated: 'yes' })
-      .then(() => {
-        console.log('Cause of fall updated successfully');
-        setData(updatedData);
-        setIsCauseModalOpen(false);
-      })
-      .catch((error) => {
-        console.error('Error updating cause of fall:', error);
-      });
-  };
-
-  const handleEditPostFallNotes = (index) => {
-    setCurrentPostFallNotes(data[index].postFallNotes);
-    setCurrentPostFallNotesRowIndex(index);
-    setIsPostFallNotesModalOpen(true);
-  };
-
   const handleSubmitPostFallNotes = () => {
     if (currentPostFallNotes === data[currentPostFallNotesRowIndex].postFallNotes) {
       setIsPostFallNotesModalOpen(false);
@@ -541,38 +366,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
           threeMonthX.push(months_forward[key]);
           threeMonthY.push(value.length);
         }
-    }
-
-    switch (timeRange) {
-      case 'current':
-        setGaugeChart(true);
-        setGaugeChartData({
-          datasets: [
-            {
-              data: newData,
-              backgroundColor: ['rgba(6, 182, 212, 0.8)', 'rgba(200, 200, 200, 0.2)'],
-              circumference: 180,
-              rotation: 270,
-            },
-          ],
-        });
-        break;
-      case '3months':
-        setGaugeChart(false);
-        setLineChartData({
-          labels: threeMonthX,
-          datasets: [
-            {
-              label: 'Number of Behaviours',
-              data: threeMonthY,
-              borderColor: 'rgb(6, 182, 212)',
-              tension: 0.1,
-            },
-          ],
-        });
-        break;
-      default:
-        break;
     }
   };
 
@@ -722,232 +515,156 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     saveAs(blob, filename);
   };
 
-  const handleUpdateCSV = async (index, newValue, name, changeType) => {
-    trackInteraction();
-    
-    const collectionRef = ref(db, `/${altName}/${desiredYear}/${months_backword[desiredMonth]}`);
-
-    try {
-      const snapshot = await get(collectionRef);
-
-      if (snapshot.exists()) {
-        const rows = snapshot.val();
-        let targetRowKey = null;
-        let targetRow = null;
-
-        for (const [key, row] of Object.entries(rows)) {
-          if (row.id === String(index)) {  
-            targetRowKey = key;
-            targetRow = row;
-            break;
-          }
-        }
-
-        if (targetRowKey && targetRow) {
-          const rowRef = child(collectionRef, targetRowKey);
-          const currentRowData = rows[targetRowKey];
-
-          let updates = {};
-          const oldValue = currentRowData[changeType];
-
-          switch (changeType) {
-            case 'hir':
-              updates = { hir: newValue, isHirUpdated: 'yes' };
-              break;
-            case 'transfer_to_hospital':
-              updates = { transfer_to_hospital: newValue, isHospitalUpdated: 'yes' };
-              break;
-            case 'ptRef':
-              updates = { ptRef: newValue, isPtRefUpdated: 'yes' };
-              break;
-            case 'poaContacted':
-              updates = { poaContacted: newValue, isPoaContactedUpdated: 'yes' };
-              break;
-            case 'physicianRef':
-              updates = { physicianRef: newValue, isPhysicianRefUpdated: 'yes' };
-              break;
-            case 'incidentReport':
-              updates = { incidentReport: newValue, isIncidentReportUpdated: 'yes' };
-              break;
-            default:
-              console.error('Invalid changeType');
-              return;
-          }
-
-          const updateKey = Object.keys(updates)[1];
-          const hasBeenUpdated = currentRowData[updateKey] === 'yes';
-
-          if (hasBeenUpdated && currentRowData[changeType] === newValue) {
-            return;
-          }
-
-          await update(rowRef, updates);
-          console.log(`Row with id ${index} updated successfully.`);
-
-          // Track table edit
-          const fieldKey = `${changeType}_edits`;
-          if (!tableEditCountsRef.current[fieldKey]) {
-            tableEditCountsRef.current[fieldKey] = 0;
-          }
-          tableEditCountsRef.current[fieldKey] += 1;
-
-          trackTableEdit({
-            tableType: 'behaviours',
-            fieldName: changeType,
-            fieldType: changeType === 'hir' ? 'dropdown' : changeType.includes('Ref') ? 'boolean' : 'text',
-            rowId: String(index),
-            oldValue: oldValue,
-            newValue: newValue,
-            homeId: altName,
-            editCount: tableEditCountsRef.current[fieldKey],
-            residentName: targetRow.name || name,
-          });
-
-          const updatedData = data.map(item => 
-            item.id === String(index) 
-              ? { ...item, [changeType]: newValue, [updateKey]: 'yes' } 
-              : item
-          );
-          setData(updatedData);
-        } else {
-          console.error(`Row with id ${index} not found.`);
-        }
-      } else {
-        console.error('No data found in the specified path.');
-      }
-    } catch (error) {
-      console.error('Error updating row:', error);
-    }
-  };
-
-  const getDataLengths = async () => {
-    setIsLoading(true);
-    
-    if (incidentType !== 'Falls') {
-      // Use mock data for other incident types
-      const mockData = MOCK_INCIDENT_DATA[incidentType];
-      setIsLoading(false);
-      return mockData;
-    }
-
-    // Original falls data fetching logic
-    const homes = ['home1', 'home2', 'home3', 'home4', 'vmltc', 'oneill', 'lancaster', 'goderich'];
-    const dataLengths = {};
-    
-    try {
-      // ... rest of the original function ...
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      return {};
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
-    let dataRef = ref(db, `/${altName}/behaviours/${desiredYear}/${months_backword[desiredMonth]}`);
-    if (altName === 'berkshire' || altName === 'banwell') {
-      dataRef = ref(db, `/${altName}/${desiredYear}/${months_backword[desiredMonth]}`);
-    } 
+    if (!startDate || !endDate) {
+      setData([]);
+      setFollowUpData([]);
+      setIsLoading(false);
+      setFollowUpLoading(false);
+      return;
+    }
 
-    const currentYear = desiredYear;
-    const currentMonth = parseInt(months_backword[desiredMonth]);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Generate list of all year-month combinations between start and end dates
+    const dateRanges = [];
+    const current = new Date(start.getFullYear(), start.getMonth(), 1);
+    let endMonth = new Date(end.getFullYear(), end.getMonth() + 1, 0);
+    
+    while (current <= endMonth) {
+      dateRanges.push({
+        year: current.getFullYear(),
+        month: String(current.getMonth() + 1).padStart(2, '0')
+      });
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    console.log("Fetching behaviours data for date range:", startDate, "to", endDate);
+    console.log("Date ranges to fetch:", dateRanges);
+
+    const allBehavioursData = data;
+    const allFollowUpData = followUpData;
+    const listeners = [];
+
+    let completedFetches = 0;
+    const totalFetches = dateRanges.length * 2; // behaviours + follow-ups
+
+    dateRanges.forEach(({ year, month }) => {
+      // Fetch behaviours data
+      const behavioursRef = ref(db, `/${altName}/behaviours/${year}/${month}`);
+      console.log("Fetching behaviours data for", `/${altName}/behaviours/${year}/${month}`);
+      
+      const behavioursListener = onValue(behavioursRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const behavioursData = snapshot.val();
+          const monthData = Object.values(behavioursData).map(item => ({
+            ...item,
+            id: item.id || '',
+            yearMonth: `${year}-${month}`
+          }));
+          
+          // Filter by actual date range
+          const filteredData = monthData.filter(item => {
+            if (!item.date) return false;
+            const itemDate = new Date(item.date);
+            return itemDate >= start && itemDate <= end;
+          });
+          
+          allBehavioursData.push(...filteredData);
+        }
+        
+        completedFetches++;
+        if (completedFetches === totalFetches) {
+          // Sort by date descending
+          const sortedData = allBehavioursData.sort(
+            (a, b) => new Date(b.date) - new Date(a.date)
+          );
+          setData(sortedData);
+          setIsLoading(false);
+        }
+      });
+      listeners.push({ ref: behavioursRef, listener: behavioursListener });
+
+      // Fetch follow-up data
+      const followUpRef = ref(db, `/${altName}/follow/${year}/${month}`);
+      console.log("Fetching follow-up data for", `/${altName}/follow/${year}/${month}`);
+      
+      const followUpListener = onValue(followUpRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const followUpData = snapshot.val();
+          const monthFollowUpData = Object.values(followUpData).map((item, index) => ({
+            ...item,
+            id: item.id || `${year}-${month}-${index}`,
+            resident_name: item.resident_name || item.Name || 'Unknown Resident',
+            date: item.date || 'Unknown Date',
+            summary_of_behaviour: item.summary_of_behaviour || 'No summary available',
+            other_notes: item.other_notes || 'No notes available',
+            yearMonth: `${year}-${month}`
+          }));
+          
+          // Filter by actual date range
+          const filteredFollowUpData = monthFollowUpData.filter(item => {
+            if (!item.date || item.date === 'Unknown Date') return false;
+            const itemDate = new Date(item.date);
+            return itemDate >= start && itemDate <= end;
+          });
+          
+          allFollowUpData.push(...filteredFollowUpData);
+        }
+        
+        completedFetches++;
+        if (completedFetches === totalFetches) {
+          // Sort by date descending
+          const sortedFollowUpData = allFollowUpData.sort(
+            (a, b) => new Date(b.date) - new Date(a.date)
+          );
+          setFollowUpData(sortedFollowUpData);
+          setFollowUpLoading(false);
+        }
+      });
+      listeners.push({ ref: followUpRef, listener: followUpListener });
+    });
+
+    // Also fetch past three months data for trends (relative to end date)
+    const endYear = end.getFullYear();
+    endMonth = end.getMonth() + 1;
     const pastThreeMonths = [];
 
     for (let i = 3; i >= 1; i--) {
-      const month = currentMonth - i;
+      const month = endMonth - i;
       if (month > 0) {
-        pastThreeMonths.push({ year: currentYear, month: String(month).padStart(2, '0') });
+        pastThreeMonths.push({ year: endYear, month: String(month).padStart(2, '0') });
       } else {
-        pastThreeMonths.push({ year: currentYear - 1, month: String(12 + month).padStart(2, '0') });
+        pastThreeMonths.push({ year: endYear - 1, month: String(12 + month).padStart(2, '0') });
       }
     }
 
-    const allBehavioursData = new Map();
-    for (let i = 0; i < pastThreeMonths.length; i++) {
-      allBehavioursData.set(pastThreeMonths[i].month, []);
-    }
-
+    const allThreeMonthData = new Map();
     pastThreeMonths.forEach(({ year, month }) => {
-      let monthRef = ref(db, `/${altName}/behaviours/${year}/${month}`);
-
-      if (altName === 'berkshire' || altName === 'banwell') {
-        monthRef = ref(db, `/${altName}/${year}/${month}`);
-      } 
-
+      allThreeMonthData.set(month, []);
+      
+      const monthRef = ref(db, `/${altName}/behaviours/${year}/${month}`);
+      console.log("Fetching three-month trend data for", `/${altName}/behaviours/${year}/${month}`);
+      
       const listener = onValue(monthRef, (snapshot) => {
         if (snapshot.exists()) {
           const behavioursData = snapshot.val();
           const monthData = Object.keys(behavioursData).map((key) => behavioursData[key]);
-          allBehavioursData.set(month, monthData);
+          allThreeMonthData.set(month, monthData);
+          setThreeMonthData(new Map(allThreeMonthData));
         }
       });
-      return () => off(monthRef, listener);
-    });
-    setThreeMonthData(allBehavioursData);
-
-    const listener = onValue(dataRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const fetchedData = snapshot.val();
-        
-        if (!fetchedData) {
-          setData([]);
-          setIsLoading(false);
-          return;
-        }
-
-        let withIdData = Object.values(fetchedData).map(item => ({
-          ...item,
-          id: item.id || ''
-        }));
-
-        const sortedData = withIdData.sort(
-          (a, b) => new Date(b.date) - new Date(a.date)
-        );
-        setData(sortedData);
-        setIsLoading(false);
-      } else {
-        setData([]);
-        setIsLoading(false);
-      }
-    });
-
-    const followUpRef = ref(db, `/${altName}/follow/${currentYear}/${months_backword[desiredMonth]}`);
-    const followUpListener = onValue(followUpRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const fetchedFollowUpData = snapshot.val();
-        
-        if (!fetchedFollowUpData) {
-          setFollowUpData([]);
-          setFollowUpLoading(false);
-          return;
-        }
-
-        let withIdFollowUpData = Object.values(fetchedFollowUpData).map((item, index) => ({
-          ...item,
-          id: item.id || String(index + 1),
-          resident_name: item.resident_name || item.Name || 'Unknown Resident',
-          date: item.date || 'Unknown Date',
-          summary_of_behaviour: item.summary_of_behaviour || 'No summary available',
-          other_notes: item.other_notes || 'No notes available'
-        }));
-
-        const sortedFollowUpData = withIdFollowUpData.sort(
-          (a, b) => new Date(b.date) - new Date(a.date)
-        );
-        setFollowUpData(sortedFollowUpData);
-        setFollowUpLoading(false);
-      } else {
-        setFollowUpData([]);
-        setFollowUpLoading(false);
-      }
+      listeners.push({ ref: monthRef, listener });
     });
 
     return () => {
-      off(dataRef, listener);
-      off(followUpRef, followUpListener);
+      listeners.forEach(({ ref: listenerRef, listener }) => {
+        off(listenerRef, listener);
+      });
     };
-  }, [desiredMonth, desiredYear]);
+  }, [startDate, endDate, altName]);
 
   // Fetch overview metrics from Firebase
   useEffect(() => {
@@ -1002,27 +719,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     }
   }, [data]);
 
-  const handleYearChange = (e) => {
-    const selectedYear = e.target.value;
-    setDesiredYear(selectedYear);
-
-    // When year changes, set month to the first available month for that year
-    const availableMonths = availableYearMonth[selectedYear] || [];
-    if (availableMonths.length > 0) {
-      setDesiredMonth(availableMonths[0]);
-    }
-  };
-
-  const handleMonthChange = (event) => {
-    const selectedMonth = event.target.value;
-    setDesiredMonth(selectedMonth);
-  };
-
-
-  const handleUnitChange = (event) => {
-    // setDesiredUnit(event.target.value);
-  };
-
   // Calculate behavior metrics for overview
   const calculateBehaviorMetrics = () => {
     if (!data || data.length === 0) return { antipsychotics: 0, worsened: 0, improved: 0 };
@@ -1058,11 +754,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
 
   useEffect(() => {
     let yearsRef;
-    if (altName === 'berkshire' || altName === 'banwell') {
-      yearsRef = ref(db, `/${altName}`);
-    } else {
-      yearsRef = ref(db, `/${altName}/behaviours`);
-    }
+    yearsRef = ref(db, `/${altName}/behaviours`);
     
     onValue(yearsRef, (snapshot) => {
       const yearMonthMapping = {};
@@ -1084,6 +776,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             return months_backword[a] - months_backword[b];
           });
         });
+        
 
         const sortedYears = Object.keys(yearMonthMapping).sort((a, b) => b - a);
         const sortedMapping = {};
@@ -1172,129 +865,48 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     return () => clearInterval(interval);
   }, [altName, desiredMonth]);
 
-  const markReviewDone = async (resident) => {
-    const reviewRef = ref(db, `/reviews/${altName}/${desiredYear}/${months_backword[desiredMonth]}/${resident.name}`);
-    await set(reviewRef, {
-      reviewed: true,
-      reviewedAt: serverTimestamp(),
-      needsReminder: false,
-      lastReminderTime: null
-    });
-    
-    await checkForUnreviewedResidents();
-  };
 
-  const handleRemindLater = async () => {
-    const currentResident = residentsNeedingReview[currentResidentIndex];
-    const reviewRef = ref(db, `/reviews/${altName}/${desiredYear}/${months_backword[desiredMonth]}/${currentResident.name}`);
-    
-    await set(reviewRef, {
-      reviewed: false,
-      needsReminder: true,
-      lastReminderTime: serverTimestamp()
-    });
-
-    if (currentResidentIndex < residentsNeedingReview.length - 1) {
-      setCurrentResidentIndex(prev => prev + 1);
-    } else {
-      setShowModal(false);
-      setCurrentResidentIndex(0);
-    }
-  };
-
-  const getAllInsights = () => {
-    // Map insights from Firebase
-    const allInsights = insights.map(insight => {
-      // Check if this insight exists in Firebase (has outcome or reviewed status)
-      const firebaseData = insightOutcomes[insight.id] || {};
-      const isReviewed = reviewedInsights[insight.id] || false;
+  // useEffect(() => {
+  //   const loadInsightData = async () => {
+  //     const insightsRef = ref(db, `/${altName}/insights/${desiredYear}/${months_backword[desiredMonth]}`);
+  //     const snapshot = await get(insightsRef);
       
-      return {
-        ...insight,
-        outcome: firebaseData.outcome || null,
-        reviewed: isReviewed
-      };
-    });
-
-    // Filter out reviewed insights
-    return allInsights.filter(insight => !insight.reviewed);
-  };
-
-  const handleOutcomeChange = async (insightId, newOutcome) => {
-    try {
-      const insightRef = ref(db, `/${altName}/insights/${desiredYear}/${months_backword[desiredMonth]}/${insightId}`);
-      await update(insightRef, {
-        outcome: newOutcome,
-        timestamp: serverTimestamp()
-      });
-      
-      setInsightOutcomes(prev => ({
-        ...prev,
-        [insightId]: { outcome: newOutcome }
-      }));
-    } catch (error) {
-      console.error('Error updating insight outcome:', error);
-    }
-  };
-
-  const handleReviewInsight = async (insightId) => {
-    try {
-      const insightRef = ref(db, `/${altName}/insights/${desiredYear}/${months_backword[desiredMonth]}/${insightId}`);
-      await update(insightRef, {
-        reviewed: true,
-        reviewedAt: serverTimestamp()
-      });
-      
-      setReviewedInsights(prev => ({
-        ...prev,
-        [insightId]: true
-      }));
-    } catch (error) {
-      console.error('Error marking insight as reviewed:', error);
-    }
-  };
-
-  useEffect(() => {
-    const loadInsightData = async () => {
-      const insightsRef = ref(db, `/${altName}/insights/${desiredYear}/${months_backword[desiredMonth]}`);
-      const snapshot = await get(insightsRef);
-      
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const outcomes = {};
-        const reviewed = {};
-        const insightsList = [];
+  //     if (snapshot.exists()) {
+  //       const data = snapshot.val();
+  //       const outcomes = {};
+  //       const reviewed = {};
+  //       const insightsList = [];
         
-        Object.entries(data).forEach(([id, insight]) => {
-          if (typeof insight === 'string') {
-            insightsList.push({
-              id,
-              emoji: '📊',
-              content: insight
-            });
-          } else if (insight.content) {
-            insightsList.push({
-              id,
-              emoji: insight.emoji || '📊',
-              content: insight.content
-            });
-          }
+  //       Object.entries(data).forEach(([id, insight]) => {
+  //         if (typeof insight === 'string') {
+  //           insightsList.push({
+  //             id,
+  //             emoji: '📊',
+  //             content: insight
+  //           });
+  //         } else if (insight.content) {
+  //           insightsList.push({
+  //             id,
+  //             emoji: insight.emoji || '📊',
+  //             content: insight.content
+  //           });
+  //         }
           
-          if (insight.outcome) outcomes[id] = insight;
-          if (insight.reviewed) reviewed[id] = true;
-        });
+  //         if (insight.outcome) outcomes[id] = insight;
+  //         if (insight.reviewed) reviewed[id] = true;
+  //       });
         
-        setInsights(insightsList);
-        setInsightOutcomes(outcomes);
-        setReviewedInsights(reviewed);
-      } else {
-        setInsights([]);
-        setInsightOutcomes({});
-        setReviewedInsights({});
-      }
-    };
-    loadInsightData();
-  }, [altName, desiredYear, desiredMonth]);
+  //       // setInsights(insightsList);
+  //       setInsightOutcomes(outcomes);
+  //       setReviewedInsights(reviewed);
+  //     } else {
+  //       // setInsights([]);
+  //       setInsightOutcomes({});
+  //       setReviewedInsights({});
+  //     }
+  //   };
+  //   loadInsightData();
+  // }, [altName, desiredYear, desiredMonth]);
 
 
   const cleanDuplicateText = (text, field) => {
@@ -1855,87 +1467,6 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             </div>
           </div>
         </div>
-      )}
-      {isCauseModalOpen && (
-        <div className={styles.modal}>
-          <div className={styles.modalContent}>
-            <div>
-              <h2>Edit Cause of Falls</h2>
-              <textarea value={currentCauseOfFall} onChange={(e) => setCurrentCauseOfFall(e.target.value)} />
-              <br />
-              <button onClick={handleSubmitCauseOfFall}>Submit</button>
-              <button onClick={() => setIsCauseModalOpen(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {isPostFallNotesModalOpen && (
-        <div className={styles.modal}>
-          <div className={styles.modalContent}>
-            <div>
-              <h2>Edit Post Fall Notes</h2>
-              <textarea value={currentPostFallNotes} onChange={(e) => setCurrentPostFallNotes(e.target.value)} />
-              <br />
-              <button onClick={handleSubmitPostFallNotes}>Submit</button>
-              <button onClick={() => setIsPostFallNotesModalOpen(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showModal && residentsNeedingReview.length > 0 && residentsNeedingReview[currentResidentIndex] && (
-        <Modal 
-          showModal={true}
-          handleClose={() => setShowModal(false)}
-          showCloseButton={false}
-          modalContent={
-            <div>
-              <h3 style={{ fontSize: '30px', fontWeight: 'bold', marginBottom: '15px' }}>Special Care Review Needed:</h3>
-              <p style={{ fontSize: '18px', marginBottom: '25px', }}>
-                <b style={{ fontSize: '18px', fontWeight: 'bold' }}> 
-                  {residentsNeedingReview[currentResidentIndex]?.name} 
-                </b> has had 3 or more falls 
-                in the past month. Have you completed a special care review?
-              </p>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'left', marginBottom: '25px' }}>
-                <button 
-                  onClick={() => residentsNeedingReview[currentResidentIndex] && 
-                    markReviewDone(residentsNeedingReview[currentResidentIndex])}
-                  style={{ 
-                    padding: '12px 20px', 
-                    background: 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)', 
-                    color: 'white', 
-                    fontFamily: 'inherit', 
-                    fontSize: '16px', 
-                    fontWeight: '600',
-                    borderRadius: '12px', 
-                    border: 'transparent', 
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.4)';
-                    e.currentTarget.style.background = 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.3)';
-                    e.currentTarget.style.background = 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)';
-                  }}
-                >
-                  Yes, Review Complete
-                </button>
-                <button 
-                  onClick={handleRemindLater}
-                  style={{ backgroundColor: '#D3D3D3', padding: '10px', fontFamily: 'inherit', fontSize: '16px', fontFamily: 'inherit', borderRadius: '12px', border: 'transparent', cursor: 'pointer'}}
-                >
-                  Remind me in 24 hours
-                </button>
-              </div>
-            </div>
-          }
-        />
       )}
         </div>
       </div>

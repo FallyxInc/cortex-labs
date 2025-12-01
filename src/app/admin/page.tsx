@@ -182,6 +182,21 @@ export default function AdminPage() {
             >
               File Upload
             </button>
+            <a
+              href="/admin/onboarding"
+              className="py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 border-transparent text-gray-500 hover:text-gray-700 flex items-center space-x-2"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#bae6fd';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'transparent';
+              }}
+            >
+              <span>Onboarding</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">
+                R&D
+              </span>
+            </a>
           </div>
         </div>
       </nav>
