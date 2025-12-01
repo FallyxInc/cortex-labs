@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import {
-  convertOnboardingConfigToChainConfig,
-  validateOnboardingConfig,
-  OnboardingConfig
-} from '@/lib/processing/onboardingUtils';
+
+interface OnboardingConfig {
+  chainId: string;
+  chainName: string;
+  behaviourNoteTypes: string[];
+  followUpNoteTypes: string[];
+  noteTypeConfigs: Record<string, {
+    name: string;
+    isFollowUp: boolean;
+    fields: Record<string, {
+      fieldName: string;
+      endMarkers: string[];
+    }>;
+  }>;
+}
 
 interface StoredOnboardingConfig extends OnboardingConfig {
   createdAt: string;
@@ -18,18 +28,6 @@ export async function POST(request: NextRequest) {
     if (!config.chainId || !config.chainName) {
       return NextResponse.json(
         { error: 'Chain ID and name are required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate the config
-    const validationErrors = validateOnboardingConfig(config);
-    if (validationErrors.length > 0) {
-      return NextResponse.json(
-        {
-          error: 'Validation failed',
-          errors: validationErrors
-        },
         { status: 400 }
       );
     }
@@ -52,7 +50,6 @@ export async function POST(request: NextRequest) {
         behaviourNoteTypes: config.behaviourNoteTypes,
         followUpNoteTypes: config.followUpNoteTypes,
         noteTypeConfigs: config.noteTypeConfigs,
-        excelFieldMappings: config.excelFieldMappings || {},
         createdAt: existingData.createdAt || now,
         updatedAt: now,
       };
@@ -65,21 +62,16 @@ export async function POST(request: NextRequest) {
         behaviourNoteTypes: config.behaviourNoteTypes,
         followUpNoteTypes: config.followUpNoteTypes,
         noteTypeConfigs: config.noteTypeConfigs,
-        excelFieldMappings: config.excelFieldMappings || {},
         createdAt: now,
         updatedAt: now,
       };
       await configRef.set(configData);
     }
 
-    // Convert to chain config for immediate use
-    const chainConfig = convertOnboardingConfigToChainConfig(config);
-
     return NextResponse.json({
       success: true,
       message: exists ? 'Configuration updated successfully' : 'Configuration saved successfully',
       chainId: config.chainId,
-      chainConfig: chainConfig // Return the converted chain config
     });
   } catch (error) {
     console.error('Error saving onboarding config:', error);

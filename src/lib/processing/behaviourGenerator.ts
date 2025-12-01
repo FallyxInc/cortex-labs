@@ -901,8 +901,15 @@ export async function processAllMergedFiles(
   homeId: string,
   chainId: string,
 ): Promise<void> {
-  // Determine chain configuration
-  let config: ChainExtractionConfig = CHAIN_EXTRACTION_CONFIGS[chainId];
+  // Determine chain configuration - try dynamic loading first
+  let config: ChainExtractionConfig | null = null;
+  
+  try {
+    const { getChainExtractionConfig } = await import("./homesDb");
+    config = await getChainExtractionConfig(chainId);
+  } catch (error) {
+    console.error(`Error loading chain config for ${chainId}:`, error);
+  }
 
   if (!config) {
     config = CHAIN_EXTRACTION_CONFIGS["responsive"];
