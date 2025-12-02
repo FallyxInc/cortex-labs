@@ -49,12 +49,19 @@ export default function UserManagement() {
   const [filterRole, setFilterRole] = useState<string>('');
   const [filterChain, setFilterChain] = useState<string>('');
   const [filterHome, setFilterHome] = useState<string>('');
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
     fetchChains();
     fetchHomes();
   }, []);
+
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedUsers(new Set());
+  }, [filterRole, filterChain, filterHome]);
 
   const fetchChains = async () => {
     try {
@@ -244,6 +251,7 @@ export default function UserManagement() {
       if (response.ok && data.success) {
         showMessage('User deleted successfully!', 'success');
         fetchUsers();
+        setSelectedUsers(new Set());
       } else {
         showMessage(data.error || 'Failed to delete user', 'error');
       }
@@ -252,6 +260,112 @@ export default function UserManagement() {
       showMessage('Failed to delete user', 'error');
     }
   };
+
+  const handleBulkDelete = async () => {
+    const count = selectedUsers.size;
+    if (count === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${count} user(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    const userIds = Array.from(selectedUsers);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      // Delete users in parallel
+      const deletePromises = userIds.map(async (userId) => {
+        try {
+          const response = await fetch('/api/admin/users', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
+          });
+
+          const data = await response.json();
+          if (response.ok && data.success) {
+            successCount++;
+            return { success: true, userId };
+          } else {
+            failCount++;
+            return { success: false, userId, error: data.error };
+          }
+        } catch (error) {
+          failCount++;
+          return { success: false, userId, error: 'Network error' };
+        }
+      });
+
+      await Promise.all(deletePromises);
+
+      if (successCount > 0) {
+        showMessage(
+          `Successfully deleted ${successCount} user(s)${failCount > 0 ? `. ${failCount} failed.` : ''}`,
+          failCount > 0 ? 'error' : 'success'
+        );
+        setSelectedUsers(new Set());
+        fetchUsers();
+      } else {
+        showMessage('Failed to delete users', 'error');
+      }
+    } catch (error) {
+      console.error('Error during bulk delete:', error);
+      showMessage('Failed to delete users', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggleUserSelection = (userId: string) => {
+    const newSelected = new Set(selectedUsers);
+    if (newSelected.has(userId)) {
+      newSelected.delete(userId);
+    } else {
+      newSelected.add(userId);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  // Filter users based on selected filters
+  const getFilteredUsers = () => {
+    return users.filter(user => {
+      // Filter by role
+      if (filterRole && user.role !== filterRole) {
+        return false;
+      }
+      
+      // Filter by chain
+      if (filterChain && user.chainId !== filterChain) {
+        return false;
+      }
+      
+      // Filter by home
+      if (filterHome && user.homeId !== filterHome) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredUsers = getFilteredUsers();
+
+  const handleSelectAll = () => {
+    if (selectedUsers.size === filteredUsers.length) {
+      // Deselect all
+      setSelectedUsers(new Set());
+    } else {
+      // Select all filtered users
+      setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
+    }
+  };
+
+  const isAllSelected = filteredUsers.length > 0 && selectedUsers.size === filteredUsers.length;
+  const isSomeSelected = selectedUsers.size > 0 && selectedUsers.size < filteredUsers.length;
 
   const handleStartEdit = (user: User) => {
     setEditingUserId(user.id);
@@ -331,30 +445,6 @@ export default function UserManagement() {
     const chain = chains.find(c => c.id === chainId);
     return chain ? chain.name : chainId;
   };
-
-  // Filter users based on selected filters
-  const getFilteredUsers = () => {
-    return users.filter(user => {
-      // Filter by role
-      if (filterRole && user.role !== filterRole) {
-        return false;
-      }
-      
-      // Filter by chain
-      if (filterChain && user.chainId !== filterChain) {
-        return false;
-      }
-      
-      // Filter by home
-      if (filterHome && user.homeId !== filterHome) {
-        return false;
-      }
-      
-      return true;
-    });
-  };
-
-  const filteredUsers = getFilteredUsers();
 
   if (loading && users.length === 0) {
     return (
@@ -611,11 +701,44 @@ Users are automatically assigned email addresses based on their username (userna
                 : `${users.length} ${users.length === 1 ? 'user' : 'users'}`
               }
             </span>
+            {selectedUsers.size > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+                {selectedUsers.size} selected
+              </span>
+            )}
           </div>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="text-white px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg"
+        <div className="flex items-center gap-3">
+          {selectedUsers.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="text-white px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ 
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isDeleting) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isDeleting) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+                }
+              }}
+            >
+              {isDeleting ? `Deleting ${selectedUsers.size}...` : `Delete ${selectedUsers.size} User${selectedUsers.size > 1 ? 's' : ''}`}
+            </button>
+          )}
+          <button
+            onClick={() => setShowForm(true)}
+            className="text-white px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg"
           style={{ 
             background: 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)',
             boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
@@ -633,6 +756,7 @@ Users are automatically assigned email addresses based on their username (userna
         >
           Add New User
         </button>
+        </div>
       </div>
 
       {message && (
@@ -664,7 +788,7 @@ Note: When you change a home user's home, their chain will automatically update 
           </div>
           
           {/* Filter Section */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <div>
               <label htmlFor="filter-role" className="block text-sm font-medium text-gray-700 mb-1">
                 Filter by Role
@@ -742,19 +866,6 @@ Note: When you change a home user's home, their chain will automatically update 
                 ))}
               </select>
             </div>
-            
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setFilterRole('');
-                  setFilterChain('');
-                  setFilterHome('');
-                }}
-                className="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md text-sm font-medium transition-colors"
-              >
-                Clear Filters
-              </button>
-            </div>
           </div>
           
           {/* Filter Results Count */}
@@ -768,6 +879,17 @@ Note: When you change a home user's home, their chain will automatically update 
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(input) => {
+                      if (input) input.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Username
                 </th>
@@ -797,13 +919,21 @@ Note: When you change a home user's home, their chain will automatically update 
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
                     {users.length === 0 ? 'No users found' : 'No users match the selected filters'}
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.has(user.id)}
+                        onChange={() => handleToggleUserSelection(user.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {editingUserId === user.id ? (
                         <div className="flex items-center gap-2">
