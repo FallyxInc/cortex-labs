@@ -1,6 +1,7 @@
 // Central place for chains and homes configuration (TypeScript port of homes_db.py)
 
 import { ChainExtractionConfig } from "./types";
+import { getChainExtractionConfigFromFirebase } from "./onboardingUtils";
 
 export interface ChainConfig {
   name: string;
@@ -358,3 +359,32 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
     hasEvaluation: false,
   },
 };
+
+/**
+ * Get chain extraction config - checks hardcoded configs first, then Firebase
+ * This allows dynamic loading of configs created through onboarding
+ */
+export async function getChainExtractionConfig(
+  chainId: string
+): Promise<ChainExtractionConfig | null> {
+  // First check hardcoded configs
+  if (CHAIN_EXTRACTION_CONFIGS[chainId]) {
+    return CHAIN_EXTRACTION_CONFIGS[chainId];
+  }
+
+  // Then check Firebase for dynamically created configs
+  try {
+    const firebaseConfig = await getChainExtractionConfigFromFirebase(chainId);
+    if (firebaseConfig) {
+      // Cache it in memory for future use
+      CHAIN_EXTRACTION_CONFIGS[chainId] = firebaseConfig;
+      return firebaseConfig;
+    }
+  } catch (error) {
+    console.error(`Error loading chain config for ${chainId}:`, error);
+  }
+
+  // Fallback to responsive config if nothing found
+  console.warn(`Chain config not found for ${chainId}, falling back to responsive`);
+  return CHAIN_EXTRACTION_CONFIGS["responsive"] || null;
+}

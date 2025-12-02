@@ -46,12 +46,40 @@ export default function UserManagement() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingUsername, setEditingUsername] = useState('');
   const [editingEmail, setEditingEmail] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('');
+  const [filterChain, setFilterChain] = useState<string>('');
+  const [filterHome, setFilterHome] = useState<string>('');
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showMigration, setShowMigration] = useState(false);
+  const [migrationData, setMigrationData] = useState<{
+    usersToMigrate: Array<{
+      userId: string;
+      currentData: any;
+      proposedChanges: any;
+      issues: string[];
+    }>;
+    totalUsers: number;
+    usersNeedingMigration: number;
+  } | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationResults, setMigrationResults] = useState<{
+    updated: string[];
+    failed: Array<{ userId: string; error: string }>;
+    skipped: string[];
+  } | null>(null);
 
   useEffect(() => {
     fetchUsers();
     fetchChains();
     fetchHomes();
   }, []);
+
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedUsers(new Set());
+  }, [filterRole, filterChain, filterHome]);
 
   const fetchChains = async () => {
     try {
@@ -176,6 +204,7 @@ export default function UserManagement() {
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
+      const user = users.find(u => u.id === userId);
       const response = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PATCH',
         headers: {
@@ -187,6 +216,10 @@ export default function UserManagement() {
       const data = await response.json();
 
       if (response.ok && data.success) {
+        // If changing to admin, clear home and chain
+        if (newRole === 'admin' && user) {
+          await handleHomeChainChange(userId, '', '');
+        }
         showMessage('User role updated successfully!', 'success');
         fetchUsers();
       } else {
@@ -241,12 +274,179 @@ export default function UserManagement() {
       if (response.ok && data.success) {
         showMessage('User deleted successfully!', 'success');
         fetchUsers();
+        setSelectedUsers(new Set());
       } else {
         showMessage(data.error || 'Failed to delete user', 'error');
       }
     } catch (error) {
       console.error('Error deleting user:', error);
       showMessage('Failed to delete user', 'error');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const count = selectedUsers.size;
+    if (count === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${count} user(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    const userIds = Array.from(selectedUsers);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      // Delete users in parallel
+      const deletePromises = userIds.map(async (userId) => {
+        try {
+          const response = await fetch('/api/admin/users', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
+          });
+
+          const data = await response.json();
+          if (response.ok && data.success) {
+            successCount++;
+            return { success: true, userId };
+          } else {
+            failCount++;
+            return { success: false, userId, error: data.error };
+          }
+        } catch (error) {
+          failCount++;
+          return { success: false, userId, error: 'Network error' };
+        }
+      });
+
+      await Promise.all(deletePromises);
+
+      if (successCount > 0) {
+        showMessage(
+          `Successfully deleted ${successCount} user(s)${failCount > 0 ? `. ${failCount} failed.` : ''}`,
+          failCount > 0 ? 'error' : 'success'
+        );
+        setSelectedUsers(new Set());
+        fetchUsers();
+      } else {
+        showMessage('Failed to delete users', 'error');
+      }
+    } catch (error) {
+      console.error('Error during bulk delete:', error);
+      showMessage('Failed to delete users', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggleUserSelection = (userId: string) => {
+    const newSelected = new Set(selectedUsers);
+    if (newSelected.has(userId)) {
+      newSelected.delete(userId);
+    } else {
+      newSelected.add(userId);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  // Filter users based on selected filters
+  const getFilteredUsers = () => {
+    return users.filter(user => {
+      // Filter by role
+      if (filterRole && user.role !== filterRole) {
+        return false;
+      }
+      
+      // Filter by chain
+      if (filterChain && user.chainId !== filterChain) {
+        return false;
+      }
+      
+      // Filter by home
+      if (filterHome && user.homeId !== filterHome) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredUsers = getFilteredUsers();
+
+  const handleSelectAll = () => {
+    if (selectedUsers.size === filteredUsers.length) {
+      // Deselect all
+      setSelectedUsers(new Set());
+    } else {
+      // Select all filtered users
+      setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
+    }
+  };
+
+  const isAllSelected = filteredUsers.length > 0 && selectedUsers.size === filteredUsers.length;
+  const isSomeSelected = selectedUsers.size > 0 && selectedUsers.size < filteredUsers.length;
+
+  const handleScanMigration = async () => {
+    setIsScanning(true);
+    setMigrationResults(null);
+    try {
+      const response = await fetch('/api/admin/users/migrate');
+      const data = await response.json();
+      
+      if (data.success) {
+        setMigrationData(data);
+        setShowMigration(true);
+      } else {
+        showMessage(data.error || 'Failed to scan users', 'error');
+      }
+    } catch (error) {
+      console.error('Error scanning users:', error);
+      showMessage('Failed to scan users', 'error');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleExecuteMigration = async () => {
+    if (!migrationData || migrationData.usersToMigrate.length === 0) {
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to migrate ${migrationData.usersToMigrate.length} user(s)? This will update their data structure.`)) {
+      return;
+    }
+
+    setIsMigrating(true);
+    setMigrationResults(null);
+
+    try {
+      const userIds = migrationData.usersToMigrate.map(u => u.userId);
+      const response = await fetch('/api/admin/users/migrate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userIds }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMigrationResults(data.results);
+        showMessage(data.message || 'Migration completed successfully!', 'success');
+        fetchUsers(); // Refresh user list
+      } else {
+        showMessage(data.error || 'Failed to execute migration', 'error');
+      }
+    } catch (error) {
+      console.error('Error executing migration:', error);
+      showMessage('Failed to execute migration', 'error');
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -563,22 +763,65 @@ export default function UserManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          <h3 className="text-xl font-semibold text-gray-900">User Management</h3>
-          <HelpIcon 
-            title="User Management"
-            content="Manage users and their access to the system.
+        <div className="flex items-center gap-4">
+          <div className="flex items-center">
+            <h3 className="text-xl font-semibold text-gray-900">User Management</h3>
+            <HelpIcon 
+              title="User Management"
+              content="Manage users and their access to the system.
 
 • Admin Users: Have full access to the admin dashboard, including home management, user management, and file uploads.
 
 • Home Users: Have access only to their assigned home's dashboard. They can view behavioural data for their specific care facility.
 
 Users are automatically assigned email addresses based on their username (username@example.com). Each home user must be associated with a chain and home."
-          />
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              {filterRole || filterChain || filterHome 
+                ? `${filteredUsers.length} of ${users.length} users`
+                : `${users.length} ${users.length === 1 ? 'user' : 'users'}`
+              }
+            </span>
+            {selectedUsers.size > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+                {selectedUsers.size} selected
+              </span>
+            )}
+          </div>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="text-white px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg"
+        <div className="flex items-center gap-3">
+          {selectedUsers.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="text-white px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ 
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isDeleting) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isDeleting) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+                }
+              }}
+            >
+              {isDeleting ? `Deleting ${selectedUsers.size}...` : `Delete ${selectedUsers.size} User${selectedUsers.size > 1 ? 's' : ''}`}
+            </button>
+          )}
+          <button
+            onClick={() => setShowForm(true)}
+            className="text-white px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg"
           style={{ 
             background: 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)',
             boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
@@ -596,6 +839,7 @@ Users are automatically assigned email addresses based on their username (userna
         >
           Add New User
         </button>
+        </div>
       </div>
 
       {message && (
@@ -610,24 +854,125 @@ Users are automatically assigned email addresses based on their username (userna
 
       <div className="bg-white shadow overflow-hidden rounded-lg border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <h3 className="text-lg font-medium text-gray-900">All Users</h3>
-            <HelpIcon 
-              title="All Users"
-              content="View and manage all users in the system. You can:
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <h3 className="text-lg font-medium text-gray-900">All Users</h3>
+              <HelpIcon 
+                title="All Users"
+                content="View and manage all users in the system. You can:
 
 • Change user roles (admin/homeUser)
 • Reassign homes and chains for home users
 • Delete users
 
 Note: When you change a home user's home, their chain will automatically update to match the home's chain."
-            />
+              />
+            </div>
           </div>
+          
+          {/* Filter Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div>
+              <label htmlFor="filter-role" className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Role
+              </label>
+              <select
+                id="filter-role"
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Roles</option>
+                {availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="filter-chain" className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Chain
+              </label>
+              <select
+                id="filter-chain"
+                value={filterChain}
+                onChange={(e) => {
+                  setFilterChain(e.target.value);
+                  // Clear home filter if chain changes and home doesn't belong to new chain
+                  if (e.target.value && filterHome) {
+                    const selectedHome = homes.find(h => h.id === filterHome);
+                    if (selectedHome?.chainId !== e.target.value) {
+                      setFilterHome('');
+                    }
+                  }
+                }}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Chains</option>
+                {chains.map((chain) => (
+                  <option key={chain.id} value={chain.id}>
+                    {chain.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="filter-home" className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Home
+              </label>
+              <select
+                id="filter-home"
+                value={filterHome}
+                onChange={(e) => {
+                  setFilterHome(e.target.value);
+                  // Auto-update chain filter when home is selected
+                  if (e.target.value) {
+                    const selectedHome = homes.find(h => h.id === e.target.value);
+                    if (selectedHome?.chainId) {
+                      setFilterChain(selectedHome.chainId);
+                    }
+                  }
+                }}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Homes</option>
+                {(filterChain 
+                  ? homes.filter(h => h.chainId === filterChain)
+                  : homes
+                ).map((home) => (
+                  <option key={home.id} value={home.id}>
+                    {home.name} {home.chainId ? `(${getChainDisplayName(home.chainId)})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          {/* Filter Results Count */}
+          {(filterRole || filterChain || filterHome) && (
+            <div className="mt-3 text-sm text-gray-600">
+              Showing {filteredUsers.length} of {users.length} users
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(input) => {
+                      if (input) input.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Username
                 </th>
@@ -655,15 +1000,23 @@ Note: When you change a home user's home, their chain will automatically update 
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
-                    No users found
+                  <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
+                    {users.length === 0 ? 'No users found' : 'No users match the selected filters'}
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
+                filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.has(user.id)}
+                        onChange={() => handleToggleUserSelection(user.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {editingUserId === user.id ? (
                         <div className="flex items-center gap-2">
@@ -735,60 +1088,69 @@ Note: When you change a home user's home, their chain will automatically update 
                         ))}
                       </select>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={user.homeId || ''}
-                        onChange={(e) => {
-                          const newHomeId = e.target.value;
-                          if (newHomeId) {
-                            const selectedHome = homes.find(h => h.id === newHomeId);
-                            // Automatically set chain when home is selected
-                            const newChainId = selectedHome?.chainId || '';
-                            if (newChainId) {
-                              handleHomeChainChange(user.id, newHomeId, newChainId);
-                            } else {
-                              handleHomeChainChange(user.id, newHomeId, user.chainId || '');
-                            }
-                          }
-                          // Removed else clause - users can no longer clear home assignment
-                        }}
-                        className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 min-w-[150px]"
-                        title="Select a home to assign. The chain will be automatically updated to match the home's chain."
-                      >
-                        {!user.homeId && <option value="">Select home</option>}
-                        {/* Show all homes - when a home is selected, chain will auto-update */}
-                        {homes.map((home) => (
-                          <option key={home.id} value={home.id}>
-                            {home.name} {home.chainId ? `(${getChainDisplayName(home.chainId)})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={user.chainId || ''}
-                        onChange={(e) => {
-                          const newChainId = e.target.value;
-                          if (newChainId) {
-                            // If current home doesn't belong to new chain, clear home selection
-                            const currentHome = homes.find(h => h.id === user.homeId);
-                            const newHomeId = (currentHome?.chainId === newChainId) ? (user.homeId || '') : '';
-                            handleHomeChainChange(user.id, newHomeId, newChainId);
-                          } else {
-                            handleHomeChainChange(user.id, user.homeId || '', '');
-                          }
-                        }}
-                        className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
-                        title="Select a chain to assign. If the current home doesn't belong to the new chain, it will be cleared."
-                      >
-                        <option value="">{user.chainId ? 'Remove chain' : 'Select chain'}</option>
-                        {chains.map((chain) => (
-                          <option key={chain.id} value={chain.id}>
-                            {chain.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
+                    {user.role !== 'admin' ? (
+                      <>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <select
+                            value={user.homeId || ''}
+                            onChange={(e) => {
+                              const newHomeId = e.target.value;
+                              if (newHomeId) {
+                                const selectedHome = homes.find(h => h.id === newHomeId);
+                                // Automatically set chain when home is selected
+                                const newChainId = selectedHome?.chainId || '';
+                                if (newChainId) {
+                                  handleHomeChainChange(user.id, newHomeId, newChainId);
+                                } else {
+                                  handleHomeChainChange(user.id, newHomeId, user.chainId || '');
+                                }
+                              }
+                              // Removed else clause - users can no longer clear home assignment
+                            }}
+                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 min-w-[150px]"
+                            title="Select a home to assign. The chain will be automatically updated to match the home's chain."
+                          >
+                            {!user.homeId && <option value="">Select home</option>}
+                            {/* Show all homes - when a home is selected, chain will auto-update */}
+                            {homes.map((home) => (
+                              <option key={home.id} value={home.id}>
+                                {home.name} {home.chainId ? `(${getChainDisplayName(home.chainId)})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <select
+                            value={user.chainId || ''}
+                            onChange={(e) => {
+                              const newChainId = e.target.value;
+                              if (newChainId) {
+                                // If current home doesn't belong to new chain, clear home selection
+                                const currentHome = homes.find(h => h.id === user.homeId);
+                                const newHomeId = (currentHome?.chainId === newChainId) ? (user.homeId || '') : '';
+                                handleHomeChainChange(user.id, newHomeId, newChainId);
+                              } else {
+                                handleHomeChainChange(user.id, user.homeId || '', '');
+                              }
+                            }}
+                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
+                            title="Select a chain to assign. If the current home doesn't belong to the new chain, it will be cleared."
+                          >
+                            <option value="">{user.chainId ? 'Remove chain' : 'Select chain'}</option>
+                            {chains.map((chain) => (
+                              <option key={chain.id} value={chain.id}>
+                                {chain.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">N/A</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">N/A</td>
+                      </>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {user.loginCount || 0}
                     </td>
@@ -814,10 +1176,144 @@ Note: When you change a home user's home, their chain will automatically update 
       {users.length > 0 && (
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="text-sm text-gray-600">
-            <span className="font-medium">Total Users:</span> {users.length}
+            <span className="font-medium">
+              {filterRole || filterChain || filterHome 
+                ? `Showing ${filteredUsers.length} of ${users.length} users`
+                : `Total Users: ${users.length}`
+              }
+            </span>
           </div>
         </div>
       )}
+
+      {/* Data Migration Section */}
+      <div className="bg-white shadow overflow-hidden rounded-lg border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <h3 className="text-lg font-medium text-gray-900">Data Migration</h3>
+              <HelpIcon 
+                title="Data Migration"
+                content="This tool helps migrate existing users to the correct data structure. It will:
+
+• Fix role fields that contain home names (convert to 'homeUser' and set homeId)
+• Fix loginCount fields that are empty strings (convert to 0)
+• Ensure all required fields exist (username, email, role, homeId, chainId, loginCount, createdAt)
+• Map old role values to proper home/chain associations
+
+Click 'Scan Users' to analyze all users and see what needs to be migrated."
+              />
+            </div>
+            <button
+              onClick={handleScanMigration}
+              disabled={isScanning}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isScanning ? 'Scanning...' : 'Scan Users'}
+            </button>
+          </div>
+        </div>
+
+        {migrationData && (
+          <div className="px-6 py-4">
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-2">Migration Analysis Results:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Total users: {migrationData.totalUsers}</li>
+                  <li>Users needing migration: <span className="font-semibold">{migrationData.usersNeedingMigration}</span></li>
+                </ul>
+              </div>
+            </div>
+
+            {migrationData.usersToMigrate.length > 0 ? (
+              <>
+                <div className="mb-4">
+                  <button
+                    onClick={handleExecuteMigration}
+                    disabled={isMigrating}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isMigrating ? 'Migrating...' : `Migrate ${migrationData.usersToMigrate.length} User(s)`}
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Role</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proposed Role</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Home/Chain</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issues</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {migrationData.usersToMigrate.map((user) => (
+                        <tr key={user.userId} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-mono text-gray-900">{user.userId.substring(0, 20)}...</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{user.currentData.role || 'N/A'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                            {user.proposedChanges.role || user.currentData.role}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {user.proposedChanges.homeId ? (
+                              <>
+                                Home: {user.proposedChanges.homeId}
+                                {user.proposedChanges.chainId && <><br />Chain: {user.proposedChanges.chainId}</>}
+                              </>
+                            ) : (
+                              'No home/chain'
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            <ul className="list-disc list-inside space-y-1">
+                              {user.issues.map((issue, idx) => (
+                                <li key={idx} className="text-xs">{issue}</li>
+                              ))}
+                            </ul>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>All users are already in the correct format! No migration needed.</p>
+              </div>
+            )}
+
+            {migrationResults && (
+              <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
+                <h4 className="font-medium text-gray-900 mb-3">Migration Results:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="text-green-600">
+                    ✅ Updated: {migrationResults.updated.length} user(s)
+                  </div>
+                  {migrationResults.failed.length > 0 && (
+                    <div className="text-red-600">
+                      ❌ Failed: {migrationResults.failed.length} user(s)
+                      <ul className="list-disc list-inside ml-4 mt-1">
+                        {migrationResults.failed.map((f, idx) => (
+                          <li key={idx} className="text-xs">{f.userId.substring(0, 20)}... - {f.error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {migrationResults.skipped.length > 0 && (
+                    <div className="text-gray-600">
+                      ⏭️ Skipped: {migrationResults.skipped.length} user(s)
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

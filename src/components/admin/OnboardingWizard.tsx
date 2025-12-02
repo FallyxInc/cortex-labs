@@ -25,12 +25,20 @@ interface NoteTypeConfig {
   }>;
 }
 
+interface ExcelFieldMapping {
+  excelColumn: string;
+  confidence: number;
+  reasoning: string;
+  dataSource: 'EXCEL';
+}
+
 interface OnboardingConfig {
   chainId: string;
   chainName: string;
   behaviourNoteTypes: string[];
   followUpNoteTypes: string[];
   noteTypeConfigs: Record<string, NoteTypeConfig>;
+  excelFieldMappings?: Record<string, ExcelFieldMapping>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -38,8 +46,14 @@ interface OnboardingConfig {
 export default function OnboardingWizard() {
   const [step, setStep] = useState<'upload' | 'highlight' | 'configure' | 'review' | 'saved' | 'edit-config'>('upload');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
   const [pdfText, setPdfText] = useState<string>('');
   const [pdfPages, setPdfPages] = useState<string[]>([]);
+  const [excelData, setExcelData] = useState<{
+    headers: string[];
+    rows: Record<string, unknown>[];
+    preview: string;
+  } | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [selectedText, setSelectedText] = useState<string>('');
   const [selectionStart, setSelectionStart] = useState<number>(-1);
@@ -53,6 +67,8 @@ export default function OnboardingWizard() {
   const [viewingConfig, setViewingConfig] = useState<OnboardingConfig | null>(null);
   const [editingConfig, setEditingConfig] = useState<OnboardingConfig | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+  const [dataSourceMapping, setDataSourceMapping] = useState<any>(null);
+  const [excelFieldMappings, setExcelFieldMappings] = useState<Record<string, ExcelFieldMapping>>({});
   const [aiLoading, setAiLoading] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
 
@@ -62,18 +78,45 @@ export default function OnboardingWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || file.type !== 'application/pdf') {
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
       alert('Please upload a PDF file');
       return;
     }
 
     setPdfFile(file);
-    
-    // Upload and extract text
+  };
+
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isExcel = file.type === 'application/vnd.ms-excel' || 
+                   file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                   file.name.toLowerCase().endsWith('.xls') ||
+                   file.name.toLowerCase().endsWith('.xlsx');
+
+    if (!isExcel) {
+      alert('Please upload an Excel file (.xls or .xlsx)');
+      return;
+    }
+
+    setExcelFile(file);
+  };
+
+  const extractFiles = async () => {
+    if (!pdfFile && !excelFile) {
+      alert('Please upload at least one file (PDF or Excel)');
+      return;
+    }
+
+    // Upload and extract content from both files
     const formData = new FormData();
-    formData.append('pdf', file);
+    if (pdfFile) formData.append('pdf', pdfFile);
+    if (excelFile) formData.append('excel', excelFile);
 
     try {
       const response = await fetch('/api/admin/extract-pdf-text', {
@@ -82,44 +125,89 @@ export default function OnboardingWizard() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to extract PDF text');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to extract file content');
       }
 
       const data = await response.json();
-      setPdfText(data.text);
-      setPdfPages(data.pages || []);
+      
+      if (data.pdfText) {
+        setPdfText(data.pdfText);
+        setPdfPages(data.pages || []);
+      }
+      
+      if (data.excelData) {
+        setExcelData(data.excelData);
+      }
 
-      // Run AI analysis
+      return data;
+    } catch (error) {
+      console.error('Error extracting files:', error);
+      alert(`Failed to extract file content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
+    }
+  };
+
+  const handleAnalyzeFiles = async () => {
+    try {
+      // First extract files if needed
+      let extractedPdfText = pdfText;
+      let extractedExcelData = excelData;
+
+      if (!pdfText && !excelData) {
+        const extractedData = await extractFiles();
+        extractedPdfText = extractedData?.pdfText || '';
+        extractedExcelData = extractedData?.excelData || null;
+      }
+
+      // Run AI analysis on both files
       setAiLoading(true);
+
       try {
         const aiResponse = await fetch('/api/admin/analyze-pdf-config', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ pdfText: data.text }),
+          body: JSON.stringify({ 
+            pdfText: extractedPdfText || pdfText || '',
+            excelData: extractedExcelData || excelData || null,
+          }),
         });
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
           setAiSuggestions(aiData.suggestions);
+          setDataSourceMapping(aiData.dataSourceMapping);
           
-          // Auto-populate highlights from AI suggestions
-          applyAISuggestions(aiData.suggestions, data.text);
+          // Store Excel field mappings in state
+          if (aiData.suggestions?.excelFieldMappings) {
+            setExcelFieldMappings(aiData.suggestions.excelFieldMappings);
+          }
+          
+          // Auto-populate highlights from AI suggestions (only for PDF)
+          const textToUse = extractedPdfText || pdfText;
+          if (textToUse) {
+            applyAISuggestions(aiData.suggestions, textToUse);
+          }
+
+          // Move to highlight step if we have PDF text
+          if (textToUse) {
+            setStep('highlight');
+          }
         } else {
           console.warn('AI analysis failed, continuing without suggestions');
+          alert('AI analysis failed. Please try again.');
         }
       } catch (aiError) {
         console.error('Error running AI analysis:', aiError);
-        // Continue even if AI fails
+        alert('Failed to analyze files. Please try again.');
       } finally {
         setAiLoading(false);
       }
-
-      setStep('highlight');
     } catch (error) {
-      console.error('Error extracting PDF:', error);
-      alert('Failed to extract text from PDF. Please try again.');
+      console.error('Error in handleAnalyzeFiles:', error);
+      setAiLoading(false);
     }
   };
 
@@ -392,6 +480,7 @@ export default function OnboardingWizard() {
       behaviourNoteTypes,
       followUpNoteTypes,
       noteTypeConfigs,
+      excelFieldMappings: excelFieldMappings,
     };
 
     setConfig(newConfig);
@@ -429,13 +518,19 @@ export default function OnboardingWizard() {
       } else {
         setStep('upload');
         setPdfFile(null);
+        setExcelFile(null);
         setPdfText('');
-        setHighlights([]);
+      setPdfPages([]);
+      setExcelData(null);
+      setHighlights([]);
+      setExcelFieldMappings({});
       }
       setConfig(null);
       setChainId('');
       setChainName('');
       setAiSuggestions(null);
+      setDataSourceMapping(null);
+      setExcelFieldMappings({});
     } catch (error) {
       console.error('Error saving configuration:', error);
       alert(`Failed to save configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -462,6 +557,7 @@ export default function OnboardingWizard() {
       behaviourNoteTypes: config.behaviourNoteTypes || [],
       followUpNoteTypes: config.followUpNoteTypes || [],
       noteTypeConfigs: normalizedNoteTypeConfigs,
+      excelFieldMappings: config.excelFieldMappings || {},
     };
   };
 
@@ -496,6 +592,7 @@ export default function OnboardingWizard() {
     setChainId(savedConfig.chainId);
     setChainName(savedConfig.chainName);
     setConfig(savedConfig);
+    setExcelFieldMappings(savedConfig.excelFieldMappings || {});
     setStep('edit-config');
   };
 
@@ -825,14 +922,15 @@ export default function OnboardingWizard() {
         </div>
       )}
 
-      {/* Step 1: Upload PDF */}
+      {/* Step 1: Upload PDF and Excel */}
       {step === 'upload' && (
         <div className="space-y-6">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Upload Sample PDF</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Upload Sample Files</h2>
               <p className="text-gray-600 mb-4">
-                Upload a sample PDF that contains behavior notes. This will be used to configure the extraction parameters.
+                Upload both PDF and Excel files. The Excel file contains 8 fields (incident_number, name, date, time, incident_location, room, injuries, incident_type), 
+                while the PDF contains 6 fields (behaviour_type, triggers, interventions, poa_notified, time_frequency, evaluation). Both are needed for complete data extraction.
               </p>
             </div>
             <button
@@ -842,57 +940,124 @@ export default function OnboardingWizard() {
               View Saved Configurations
             </button>
           </div>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="pdf-upload"
-            />
-            <label
-              htmlFor="pdf-upload"
-              className="cursor-pointer inline-block px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors"
-            >
-              Choose PDF File
-            </label>
-            {pdfFile && (
-              <p className="mt-4 text-sm text-gray-600">Selected: {pdfFile.name}</p>
-            )}
-            {aiLoading && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                  <p className="text-sm text-blue-700">
-                    AI is analyzing the PDF and generating field mappings...
-                  </p>
-                </div>
-              </div>
-            )}
-            {aiSuggestions && !aiLoading && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-green-800 mb-2">
-                      ✓ AI Analysis Complete
-                    </p>
-                    <p className="text-xs text-green-700">
-                      Found {aiSuggestions.behaviourNoteTypes?.length || 0} behaviour note types,{' '}
-                      {aiSuggestions.followUpNoteTypes?.length || 0} follow-up note types, and{' '}
-                      {Object.keys(aiSuggestions.fieldExtractionMarkers || {}).length} field mappings.
-                      Review and edit the highlights below.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setAiSuggestions(null)}
-                    className="text-green-600 hover:text-green-800 text-sm"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* PDF Upload */}
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF File</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Contains behaviour notes with field labels
+              </p>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={handlePdfUpload}
+                className="hidden"
+                id="pdf-upload"
+              />
+              <label
+                htmlFor="pdf-upload"
+                className="cursor-pointer inline-block px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors"
+              >
+                Choose PDF File
+              </label>
+              {pdfFile && (
+                <p className="mt-4 text-sm text-gray-600">Selected: {pdfFile.name}</p>
+              )}
+            </div>
+
+            {/* Excel Upload */}
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Excel File</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Contains base incident records
+              </p>
+              <input
+                type="file"
+                accept=".xls,.xlsx"
+                onChange={handleExcelUpload}
+                className="hidden"
+                id="excel-upload"
+              />
+              <label
+                htmlFor="excel-upload"
+                className="cursor-pointer inline-block px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                Choose Excel File
+              </label>
+              {excelFile && (
+                <p className="mt-4 text-sm text-gray-600">Selected: {excelFile.name}</p>
+              )}
+            </div>
           </div>
+
+          {/* Analyze Files Button */}
+          {(pdfFile || excelFile) && !aiLoading && !aiSuggestions && (
+            <div className="mt-6 text-center">
+              <button
+                onClick={handleAnalyzeFiles}
+                className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-semibold"
+              >
+                {pdfFile && excelFile 
+                  ? 'Analyze Both Files with AI' 
+                  : `Analyze ${pdfFile ? 'PDF' : 'Excel'} File with AI`}
+              </button>
+              <p className="text-xs text-gray-500 mt-2">
+                {pdfFile && excelFile 
+                  ? 'Both files uploaded. Click to analyze and extract field mappings.'
+                  : 'Upload both files for complete analysis, or proceed with current file.'}
+              </p>
+            </div>
+          )}
+
+          {aiLoading && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                <p className="text-sm font-medium text-blue-700">
+                  AI is analyzing the files and generating field mappings...
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {aiSuggestions && !aiLoading && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-800 mb-2">
+                    ✓ AI Analysis Complete
+                  </p>
+                  <p className="text-xs text-green-700 mb-2">
+                    Found {Object.keys(aiSuggestions.excelFieldMappings || {}).length} Excel field mappings,{' '}
+                    {aiSuggestions.behaviourNoteTypes?.length || 0} behaviour note types,{' '}
+                    {aiSuggestions.followUpNoteTypes?.length || 0} follow-up note types, and{' '}
+                    {Object.keys(aiSuggestions.fieldExtractionMarkers || {}).length} PDF field mappings.
+                    Review and edit the mappings below.
+                  </p>
+                  {dataSourceMapping && (
+                    <div className="mt-2 text-xs text-green-700">
+                      <p className="font-semibold">Data Sources:</p>
+                      <p><strong>Excel (8 fields):</strong> {dataSourceMapping.excel?.join(', ') || 'N/A'}</p>
+                      <p><strong>PDF (6 fields):</strong> {dataSourceMapping.pdf?.join(', ') || 'N/A'}</p>
+                      <p className="text-sm text-gray-600 mt-2 italic">
+                        Note: Excel is always the source of truth. PDF fields are merged with Excel records.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setAiSuggestions(null);
+                    setDataSourceMapping(null);
+                  }}
+                  className="text-green-600 hover:text-green-800 text-sm"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -900,31 +1065,202 @@ export default function OnboardingWizard() {
       {step === 'highlight' && (
         <div className="space-y-6">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Highlight and Label Sections</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Review Files and Label Sections</h2>
             <p className="text-gray-600 mb-4">
+              Review both files below. The Excel file provides base incident data, while the PDF contains behaviour notes. 
               Select text in the PDF and label what it represents. You can label:
             </p>
             <ul className="list-disc list-inside text-gray-600 mb-4 space-y-1">
-              <li><strong>Note Types</strong> - The type of note (e.g., "Behaviour - Responsive Behaviour", "Behaviour - Follow up")</li>
-              <li><strong>Field Names</strong> - The labels for fields (e.g., "Type of Behaviour :", "Interventions :")</li>
-              <li><strong>End Markers</strong> - Text that marks the end of a field (e.g., "Antecedent/Triggers", "Page")</li>
+              <li><strong>Note Types</strong> - The type of note (e.g., "Behaviour - Responsive Behaviour", "Behaviour - Follow up") - from PDF</li>
+              <li><strong>Field Names</strong> - The labels for fields (e.g., "Type of Behaviour :", "Interventions :") - from PDF</li>
+              <li><strong>End Markers</strong> - Text that marks the end of a field (e.g., "Antecedent/Triggers", "Page") - from PDF</li>
             </ul>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>Data Source:</strong> Excel provides 8 fields (incident_number, name, date, time, incident_location, room, injuries, incident_type). 
+                PDF provides 6 fields (behaviour_type, triggers, interventions, poa_notified, time_frequency, evaluation). 
+                Overlapping fields (name, date, time, injuries): Excel values are used for name/date/time; injuries defaults to Excel but can be replaced by PDF if matching note found.
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* PDF Text Display */}
-            <div className="border rounded-lg p-4 bg-gray-50 max-h-[600px] overflow-y-auto">
-              <div
-                ref={textRef}
-                onMouseUp={handleTextSelection}
-                className="whitespace-pre-wrap font-mono text-sm"
-                dangerouslySetInnerHTML={{ __html: renderHighlightedText() || escapeHtml(pdfText) }}
-              />
-            </div>
+            {pdfText && (
+              <div className="border rounded-lg p-4 bg-gray-50 max-h-[600px] overflow-y-auto">
+                <h3 className="font-semibold mb-2 text-gray-900">PDF Content (Behaviour Notes)</h3>
+                <p className="text-xs text-gray-600 mb-2">Contains 6 fields: behaviour_type, triggers, interventions, poa_notified, time_frequency (optional), evaluation (optional)</p>
+                <div
+                  ref={textRef}
+                  onMouseUp={handleTextSelection}
+                  className="whitespace-pre-wrap font-mono text-sm"
+                  dangerouslySetInnerHTML={{ __html: renderHighlightedText() || escapeHtml(pdfText) }}
+                />
+              </div>
+            )}
 
-            {/* Highlights Panel */}
-            <div className="space-y-4">
-              <div className="border rounded-lg p-4">
+            {/* Excel Data Display */}
+            {excelData && (
+              <div className="border rounded-lg p-4 bg-gray-50 max-h-[600px] overflow-y-auto">
+                <h3 className="font-semibold mb-2 text-gray-900">Excel Data (Base Incident Records)</h3>
+                <p className="text-xs text-gray-600 mb-2">Click column headers to map them to fields. Contains 8 fields: incident_number, name, date, time, incident_location, room, injuries, incident_type</p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-gray-200">
+                        {excelData.headers.slice(0, 10).map((header, idx) => {
+                          const isMapped = Object.values(excelFieldMappings).some(m => m.excelColumn === header);
+                          return (
+                            <th
+                              key={idx}
+                              onClick={() => {
+                                const fieldKey = prompt(`Map column "${header}" to which field?\n\nOptions: incident_number, name, date, time, incident_location, room, injuries, incident_type`);
+                                if (fieldKey) {
+                                  setExcelFieldMappings({
+                                    ...excelFieldMappings,
+                                    [fieldKey]: {
+                                      excelColumn: header,
+                                      confidence: 1.0,
+                                      reasoning: 'Manually mapped',
+                                      dataSource: 'EXCEL' as const,
+                                    },
+                                  });
+                                }
+                              }}
+                              className={`border px-2 py-1 text-left font-semibold cursor-pointer hover:bg-blue-200 transition-colors ${
+                                isMapped ? 'bg-green-200' : ''
+                              }`}
+                              title={isMapped ? `Mapped to: ${Object.entries(excelFieldMappings).find(([_, m]) => m.excelColumn === header)?.[0]}` : 'Click to map this column'}
+                            >
+                              {header} {isMapped && '✓'}
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {excelData.rows.slice(0, 20).map((row, rowIdx) => (
+                        <tr key={rowIdx} className="border-b">
+                          {excelData.headers.slice(0, 10).map((header, colIdx) => (
+                            <td key={colIdx} className="border px-2 py-1">
+                              {String(row[header] || '').substring(0, 30)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {excelData.rows.length > 20 && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Showing first 20 of {excelData.rows.length} rows
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* If only one file is uploaded, show it in full width */}
+            {!pdfText && !excelData && (
+              <div className="col-span-2 text-center text-gray-500 p-8">
+                Please upload at least one file (PDF or Excel) to proceed
+              </div>
+            )}
+          </div>
+
+          {/* Warning if only one file is uploaded */}
+          {(pdfText && !excelData) || (!pdfText && excelData) ? (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                <strong>Note:</strong> For complete automatic onboarding, both PDF and Excel files are recommended. 
+                {pdfText && !excelData && ' Excel file provides 8 fields (incident_number, name, date, time, incident_location, room, injuries, incident_type).'}
+                {!pdfText && excelData && ' PDF file provides behaviour note details (behaviour_type, triggers, description, interventions, etc.).'}
+                {' '}The system merges Excel incidents with PDF notes by matching resident name and time window.
+              </p>
+            </div>
+          ) : null}
+
+          {/* Excel Field Mappings */}
+          {excelData && (
+            <div className="mt-4 border rounded-lg p-4 bg-green-50">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Excel Field Mappings</h3>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Excel provides 8 fields: incident_number, name, date, time, incident_location, room, injuries, incident_type. 
+                    Click column headers in the table above to map them.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const fieldKey = prompt('Enter field key (e.g., incident_number, name, date, time, incident_location, room, injuries, incident_type):');
+                    if (fieldKey && excelData) {
+                      const column = prompt('Enter Excel column name:');
+                      if (column) {
+                        setExcelFieldMappings({
+                          ...excelFieldMappings,
+                          [fieldKey]: {
+                            excelColumn: column,
+                            confidence: 1.0,
+                            reasoning: 'Manually mapped',
+                            dataSource: 'EXCEL' as const,
+                          },
+                        });
+                      }
+                    }
+                  }}
+                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  + Add Mapping
+                </button>
+              </div>
+
+              {/* Excel Fields Section */}
+              {Object.keys(excelFieldMappings).length > 0 && (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-green-800 mb-2">Excel Fields</h4>
+                    <p className="text-xs text-gray-600 mb-2">Excel is always the source of truth for these fields.</p>
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {Object.entries(excelFieldMappings).map(([fieldKey, mapping]) => (
+                        <div key={fieldKey} className="border-l-4 border-green-400 pl-3 py-2 bg-white rounded">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-semibold text-green-900">{fieldKey}</span>
+                                {mapping.confidence && (
+                                  <span className="text-xs text-gray-500">
+                                    ({Math.round(mapping.confidence * 100)}% confidence)
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-700 mt-1">
+                                <strong>Excel Column:</strong> "{mapping.excelColumn || 'Not found'}"
+                              </p>
+                              {mapping.reasoning && (
+                                <p className="text-xs text-gray-600 mt-1 italic">{mapping.reasoning}</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => {
+                                const newMappings = { ...excelFieldMappings };
+                                delete newMappings[fieldKey];
+                                setExcelFieldMappings(newMappings);
+                              }}
+                              className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Highlights Panel */}
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4">
                 <h3 className="font-semibold mb-3">Current Selection</h3>
                 {selectedText ? (
                   <div className="space-y-2">
@@ -947,7 +1283,7 @@ export default function OnboardingWizard() {
 
               <div className="border rounded-lg p-4">
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-semibold">All Highlights ({highlights.length})</h3>
+                  <h3 className="font-semibold">PDF Highlights ({highlights.length})</h3>
                   {highlights.some(h => h.aiGenerated) && (
                     <button
                       onClick={() => setHighlights(highlights.filter(h => !h.aiGenerated))}
@@ -957,6 +1293,9 @@ export default function OnboardingWizard() {
                     </button>
                   )}
                 </div>
+                <p className="text-xs text-gray-600 mb-3">
+                  These highlights are for PDF fields. Excel field mappings are shown above.
+                </p>
                 <div className="space-y-4 max-h-[400px] overflow-y-auto">
                   {(() => {
                     // Group highlights by note type
@@ -1092,16 +1431,22 @@ export default function OnboardingWizard() {
                   })()}
                 </div>
               </div>
-
-              <button
-                onClick={() => setStep('configure')}
-                disabled={highlights.length === 0}
-                className="w-full px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                Continue to Configuration
-              </button>
             </div>
           </div>
+          )}
+
+          <button
+            onClick={() => setStep('configure')}
+            disabled={highlights.length === 0 && !pdfText}
+            className="w-full px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            Continue to Configuration
+          </button>
+          {highlights.length === 0 && pdfText && (
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Tip: Select and label text in the PDF to identify note types and field names
+            </p>
+          )}
 
           {/* Label Dialog */}
           {currentHighlight && (
@@ -1250,7 +1595,7 @@ export default function OnboardingWizard() {
             </div>
 
             <div>
-              <h3 className="font-semibold mb-2">Field Extraction Markers</h3>
+              <h3 className="font-semibold mb-2">Field Extraction Markers (PDF)</h3>
               <div className="space-y-3">
                 {Object.entries(config.noteTypeConfigs).map(([noteType, noteConfig]) => (
                   <div key={noteType} className="border-l-4 border-cyan-500 pl-4">
@@ -1276,6 +1621,54 @@ export default function OnboardingWizard() {
                 ))}
               </div>
             </div>
+
+            {/* Excel Field Mappings */}
+            {config.excelFieldMappings && Object.keys(config.excelFieldMappings).length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2">Excel Field Mappings</h3>
+                <div className="space-y-3">
+                  {/* Excel Fields */}
+                  {Object.keys(config.excelFieldMappings || {}).length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-green-700 mb-2">Excel Fields</h4>
+                      <p className="text-xs text-gray-600 mb-2">Excel is always the source of truth for these fields.</p>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        {Object.entries(config.excelFieldMappings || {}).map(([fieldKey, mapping]) => (
+                          <li key={fieldKey} className="border-l-2 border-green-400 pl-3">
+                            <span className="font-medium">{fieldKey}:</span>{' '}
+                            <span className="text-gray-600">Excel column "{mapping.excelColumn}"</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* PDF Fields */}
+                  {Object.values(config.noteTypeConfigs).some(ntc => Object.keys(ntc.fields || {}).length > 0) && (
+                    <div>
+                      <h4 className="text-sm font-medium text-blue-700 mb-2">PDF Fields</h4>
+                      <p className="text-xs text-gray-600 mb-2">These fields are extracted from PDF and merged with Excel records.</p>
+                      {Object.entries(config.noteTypeConfigs).map(([noteType, noteConfig]) => {
+                        if (Object.keys(noteConfig.fields || {}).length === 0) return null;
+                        return (
+                          <div key={noteType} className="mb-3">
+                            <p className="text-xs font-semibold text-gray-700 mb-1">{noteType}:</p>
+                            <ul className="text-sm text-gray-700 space-y-1 ml-4">
+                              {Object.entries(noteConfig.fields || {}).map(([fieldKey, fieldConfig]) => (
+                                <li key={fieldKey} className="border-l-2 border-blue-400 pl-3">
+                                  <span className="font-medium">{fieldKey}:</span>{' '}
+                                  <span className="text-gray-600">PDF field "{fieldConfig.fieldName}"</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex space-x-4">
