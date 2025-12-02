@@ -501,6 +501,11 @@ export default function OnboardingWizard() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        // If there are detailed validation errors, show them
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          const errorMessage = `Validation failed:\n${errorData.errors.join('\n')}`;
+          throw new Error(errorMessage);
+        }
         throw new Error(errorData.error || 'Failed to save configuration');
       }
 

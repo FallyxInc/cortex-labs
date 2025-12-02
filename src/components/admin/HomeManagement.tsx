@@ -34,6 +34,8 @@ export default function TenantManagement() {
   const [creatingChain, setCreatingChain] = useState(false);
   const [showCustomStrategyForm, setShowCustomStrategyForm] = useState(false);
   const [customStrategyConfig, setCustomStrategyConfig] = useState<ExtractionStrategyConfig | null>(null);
+  const [filterChain, setFilterChain] = useState<string>('');
+  const [filterHome, setFilterHome] = useState<string>('');
 
   useEffect(() => {
     fetchHomes();
@@ -263,6 +265,37 @@ export default function TenantManagement() {
       setError('Failed to delete home');
     }
   };
+
+  // Get chain name for a home
+  const getChainName = (chainId: string | null | undefined) => {
+    if (!chainId) return 'N/A';
+    const chain = chains.find(c => c.id === chainId);
+    return chain ? chain.name : chainId;
+  };
+
+  // Filter homes based on selected filters
+  const getFilteredHomes = () => {
+    return homes.filter(home => {
+      // Filter by chain
+      if (filterChain && home.chainId !== filterChain) {
+        return false;
+      }
+      
+      // Filter by home name (case-insensitive search)
+      if (filterHome) {
+        const searchTerm = filterHome.toLowerCase();
+        const homeName = home.name.toLowerCase();
+        const homeId = home.id.toLowerCase();
+        if (!homeName.includes(searchTerm) && !homeId.includes(searchTerm)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredHomes = getFilteredHomes();
 
   if (loading && homes.length === 0) {
     return (
@@ -641,6 +674,68 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
       )}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">All Homes</h3>
+          </div>
+          
+          {/* Filter Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="filter-chain" className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Chain
+              </label>
+              <select
+                id="filter-chain"
+                value={filterChain}
+                onChange={(e) => {
+                  setFilterChain(e.target.value);
+                  // Clear home filter if chain changes
+                  if (e.target.value && filterHome) {
+                    const filtered = homes.filter(h => h.chainId === e.target.value);
+                    const homeExists = filtered.some(h => 
+                      h.name.toLowerCase().includes(filterHome.toLowerCase()) || 
+                      h.id.toLowerCase().includes(filterHome.toLowerCase())
+                    );
+                    if (!homeExists) {
+                      setFilterHome('');
+                    }
+                  }
+                }}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Chains</option>
+                {chains.map((chain) => (
+                  <option key={chain.id} value={chain.id}>
+                    {chain.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="filter-home" className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Home
+              </label>
+              <input
+                type="text"
+                id="filter-home"
+                value={filterHome}
+                onChange={(e) => setFilterHome(e.target.value)}
+                placeholder="Search by home name..."
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+            </div>
+          </div>
+          
+          {/* Filter Results Count */}
+          {(filterChain || filterHome) && (
+            <div className="mt-3 text-sm text-gray-600">
+              Showing {filteredHomes.length} of {homes.length} homes
+            </div>
+          )}
+        </div>
+        
         <div className="px-6 py-6">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -648,6 +743,9 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     #
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Chain Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Home Name
@@ -658,17 +756,20 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {homes.length === 0 ? (
+                {filteredHomes.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-6 py-4 text-center text-sm text-gray-500">
-                      No behaviour-enabled homes found
+                    <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
+                      {homes.length === 0 ? 'No behaviour-enabled homes found' : 'No homes match the selected filters'}
                     </td>
                   </tr>
                 ) : (
-                  homes.map((home, index) => (
+                  filteredHomes.map((home, index) => (
                     <tr key={home.id} className="hover:bg-gray-50 transition-colors duration-200">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {index + 1}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {getChainName(home.chainId)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {home.name}
@@ -693,7 +794,12 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
       {homes.length > 0 && (
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="text-sm text-gray-600">
-            <span className="font-medium">Total Homes:</span> {homes.length}
+            <span className="font-medium">
+              {filterChain || filterHome 
+                ? `Showing ${filteredHomes.length} of ${homes.length} homes`
+                : `Total Homes: ${homes.length}`
+              }
+            </span>
           </div>
         </div>
       )}
