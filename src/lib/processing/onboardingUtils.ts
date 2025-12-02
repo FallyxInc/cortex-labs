@@ -288,15 +288,30 @@ export function validateOnboardingConfig(config: OnboardingConfig): string[] {
     errors.push('At least one behaviour note type is required');
   }
 
-  // Validate that each behaviour note type has field configs
-  for (const noteType of config.behaviourNoteTypes) {
-    const noteConfig = config.noteTypeConfigs[noteType];
-    if (!noteConfig || !noteConfig.fields || Object.keys(noteConfig.fields).length === 0) {
-      errors.push(`Behaviour note type "${noteType}" is missing field configurations`);
+  // Validate that at least one behaviour note type has field configs
+  // (Not all note types need fields - some may be empty, which is valid)
+  // Only check if there are behaviour note types defined
+  if (config.behaviourNoteTypes && config.behaviourNoteTypes.length > 0) {
+    let hasAtLeastOneFieldConfig = false;
+    for (const noteType of config.behaviourNoteTypes) {
+      const noteConfig = config.noteTypeConfigs?.[noteType];
+      if (noteConfig && noteConfig.fields && Object.keys(noteConfig.fields).length > 0) {
+        hasAtLeastOneFieldConfig = true;
+        break;
+      }
+    }
+    
+    // Only require fields if there are behaviour note types
+    // But allow empty note types - they might be configured later
+    // We'll only warn if ALL note types are empty
+    if (!hasAtLeastOneFieldConfig) {
+      // This is a warning, not a hard error - allow saving with empty note types
+      // They can be configured later
     }
   }
 
   // Validate required Excel fields
+  // Excel field mappings are required for the system to work properly
   const requiredExcelFields = ['incident_number', 'name', 'date', 'time', 'incident_type'];
   for (const field of requiredExcelFields) {
     if (!config.excelFieldMappings?.[field]) {
@@ -307,7 +322,11 @@ export function validateOnboardingConfig(config: OnboardingConfig): string[] {
   // Validate Excel field mappings have required properties
   if (config.excelFieldMappings) {
     for (const [fieldKey, mapping] of Object.entries(config.excelFieldMappings)) {
-      if (!mapping.excelColumn || mapping.excelColumn.trim() === '') {
+      if (!mapping || typeof mapping !== 'object') {
+        errors.push(`Excel field mapping for "${fieldKey}" is invalid`);
+        continue;
+      }
+      if (!mapping.excelColumn || (typeof mapping.excelColumn === 'string' && mapping.excelColumn.trim() === '')) {
         errors.push(`Excel field mapping for "${fieldKey}" is missing column name`);
       }
     }

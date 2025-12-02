@@ -69,6 +69,24 @@ export default function UserManagement() {
     failed: Array<{ userId: string; error: string }>;
     skipped: string[];
   } | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResults, setImportResults] = useState<{
+    results: Array<{
+      rowNumber: number;
+      username: string;
+      email: string;
+      success: boolean;
+      userId?: string;
+      error?: string;
+    }>;
+    summary: {
+      total: number;
+      succeeded: number;
+      failed: number;
+    };
+  } | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -450,6 +468,54 @@ export default function UserManagement() {
     }
   };
 
+  const handleBulkImport = async () => {
+    if (!bulkImportFile) {
+      showMessage('Please select an Excel file', 'error');
+      return;
+    }
+
+    setIsImporting(true);
+    setImportResults(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', bulkImportFile);
+
+      const response = await fetch('/api/admin/users/bulk-import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setImportResults(data);
+        showMessage(data.message || 'Bulk import completed successfully!', 'success');
+        fetchUsers(); // Refresh user list
+        setBulkImportFile(null);
+      } else {
+        if (data.errors && Array.isArray(data.errors)) {
+          showMessage(`Validation errors: ${data.errors.length} error(s) found. See details below.`, 'error');
+          setImportResults({
+            results: [],
+            summary: {
+              total: data.totalRows || 0,
+              succeeded: 0,
+              failed: data.errors?.length || 0,
+            },
+          });
+        } else {
+          showMessage(data.error || 'Failed to import users', 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Error during bulk import:', error);
+      showMessage('Failed to import users', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleStartEdit = (user: User) => {
     setEditingUserId(user.id);
     setEditingUsername(user.username || '');
@@ -820,6 +886,26 @@ Users are automatically assigned email addresses based on their username (userna
             </button>
           )}
           <button
+            onClick={() => setShowBulkImport(!showBulkImport)}
+            className="text-white px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg"
+            style={{ 
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+            }}
+          >
+            {showBulkImport ? 'Cancel Bulk Import' : 'Bulk Import Users'}
+          </button>
+          <button
             onClick={() => setShowForm(true)}
             className="text-white px-4 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg"
           style={{ 
@@ -851,6 +937,148 @@ Users are automatically assigned email addresses based on their username (userna
       )}
 
       {showForm && userCreateForm()}
+
+      {/* Bulk Import Section */}
+      {showBulkImport && (
+        <div className="bg-white shadow rounded-lg p-6 border border-gray-200">
+          <div className="flex items-center mb-4">
+            <h4 className="text-lg font-medium text-gray-900">Bulk Import Users</h4>
+            <HelpIcon 
+              title="Bulk Import Users"
+              content="Import multiple users at once from an Excel file (.xls or .xlsx).
+
+Required columns:
+• username (required)
+• email (required)
+• password (required, minimum 6 characters)
+• role (required: 'admin' or 'homeUser')
+• chainId or chainName (required if role is 'homeUser')
+• homeId or homeName (required if role is 'homeUser')
+
+The first row should contain column headers. Each subsequent row represents one user to import."
+            />
+          </div>
+
+          {/* Format Specification */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <h5 className="font-semibold text-blue-900 mb-2">Excel File Format Requirements:</h5>
+            <div className="text-sm text-blue-800 space-y-2">
+              <p><strong>Required Columns (case-insensitive):</strong></p>
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li><strong>username</strong> - Display name for the user (required)</li>
+                <li><strong>email</strong> - User's email address (required, must be valid format)</li>
+                <li><strong>password</strong> - User's password (required, minimum 6 characters)</li>
+                <li><strong>role</strong> - User role: "admin" or "homeUser" (required)</li>
+                <li><strong>chainId</strong> or <strong>chainName</strong> - Chain ID or name (required if role is "homeUser")</li>
+                <li><strong>homeId</strong> or <strong>homeName</strong> - Home ID or name (required if role is "homeUser")</li>
+              </ul>
+              <p className="mt-2"><strong>Notes:</strong></p>
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>First row must contain column headers</li>
+                <li>Admin users do not need chainId/homeId</li>
+                <li>You can use either IDs or names for chain/home (e.g., "kindera" or "Kindera")</li>
+                <li>Home must belong to the specified chain</li>
+                <li>Duplicate emails will be skipped</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* File Upload */}
+          <div className="mb-4">
+            <label htmlFor="bulk-import-file" className="block text-sm font-medium text-gray-700 mb-2">
+              Select Excel File (.xls or .xlsx)
+            </label>
+            <input
+              type="file"
+              id="bulk-import-file"
+              accept=".xls,.xlsx"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setBulkImportFile(file);
+                  setImportResults(null);
+                }
+              }}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {bulkImportFile && (
+              <p className="mt-2 text-sm text-gray-600">Selected: {bulkImportFile.name}</p>
+            )}
+          </div>
+
+          {/* Import Button */}
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => {
+                setShowBulkImport(false);
+                setBulkImportFile(null);
+                setImportResults(null);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkImport}
+              disabled={!bulkImportFile || isImporting}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isImporting ? 'Importing...' : 'Import Users'}
+            </button>
+          </div>
+
+          {/* Import Results */}
+          {importResults && (
+            <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
+              <h5 className="font-medium text-gray-900 mb-3">Import Results:</h5>
+              <div className="mb-4 space-y-1 text-sm">
+                <div className="text-green-600">
+                  ✅ Succeeded: {importResults.summary.succeeded} user(s)
+                </div>
+                <div className="text-red-600">
+                  ❌ Failed: {importResults.summary.failed} user(s)
+                </div>
+                <div className="text-gray-600">
+                  📊 Total: {importResults.summary.total} row(s)
+                </div>
+              </div>
+
+              {importResults.results.length > 0 && (
+                <div className="mt-4 max-h-96 overflow-y-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-100 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Row</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Username</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Email</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Message</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {importResults.results.map((result, idx) => (
+                        <tr key={idx} className={result.success ? 'bg-green-50' : 'bg-red-50'}>
+                          <td className="px-3 py-2 whitespace-nowrap text-gray-900">{result.rowNumber}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-gray-900">{result.username}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-gray-900">{result.email}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {result.success ? (
+                              <span className="text-green-600 font-medium">✓ Success</span>
+                            ) : (
+                              <span className="text-red-600 font-medium">✗ Failed</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600">{result.error || 'User created successfully'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-white shadow overflow-hidden rounded-lg border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
