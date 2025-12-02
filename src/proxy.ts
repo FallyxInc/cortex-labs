@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function proxy(request: NextRequest) {
+  // Redirect Railway default domain to custom domain
+  const host = request.headers.get('host');
+  if (host === 'fallyx-behaviours.up.railway.app') {
+    const url = request.nextUrl.clone();
+    url.hostname = 'behaviours.ascenix.co';
+    url.protocol = 'https';
+    return NextResponse.redirect(url, 301);
+  }
+
   const { pathname } = request.nextUrl;
 
   // Allow access to login, reset-password, and unauthorized pages
