@@ -2,7 +2,7 @@
 // Replaces Python-based processing with native TypeScript
 
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir, readdir, unlink } from "fs/promises";
+import { writeFile, mkdir, readdir, unlink, rm } from "fs/promises";
 import { join } from "path";
 import { adminDb } from "@/lib/firebase-admin";
 import { getFirebaseIdAsync, getHomeNameAsync } from "@/lib/homeMappings";
@@ -290,13 +290,11 @@ export async function POST(request: NextRequest) {
       console.log("ℹ️ [API] Downloads directory empty or doesn't exist yet");
     }
 
-    // Clear analyzed directory
+    // Clear analyzed directory recursively
     try {
-      const existingFiles = await readdir(analyzedDir);
-      for (const file of existingFiles) {
-        await unlink(join(analyzedDir, file));
-      }
-      console.log(`✅ [API] Cleared ${existingFiles.length} existing file(s)`);
+      await rm(analyzedDir, { recursive: true, force: true });
+      await mkdir(analyzedDir, { recursive: true });
+      console.log(`✅ [API] Cleared analyzed directory recursively`);
     } catch (err) {
       console.log("ℹ️ [API] Analyzed directory empty or doesn't exist yet");
     }
