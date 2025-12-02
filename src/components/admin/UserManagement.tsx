@@ -46,6 +46,9 @@ export default function UserManagement() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingUsername, setEditingUsername] = useState('');
   const [editingEmail, setEditingEmail] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('');
+  const [filterChain, setFilterChain] = useState<string>('');
+  const [filterHome, setFilterHome] = useState<string>('');
 
   useEffect(() => {
     fetchUsers();
@@ -329,6 +332,30 @@ export default function UserManagement() {
     return chain ? chain.name : chainId;
   };
 
+  // Filter users based on selected filters
+  const getFilteredUsers = () => {
+    return users.filter(user => {
+      // Filter by role
+      if (filterRole && user.role !== filterRole) {
+        return false;
+      }
+      
+      // Filter by chain
+      if (filterChain && user.chainId !== filterChain) {
+        return false;
+      }
+      
+      // Filter by home
+      if (filterHome && user.homeId !== filterHome) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredUsers = getFilteredUsers();
+
   if (loading && users.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -563,18 +590,28 @@ export default function UserManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          <h3 className="text-xl font-semibold text-gray-900">User Management</h3>
-          <HelpIcon 
-            title="User Management"
-            content="Manage users and their access to the system.
+        <div className="flex items-center gap-4">
+          <div className="flex items-center">
+            <h3 className="text-xl font-semibold text-gray-900">User Management</h3>
+            <HelpIcon 
+              title="User Management"
+              content="Manage users and their access to the system.
 
 • Admin Users: Have full access to the admin dashboard, including home management, user management, and file uploads.
 
 • Home Users: Have access only to their assigned home's dashboard. They can view behavioural data for their specific care facility.
 
 Users are automatically assigned email addresses based on their username (username@example.com). Each home user must be associated with a chain and home."
-          />
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              {filterRole || filterChain || filterHome 
+                ? `${filteredUsers.length} of ${users.length} users`
+                : `${users.length} ${users.length === 1 ? 'user' : 'users'}`
+              }
+            </span>
+          </div>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -610,19 +647,122 @@ Users are automatically assigned email addresses based on their username (userna
 
       <div className="bg-white shadow overflow-hidden rounded-lg border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <h3 className="text-lg font-medium text-gray-900">All Users</h3>
-            <HelpIcon 
-              title="All Users"
-              content="View and manage all users in the system. You can:
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <h3 className="text-lg font-medium text-gray-900">All Users</h3>
+              <HelpIcon 
+                title="All Users"
+                content="View and manage all users in the system. You can:
 
 • Change user roles (admin/homeUser)
 • Reassign homes and chains for home users
 • Delete users
 
 Note: When you change a home user's home, their chain will automatically update to match the home's chain."
-            />
+              />
+            </div>
           </div>
+          
+          {/* Filter Section */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+            <div>
+              <label htmlFor="filter-role" className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Role
+              </label>
+              <select
+                id="filter-role"
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Roles</option>
+                {availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="filter-chain" className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Chain
+              </label>
+              <select
+                id="filter-chain"
+                value={filterChain}
+                onChange={(e) => {
+                  setFilterChain(e.target.value);
+                  // Clear home filter if chain changes and home doesn't belong to new chain
+                  if (e.target.value && filterHome) {
+                    const selectedHome = homes.find(h => h.id === filterHome);
+                    if (selectedHome?.chainId !== e.target.value) {
+                      setFilterHome('');
+                    }
+                  }
+                }}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Chains</option>
+                {chains.map((chain) => (
+                  <option key={chain.id} value={chain.id}>
+                    {chain.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="filter-home" className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by Home
+              </label>
+              <select
+                id="filter-home"
+                value={filterHome}
+                onChange={(e) => {
+                  setFilterHome(e.target.value);
+                  // Auto-update chain filter when home is selected
+                  if (e.target.value) {
+                    const selectedHome = homes.find(h => h.id === e.target.value);
+                    if (selectedHome?.chainId) {
+                      setFilterChain(selectedHome.chainId);
+                    }
+                  }
+                }}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Homes</option>
+                {(filterChain 
+                  ? homes.filter(h => h.chainId === filterChain)
+                  : homes
+                ).map((home) => (
+                  <option key={home.id} value={home.id}>
+                    {home.name} {home.chainId ? `(${getChainDisplayName(home.chainId)})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setFilterRole('');
+                  setFilterChain('');
+                  setFilterHome('');
+                }}
+                className="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md text-sm font-medium transition-colors"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+          
+          {/* Filter Results Count */}
+          {(filterRole || filterChain || filterHome) && (
+            <div className="mt-3 text-sm text-gray-600">
+              Showing {filteredUsers.length} of {users.length} users
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -655,14 +795,14 @@ Note: When you change a home user's home, their chain will automatically update 
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
-                    No users found
+                    {users.length === 0 ? 'No users found' : 'No users match the selected filters'}
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
+                filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {editingUserId === user.id ? (
@@ -814,7 +954,12 @@ Note: When you change a home user's home, their chain will automatically update 
       {users.length > 0 && (
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="text-sm text-gray-600">
-            <span className="font-medium">Total Users:</span> {users.length}
+            <span className="font-medium">
+              {filterRole || filterChain || filterHome 
+                ? `Showing ${filteredUsers.length} of ${users.length} users`
+                : `Total Users: ${users.length}`
+              }
+            </span>
           </div>
         </div>
       )}
