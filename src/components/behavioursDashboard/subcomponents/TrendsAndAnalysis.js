@@ -17,9 +17,9 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import { 
   HiOutlineSparkles,
   HiOutlineUserCircle,
-  HiOutlineClipboardList,
+  HiOutlineClipboard,
   HiOutlineLightBulb,
-  HiOutlineClipboardDocumentCheck,
+  HiOutlineDocumentCheck,
   HiOutlineExclamationTriangle,
   HiOutlineChartBar,
   HiOutlineCalendar,
@@ -529,7 +529,7 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
                 gap: '8px',
                 marginBottom: '16px'
               }}>
-                <HiOutlineClipboardList style={{ fontSize: '20px', color: '#3b82f6' }} />
+                <HiOutlineClipboard style={{ fontSize: '20px', color: '#3b82f6' }} />
                 <h2 style={{
                   fontSize: '18px',
                   fontWeight: '600',
@@ -644,7 +644,7 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
                 gap: '8px',
                 marginBottom: '16px'
               }}>
-                <HiOutlineClipboardDocumentCheck style={{ fontSize: '20px', color: '#10b981' }} />
+                <HiOutlineDocumentCheck style={{ fontSize: '20px', color: '#10b981' }} />
                 <h2 style={{
                   fontSize: '18px',
                   fontWeight: '600',
