@@ -14,6 +14,25 @@ import {
   ArcElement,
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { 
+  HiOutlineSparkles,
+  HiOutlineUserCircle,
+  HiOutlineClipboardList,
+  HiOutlineLightBulb,
+  HiOutlineClipboardDocumentCheck,
+  HiOutlineExclamationTriangle,
+  HiOutlineChartBar,
+  HiOutlineCalendar,
+  HiOutlineTarget,
+  HiOutlineMagnifyingGlass,
+  HiOutlineClock,
+  HiOutlineTrendingUp,
+  HiOutlineCheckCircle,
+  HiOutlineXCircle,
+  HiArrowUp,
+  HiArrowDown,
+  HiArrowRight
+} from 'react-icons/hi2';
 import styles from '@/styles/Behaviours.module.css';
 
 ChartJS.register(
@@ -149,6 +168,39 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
 
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Beta Banner */}
+      <div style={{
+        backgroundColor: '#fef3c7',
+        border: '1px solid #f59e0b',
+        borderRadius: '8px',
+        padding: '12px 16px',
+        marginBottom: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        <span style={{
+          backgroundColor: '#f59e0b',
+          color: 'white',
+          fontSize: '11px',
+          fontWeight: '700',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px'
+        }}>
+          Beta
+        </span>
+        <p style={{
+          margin: '0',
+          fontSize: '14px',
+          color: '#92400e',
+          flex: 1
+        }}>
+          <strong>Active Development:</strong> This section is under ongoing improvement. Features and functionality may change as we continue to enhance the analysis capabilities.
+        </p>
+      </div>
+
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -425,8 +477,14 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
               <div style={{
                 fontWeight: '600',
                 color: '#111827',
-                marginBottom: '4px'
+                marginBottom: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}>
+                {insight.severity === 'high' && <HiOutlineExclamationTriangle style={{ fontSize: '18px', color: '#ef4444' }} />}
+                {insight.severity === 'medium' && <HiOutlineCalendar style={{ fontSize: '18px', color: '#f59e0b' }} />}
+                {insight.severity === 'low' && <HiOutlineCheckCircle style={{ fontSize: '18px', color: '#10b981' }} />}
                 {insight.title}
               </div>
               <div style={{ color: '#6b7280', fontSize: '14px' }}>
@@ -447,7 +505,10 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
           textAlign: 'center'
         }}>
-          <div style={{ color: '#6b7280' }}>🤖 Generating AI-powered clinical insights...</div>
+          <div style={{ color: '#6b7280', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <HiOutlineSparkles className="animate-pulse" style={{ fontSize: '20px' }} />
+            Generating AI-powered clinical insights...
+          </div>
         </div>
       ) : aiInsights && isValidAIInsights(aiInsights) ? (
         <>
@@ -468,7 +529,7 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
                 gap: '8px',
                 marginBottom: '16px'
               }}>
-                <span style={{ fontSize: '20px' }}>👩‍⚕️</span>
+                <HiOutlineClipboardList style={{ fontSize: '20px', color: '#3b82f6' }} />
                 <h2 style={{
                   fontSize: '18px',
                   fontWeight: '600',
@@ -503,7 +564,7 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
                 gap: '8px',
                 marginBottom: '16px'
               }}>
-                <span style={{ fontSize: '20px' }}>💡</span>
+                <HiOutlineLightBulb style={{ fontSize: '20px', color: '#f59e0b' }} />
                 <h2 style={{
                   fontSize: '18px',
                   fontWeight: '600',
@@ -583,7 +644,7 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
                 gap: '8px',
                 marginBottom: '16px'
               }}>
-                <span style={{ fontSize: '20px' }}>📋</span>
+                <HiOutlineClipboardDocumentCheck style={{ fontSize: '20px', color: '#10b981' }} />
                 <h2 style={{
                   fontSize: '18px',
                   fontWeight: '600',
@@ -653,7 +714,7 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
                 gap: '8px',
                 marginBottom: '16px'
               }}>
-                <span style={{ fontSize: '20px' }}>⚠️</span>
+                <HiOutlineExclamationTriangle style={{ fontSize: '20px', color: '#ef4444' }} />
                 <h2 style={{
                   fontSize: '18px',
                   fontWeight: '600',
@@ -727,7 +788,7 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
                 gap: '8px',
                 marginBottom: '16px'
               }}>
-                <span style={{ fontSize: '20px' }}>📊</span>
+                <HiOutlineChartBar style={{ fontSize: '20px', color: '#6366f1' }} />
                 <h2 style={{
                   fontSize: '18px',
                   fontWeight: '600',
@@ -819,7 +880,7 @@ export default function TrendsAndAnalysis({ name, altName, data, getTimeOfDay, s
 // Helper Components
 function SummaryCard({ title, value, subtitle, trend }) {
   const trendColor = trend === 'increasing' ? '#ef4444' : trend === 'decreasing' ? '#10b981' : '#6b7280';
-  const trendIcon = trend === 'increasing' ? '↑' : trend === 'decreasing' ? '↓' : '→';
+  const TrendIcon = trend === 'increasing' ? HiArrowUp : trend === 'decreasing' ? HiArrowDown : HiArrowRight;
 
   return (
     <div style={{
@@ -856,7 +917,7 @@ function SummaryCard({ title, value, subtitle, trend }) {
           color: trendColor,
           fontWeight: '600'
         }}>
-          {trendIcon} {trend === 'increasing' ? 'Increasing' : trend === 'decreasing' ? 'Decreasing' : 'Stable'}
+          <TrendIcon style={{ display: 'inline-block', marginRight: '4px' }} /> {trend === 'increasing' ? 'Increasing' : trend === 'decreasing' ? 'Decreasing' : 'Stable'}
         </div>
       )}
     </div>
@@ -1202,13 +1263,13 @@ function generateInsights({ totalIncidents, residentsAffected, overallTrend, mos
   // Trend insight
   if (overallTrend === 'increasing') {
     insights.push({
-      title: '⚠️ Increasing Trend Detected',
+      title: 'Increasing Trend Detected',
       description: `Behaviour incidents are showing an increasing trend. Consider reviewing recent interventions and triggers.`,
       severity: 'high'
     });
   } else if (overallTrend === 'decreasing') {
     insights.push({
-      title: '✅ Improving Trend',
+      title: 'Improving Trend',
       description: `Behaviour incidents are decreasing, indicating positive outcomes from current interventions.`,
       severity: 'low'
     });
@@ -1217,7 +1278,7 @@ function generateInsights({ totalIncidents, residentsAffected, overallTrend, mos
   // Peak time insight
   if (peakTime && timeOfDayCounts[peakTime] > totalIncidents * 0.3) {
     insights.push({
-      title: `📅 Peak Activity: ${peakTime}`,
+      title: `Peak Activity: ${peakTime}`,
       description: `Most incidents occur during ${peakTime.toLowerCase()} hours (${((timeOfDayCounts[peakTime] / totalIncidents) * 100).toFixed(1)}% of all incidents). Consider increasing staff presence or adjusting interventions during this time.`,
       severity: 'medium'
     });
@@ -1226,7 +1287,7 @@ function generateInsights({ totalIncidents, residentsAffected, overallTrend, mos
   // Most common type insight
   if (mostCommonType && mostCommonType !== 'Unknown') {
     insights.push({
-      title: `🎯 Focus Area: ${mostCommonType}`,
+      title: `Focus Area: ${mostCommonType}`,
       description: `${mostCommonType} is the most common behaviour type. Review interventions specific to this behaviour type.`,
       severity: 'medium'
     });
@@ -1246,7 +1307,7 @@ function generateInsights({ totalIncidents, residentsAffected, overallTrend, mos
 
   if (highFrequencyResidents.length > 0 && residentsAffected > 1) {
     insights.push({
-      title: '👤 High-Frequency Residents',
+      title: 'High-Frequency Residents',
       description: `The following residents have significantly more incidents than average: ${highFrequencyResidents.map(([name]) => name).join(', ')}. Consider personalized care plans.`,
       severity: 'high'
     });
@@ -1255,7 +1316,7 @@ function generateInsights({ totalIncidents, residentsAffected, overallTrend, mos
   // Top trigger insight
   if (topTriggers.length > 0 && topTriggers[0].count > 2) {
     insights.push({
-      title: `🔍 Common Trigger: ${topTriggers[0].label}`,
+      title: `Common Trigger: ${topTriggers[0].label}`,
       description: `"${topTriggers[0].label}" appears ${topTriggers[0].count} times as a trigger. Consider proactive interventions for this trigger.`,
       severity: 'medium'
     });
@@ -1272,7 +1333,7 @@ function generateInsights({ totalIncidents, residentsAffected, overallTrend, mos
     
     if (effectivenessRate < 50) {
       insights.push({
-        title: '⚠️ Intervention Effectiveness',
+        title: 'Intervention Effectiveness',
         description: `Only ${effectivenessRate.toFixed(0)}% of interventions show positive outcomes. Review and adjust intervention strategies.`,
         severity: 'high'
       });
@@ -1280,7 +1341,7 @@ function generateInsights({ totalIncidents, residentsAffected, overallTrend, mos
   }
 
   return insights.length > 0 ? insights : [{
-    title: '📊 Analysis Complete',
+    title: 'Analysis Complete',
     description: 'Review the charts and patterns above for detailed insights into behaviour trends.',
     severity: 'low'
   }];
@@ -1300,7 +1361,7 @@ function generatePersonalizedPatterns(data, getTimeOfDay) {
   const dominantTime = Object.entries(timeCounts).sort(([,a], [,b]) => b - a)[0];
   if (dominantTime && dominantTime[1] > data.length * 0.4) {
     patterns.push({
-      title: `⏰ Time Pattern: ${dominantTime[0]}`,
+      title: `Time Pattern: ${dominantTime[0]}`,
       description: `Most incidents occur during ${dominantTime[0].toLowerCase()} hours.`,
       details: `Consider scheduling proactive interventions or increased monitoring during this time period.`
     });
@@ -1315,7 +1376,7 @@ function generatePersonalizedPatterns(data, getTimeOfDay) {
   const dominantType = Object.entries(typeCounts).sort(([,a], [,b]) => b - a)[0];
   if (dominantType && dominantType[1] > 1) {
     patterns.push({
-      title: `🎯 Primary Behaviour: ${dominantType[0]}`,
+      title: `Primary Behaviour: ${dominantType[0]}`,
       description: `The most frequent behaviour type is "${dominantType[0]}" (${dominantType[1]} occurrences).`,
       details: `Focus interventions on managing this specific behaviour type.`
     });
@@ -1336,7 +1397,7 @@ function generatePersonalizedPatterns(data, getTimeOfDay) {
   const topTrigger = Object.entries(triggerCounts).sort(([,a], [,b]) => b - a)[0];
   if (topTrigger && topTrigger[1] > 1) {
     patterns.push({
-      title: `🔍 Common Trigger: ${topTrigger[0]}`,
+      title: `Common Trigger: ${topTrigger[0]}`,
       description: `"${topTrigger[0]}" appears ${topTrigger[1]} times as a trigger.`,
       details: `Develop proactive strategies to address this trigger before incidents occur.`
     });
@@ -1351,7 +1412,7 @@ function generatePersonalizedPatterns(data, getTimeOfDay) {
     
     if (frequency > 0.5) {
       patterns.push({
-        title: '📈 High Frequency Pattern',
+        title: 'High Frequency Pattern',
         description: `Incidents occur approximately every ${(1 / frequency).toFixed(1)} days on average.`,
         details: `This resident requires close monitoring and proactive intervention strategies.`
       });

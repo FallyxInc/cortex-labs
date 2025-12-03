@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ChainExtractionConfig } from '@/lib/processing/types';
+import { HiOutlineCheckCircle } from 'react-icons/hi2';
 import jsPDF from 'jspdf';
 
 interface Highlight {
@@ -1031,7 +1032,10 @@ export default function OnboardingWizard() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-green-800 mb-2">
-                    ✓ AI Analysis Complete
+                    <span className="flex items-center gap-2">
+                      <HiOutlineCheckCircle className="text-lg" />
+                      AI Analysis Complete
+                    </span>
                   </p>
                   <p className="text-xs text-green-700 mb-2">
                     Found {Object.keys(aiSuggestions.excelFieldMappings || {}).length} Excel field mappings,{' '}
@@ -1137,7 +1141,7 @@ export default function OnboardingWizard() {
                               }`}
                               title={isMapped ? `Mapped to: ${Object.entries(excelFieldMappings).find(([_, m]) => m.excelColumn === header)?.[0]}` : 'Click to map this column'}
                             >
-                              {header} {isMapped && '✓'}
+                              {header} {isMapped && <HiOutlineCheckCircle className="inline-block ml-1 text-green-600" style={{ fontSize: '14px' }} />}
                             </th>
                           );
                         })}
