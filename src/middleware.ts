@@ -5,11 +5,13 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get('host') || '';
 
-  // Redirect Railway domain to ascenix domain
+  // Redirect Railway production domain to ascenix domain (ONLY for production)
+  // This should happen FIRST before any other logic
   if (hostname === 'fallyx-behaviours.up.railway.app') {
     const url = request.nextUrl.clone();
     url.host = 'behaviours.ascenix.co';
     url.protocol = 'https:';
+    url.port = '';
     return NextResponse.redirect(url, 308); // 308 = permanent redirect
   }
 

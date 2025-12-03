@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { OnboardingConfig } from './types';
+import { OnboardingConfig } from '../../../lib/onboardingUtils';
 
 interface EditConfigurationViewProps {
   config: OnboardingConfig;

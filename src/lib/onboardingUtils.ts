@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { ChainExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig, ExtractionType } from '@/lib/processing/types';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -265,7 +265,7 @@ export const generateRFC = (config: OnboardingConfig) => {
     const noteConfig = config.noteTypeConfigs[firstNoteType];
     if (noteConfig.fields) {
       for (const [fieldKey, fieldConfig] of Object.entries(noteConfig.fields)) {
-        chainConfig.fieldExtractionMarkers[fieldKey] = {
+        chainConfig.fieldExtractionMarkers[fieldKey as ExtractionType] = {
           fieldName: fieldConfig.fieldName,
           endMarkers: fieldConfig.endMarkers || [],
         };

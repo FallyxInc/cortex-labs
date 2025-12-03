@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Highlight } from './types';
+import { Highlight } from '../../../lib/onboardingUtils';
 
 interface LabelDialogProps {
   highlight: Partial<Highlight>;
