@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { callClaudeAPIForJSON } from '@/lib/claude-client';
+import { getAIModelConfig } from '@/lib/ai-config';
 
 interface BehaviourData {
   name?: string;
@@ -45,9 +42,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const config = getAIModelConfig();
+    if (!config.apiKey) {
       return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
+        { error: 'Claude API key not configured. Please set CLAUDE_API_KEY or ANTHROPIC_API_KEY environment variable.' },
         { status: 500 }
       );
     }
@@ -363,30 +361,27 @@ Format your response as JSON with this exact structure:
   "interventionEffectiveness": "..."
 }
 
-Respond ONLY with valid JSON, no additional text.`;
+Respond ONLY with valid JSON, no additional text. Do not include any markdown formatting or code blocks, just the raw JSON object.`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 3000,
-      response_format: { type: 'json_object' }
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from OpenAI');
-    }
-
-    const parsed = JSON.parse(content);
+    const parsed = await callClaudeAPIForJSON<{
+      clinicalAssessment: string;
+      recommendations: Array<{ priority: string; title: string; description: string; rationale: string }>;
+      carePlanSuggestions: Array<{ category: string; suggestion: string; rationale: string }>;
+      riskFactors: Array<{ factor: string; severity: string; recommendation: string }>;
+      interventionEffectiveness: string;
+    }>(
+      systemPrompt,
+      userPrompt,
+      {
+        maxTokens: 4000,
+        temperature: 0.7,
+      }
+    );
     return parsed;
 
   } catch (error) {
-    console.error('Error calling OpenAI:', error);
+    console.error('Error calling Claude:', error);
     // Return fallback insights if AI fails
     return {
       clinicalAssessment: 'Unable to generate AI assessment at this time. Please review the data manually.',

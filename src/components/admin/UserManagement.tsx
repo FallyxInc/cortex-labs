@@ -86,6 +86,7 @@ export default function UserManagement() {
       succeeded: number;
       failed: number;
     };
+    errors?: string[];
   } | null>(null);
 
   useEffect(() => {
@@ -494,9 +495,12 @@ export default function UserManagement() {
         fetchUsers(); // Refresh user list
         setBulkImportFile(null);
       } else {
+        console.error('Bulk import error response:', data);
         if (data.errors && Array.isArray(data.errors)) {
-          showMessage(`Validation errors: ${data.errors.length} error(s) found. See details below.`, 'error');
+          const errorMessage = `Validation errors: ${data.errors.length} error(s) found. ${data.errors.slice(0, 3).join('; ')}${data.errors.length > 3 ? '...' : ''}`;
+          showMessage(errorMessage, 'error');
           setImportResults({
+            errors: data.errors,
             results: [],
             summary: {
               total: data.totalRows || 0,
@@ -505,7 +509,7 @@ export default function UserManagement() {
             },
           });
         } else {
-          showMessage(data.error || 'Failed to import users', 'error');
+          showMessage(data.error || data.details || 'Failed to import users', 'error');
         }
       }
     } catch (error) {
@@ -1043,7 +1047,19 @@ The first row should contain column headers. Each subsequent row represents one 
                 </div>
               </div>
 
-              {importResults.results.length > 0 && (
+              {/* Display validation errors if any */}
+              {importResults.errors && Array.isArray(importResults.errors) && importResults.errors.length > 0 && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                  <h6 className="font-medium text-red-900 mb-2">Validation Errors:</h6>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-red-800 max-h-60 overflow-y-auto">
+                    {importResults.errors.map((error: string, idx: number) => (
+                      <li key={idx}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {importResults.results && importResults.results.length > 0 && (
                 <div className="mt-4 max-h-96 overflow-y-auto">
                   <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-100 sticky top-0">

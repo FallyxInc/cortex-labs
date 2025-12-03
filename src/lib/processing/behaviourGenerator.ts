@@ -3,7 +3,7 @@
 
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
-import OpenAI from "openai";
+import { callClaudeAPI, getAIModelConfig } from "@/lib/claude-client";
 import {
   BehaviourEntry,
   DEFAULT_NO_PROGRESS_TEXT,
@@ -13,15 +13,6 @@ import {
   FieldExtractionConfig,
 } from "./types";
 import { CHAIN_EXTRACTION_CONFIGS } from "./homesDb";
-
-let openaiClient: OpenAI | null = null;
-
-function initOpenAI(apiKey: string) {
-  if (!openaiClient) {
-    openaiClient = new OpenAI({ apiKey });
-  }
-  return openaiClient;
-}
 
 function cleanName(name: string | null | undefined): string {
   if (!name) return "";
@@ -263,13 +254,14 @@ async function gptDetermineWhoAffected(
   row: Record<string, unknown>,
   apiKey: string,
 ): Promise<string> {
-  const client = initOpenAI(apiKey);
+  const systemPrompt = "You are a healthcare analyst classifying who was affected in a behaviour incident. Answer with a comma-separated list of the four categories, choosing all that apply.";
 
   const prompt = `
 Based on the following incident information, classify who was affected. Choose ALL that apply from the following categories and answer with a comma-separated list:
 - Resident Initiated
 - Resident Received
 - Staff Received
+- Staff Initiated
 
 Incident Type: ${row.incident_type || ""}
 Behaviour Type: ${row.behaviour_type || ""}
@@ -281,35 +273,26 @@ Answer with a comma-separated list of the categories above. If unclear, answer w
 `;
 
   try {
-    const response = await client.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a healthcare analyst classifying who was affected in a behaviour incident. Answer with a comma-separated list of the four categories, choosing all that apply.",
-        },
-        { role: "user", content: prompt },
-      ],
+    const result = await callClaudeAPI(systemPrompt, prompt, {
       temperature: 0.0,
-      max_tokens: 20,
+      maxTokens: 20,
     });
 
-    const result = response.choices[0].message.content?.trim() || "";
+    const trimmedResult = result.trim();
     const validCategories = [
       "Resident Initiated",
       "Resident Received",
       "Staff Received",
       "Staff Initiated",
     ];
-    const selected = result
+    const selected = trimmedResult
       .split(",")
       .map((cat) => cat.trim())
       .filter((cat) => validCategories.includes(cat));
 
     return selected.length > 0 ? selected.join(", ") : "Resident Initiated";
   } catch (error) {
-    console.error(`Error getting who_affected from OpenAI: ${error}`);
+    console.error(`Error getting who_affected from Claude: ${error}`);
     return "Resident Initiated";
   }
 }
@@ -429,7 +412,7 @@ async function gptSummarizeIncident(row: Record<string, unknown>, apiKey: string
     return "No Progress within 24hrs of RIM";
   }
 
-  const client = initOpenAI(apiKey);
+  const systemPrompt = "You are a healthcare analyst summarizing behaviour incidents for a report. Summarize the incident in 1-2 sentences, include details. Do not include any other text.";
 
   const prompt = `
 Summarize the following incident in 1-2 sentences for a report, nothing more. Use the information provided:
@@ -439,26 +422,17 @@ Outcome: ${row.outcome || ""}
 `;
 
   try {
-    const response = await client.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a healthcare analyst summarizing behaviour incidents for a report. Summarize the incident in 1-2 sentences, include details. Do not include any other text.",
-        },
-        { role: "user", content: prompt },
-      ],
+    const result = await callClaudeAPI(systemPrompt, prompt, {
       temperature: 0.15,
-      max_tokens: 60,
+      maxTokens: 60,
     });
 
     return (
-      response.choices[0].message.content?.trim() ||
+      result.trim() ||
       "No Progress within 24hrs of RIM"
     );
   } catch (error) {
-    console.error(`Error getting summary from OpenAI: ${error}`);
+    console.error(`Error getting summary from Claude: ${error}`);
     return "No Progress within 24hrs of RIM";
   }
 }
@@ -467,7 +441,7 @@ async function gptDetermineIntent(
   summary: string,
   apiKey: string,
 ): Promise<string> {
-  const client = initOpenAI(apiKey);
+  const systemPrompt = "You are a healthcare analyst determining intent in a resident's actions. Answer only with 'yes' or 'no'.";
 
   const prompt = `
 Based on the following incident summary, determine if the resident's actions were intentional.
@@ -480,25 +454,15 @@ Based on this, was the action intentional? Answer only with 'yes' or 'no'.
 `;
 
   try {
-    const response = await client.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a healthcare analyst determining intent in a resident's actions. Answer only with 'yes' or 'no'.",
-        },
-        { role: "user", content: prompt },
-      ],
+    const result = await callClaudeAPI(systemPrompt, prompt, {
       temperature: 0.0,
-      max_tokens: 5,
+      maxTokens: 5,
     });
 
-    const result =
-      response.choices[0].message.content?.toLowerCase().trim() || "";
-    return result.includes("yes") ? "yes" : "no";
+    const trimmedResult = result.toLowerCase().trim();
+    return trimmedResult.includes("yes") ? "yes" : "no";
   } catch (error) {
-    console.error(`Error getting intent from OpenAI: ${error}`);
+    console.error(`Error getting intent from Claude: ${error}`);
     return "no";
   }
 }
