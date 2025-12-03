@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase';
-import OnboardingWizard from '@/components/admin/OnboardingWizard';
+import OnboardingWizard from '@/components/admin/Onboarding';
 
 export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);

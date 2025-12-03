@@ -10,32 +10,7 @@ export interface ChainConfig {
   supports_follow_up: Record<string, boolean>;
 }
 
-// Extract date from filename in format: {name}_{date}_{time}.{ext}
-// Example: berkshire_care_09-11-2025_1111.pdf
-export function extractDateFromFilename(
-  filename: string,
-): { month: string; day: string; year: string } | null {
-  try {
-    // Remove extension and split by underscore
-    const parts = filename.replace(/\.[^/.]+$/, "").split("_");
 
-    // Find the part that matches MM-DD-YYYY format
-    const dateRegex = /^(\d{2})-(\d{2})-(\d{4})$/;
-
-    for (const part of parts) {
-      const match = part.match(dateRegex);
-      if (match) {
-        const [, month, day, year] = match;
-        // Create date (month is 0-indexed in JavaScript)
-        return { month: month, day: day, year: year };
-      }
-    }
-
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
 
 // Chain-specific extraction configurations
 export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
@@ -359,6 +334,34 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
     hasEvaluation: false,
   },
 };
+
+
+// Extract date from filename in format: {name}_{date}_{time}.{ext}
+// Example: berkshire_care_09-11-2025_1111.pdf
+export function extractDateFromFilename(
+  filename: string,
+): { month: string; day: string; year: string } | null {
+  try {
+    // Remove extension and split by underscore
+    const parts = filename.replace(/\.[^/.]+$/, "").split("_");
+
+    // Find the part that matches MM-DD-YYYY format
+    const dateRegex = /^(\d{2})-(\d{2})-(\d{4})$/;
+
+    for (const part of parts) {
+      const match = part.match(dateRegex);
+      if (match) {
+        const [, month, day, year] = match;
+        // Create date (month is 0-indexed in JavaScript)
+        return { month: month, day: day, year: year };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
 
 /**
  * Get chain extraction config - checks hardcoded configs first, then Firebase

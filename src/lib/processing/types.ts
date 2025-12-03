@@ -111,9 +111,23 @@ export interface FieldExtractionConfig {
   endMarkers: string[];
 }
 
+export enum ExtractionType {
+  behaviour_type = "behaviour_type",
+  triggers = "triggers",
+  description = "description",
+  consequences = "consequences",
+  interventions = "interventions",
+  medication_changes = "medication_changes",
+  risks = "risks",
+  outcome = "outcome",
+  poa_notified = "poa_notified",
+  time_frequency = "time_frequency",
+  evaluation = "evaluation",
+}
+
 // Configuration for a specific note type's extraction
 export interface NoteTypeExtractionConfig {
-  extractionMarkers: Record<string, FieldExtractionConfig>;
+  extractionMarkers: Partial<Record<ExtractionType, FieldExtractionConfig>>;
   hasTimeFrequency?: boolean;
   hasEvaluation?: boolean;
 }
@@ -129,7 +143,7 @@ export interface ChainExtractionConfig {
   matchingWindowHours?: number; // Hours window for matching behaviour notes to incidents (default: 24)
 
   // Default extraction config (used when no specific config exists for a note type)
-  fieldExtractionMarkers: Record<string, FieldExtractionConfig>;
+  fieldExtractionMarkers: Partial<Record<ExtractionType, FieldExtractionConfig>>;
   hasTimeFrequency?: boolean;
   hasEvaluation?: boolean;
 

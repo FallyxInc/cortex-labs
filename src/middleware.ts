@@ -6,10 +6,7 @@ export function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
 
   // Redirect Railway domain to ascenix domain
-  if (
-    hostname === 'fallyx-behaviours.up.railway.app' ||
-    hostname === 'fallyx-behaviours-staging.up.railway.app'
-  ) {
+  if (hostname === 'fallyx-behaviours.up.railway.app') {
     const url = request.nextUrl.clone();
     url.host = 'behaviours.ascenix.co';
     url.protocol = 'https:';
