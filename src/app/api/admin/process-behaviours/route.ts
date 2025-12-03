@@ -339,10 +339,14 @@ export async function POST(request: NextRequest) {
     );
 
     // Process files using TypeScript processing functions directly
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    if (!openaiApiKey) {
-      throw new Error("OPENAI_API_KEY not found in environment variables");
+    // Validate that Claude API key is configured (functions use centralized config)
+    const { getAIModelConfig } = await import("@/lib/claude-client");
+    const aiConfig = getAIModelConfig();
+    if (!aiConfig.apiKey) {
+      throw new Error("CLAUDE_API_KEY or ANTHROPIC_API_KEY not found in environment variables");
     }
+    // Keep apiKey parameter for backward compatibility (functions now use centralized config)
+    const openaiApiKey = aiConfig.apiKey;
 
     console.log("🚀 [PROCESSOR] Starting behaviour files processing...");
 

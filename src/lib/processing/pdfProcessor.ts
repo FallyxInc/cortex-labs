@@ -3,7 +3,7 @@
 import { readFile, writeFile, readdir, stat } from "fs/promises";
 import { join } from "path";
 import { PDFParse } from "pdf-parse";
-import OpenAI from "openai";
+import { callClaudeAPI } from "@/lib/claude-client";
 import {
   BehaviourEntry,
   INJURY_TYPES_GROUP1,
@@ -13,14 +13,6 @@ import {
 
 import { LoadParameters } from "pdf-parse";
 import { CHAIN_EXTRACTION_CONFIGS, extractDateFromFilename } from "./homesDb";
-let openaiClient: OpenAI | null = null;
-
-function initOpenAI(apiKey: string) {
-  if (!openaiClient) {
-    openaiClient = new OpenAI({ apiKey });
-  }
-  return openaiClient;
-}
 
 export async function extractTextFromPdf(
   pdfPath: string,
@@ -230,9 +222,9 @@ export async function detectInjuries(
     return "No Injury";
   }
 
-  const client = initOpenAI(apiKey);
-
   try {
+    const systemPrompt = "You are a medical assistant trained to detect specific injuries in medical notes.";
+
     const prompt1 = `
 Carefully review the following medical note and determine which of these specific injuries are present:
 ${INJURY_TYPES_GROUP1.join(", ")}
@@ -244,17 +236,8 @@ List ONLY the injury terms from the provided list, separated by commas. If none 
 Note: ${data}
 `;
 
-    const response1 = await client.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a medical assistant trained to detect specific injuries in medical notes.",
-        },
-        { role: "user", content: prompt1 },
-      ],
-      max_tokens: 50,
+    const response1Text = await callClaudeAPI(systemPrompt, prompt1, {
+      maxTokens: 50,
       temperature: 0.1,
     });
 
@@ -269,17 +252,8 @@ List ONLY the injury terms from the provided list, separated by commas. If none 
 Note: ${data}
 `;
 
-    const response2 = await client.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a medical assistant trained to detect specific injuries in medical notes.",
-        },
-        { role: "user", content: prompt2 },
-      ],
-      max_tokens: 50,
+    const response2Text = await callClaudeAPI(systemPrompt, prompt2, {
+      maxTokens: 50,
       temperature: 0.1,
     });
 
@@ -295,12 +269,8 @@ Note: ${data}
       );
     };
 
-    const injuries1 = validateInjuries(
-      response1.choices[0].message.content?.trim() || "",
-    );
-    const injuries2 = validateInjuries(
-      response2.choices[0].message.content?.trim() || "",
-    );
+    const injuries1 = validateInjuries(response1Text.trim());
+    const injuries2 = validateInjuries(response2Text.trim());
 
     const allInjuries = [...new Set([...injuries1, ...injuries2])].sort();
 
@@ -320,9 +290,9 @@ export async function checkForHeadInjury(
     return false;
   }
 
-  const client = initOpenAI(apiKey);
-
   try {
+    const systemPrompt = "You are a medical assistant trained to detect head injuries in medical notes.";
+
     const prompt = `
 Carefully review the following medical note and determine if there is any indication of a physical head injury.
 Look for terms like head trauma, impact to head, head wound, scalp injury, etc. Any issues with cognition and imbalance and head nodding are not indications of head injury
@@ -335,23 +305,13 @@ Note: ${note}
 Are there any signs of a head injury in this note?
 `;
 
-    const response = await client.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a medical assistant trained to detect head injuries in medical notes.",
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 10,
+    const response = await callClaudeAPI(systemPrompt, prompt, {
+      maxTokens: 10,
       temperature: 0.2,
     });
 
-    const gptResponse =
-      response.choices[0].message.content?.toLowerCase().trim() || "";
-    return gptResponse.includes("yes");
+    const responseText = response.toLowerCase().trim();
+    return responseText.includes("yes");
   } catch (error) {
     console.error(`Error in head injury detection: ${error}`);
     return false;

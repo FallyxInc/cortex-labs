@@ -107,7 +107,7 @@ export const STRATEGY_TEMPLATES: Record<StrategyTemplate, Partial<ExtractionStra
       ],
     },
     aiProcessing: {
-      model: 'gpt-3.5-turbo',
+      model: 'claude-3-haiku-20240307',
       temperature: 0.3,
       maxTokens: 1000,
     },
@@ -159,7 +159,7 @@ export const STRATEGY_TEMPLATES: Record<StrategyTemplate, Partial<ExtractionStra
       ],
     },
     aiProcessing: {
-      model: 'gpt-3.5-turbo',
+      model: 'claude-3-haiku-20240307',
       temperature: 0.3,
       maxTokens: 1000,
     },
@@ -200,7 +200,7 @@ export const STRATEGY_TEMPLATES: Record<StrategyTemplate, Partial<ExtractionStra
       ],
     },
     aiProcessing: {
-      model: 'gpt-3.5-turbo',
+      model: 'claude-3-haiku-20240307',
       temperature: 0.3,
       maxTokens: 500,
     },

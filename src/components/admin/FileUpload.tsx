@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { HiOutlineXMark } from 'react-icons/hi2';
 import HelpIcon from "./HelpIcon";
 import {
   trackFileUpload,
@@ -168,6 +169,26 @@ export default function FileUpload() {
           fileSize: file.size,
         });
       });
+    }
+  };
+
+  const handleDeletePdf = (index: number) => {
+    const newFiles = pdfFiles.filter((_, i) => i !== index);
+    setPdfFiles(newFiles);
+    // Reset file input if all files are removed
+    if (newFiles.length === 0) {
+      const pdfInput = document.getElementById("pdf") as HTMLInputElement;
+      if (pdfInput) pdfInput.value = "";
+    }
+  };
+
+  const handleDeleteExcel = (index: number) => {
+    const newFiles = excelFiles.filter((_, i) => i !== index);
+    setExcelFiles(newFiles);
+    // Reset file input if all files are removed
+    if (newFiles.length === 0) {
+      const excelInput = document.getElementById("excel") as HTMLInputElement;
+      if (excelInput) excelInput.value = "";
     }
   };
 
@@ -513,10 +534,19 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
                 <p className="text-sm font-medium" style={{ color: "#06b6d4" }}>
                   Selected {pdfFiles.length} file(s):
                 </p>
-                <ul className="mt-1 text-sm text-gray-600">
+                <ul className="mt-1 text-sm text-gray-600 space-y-1">
                   {pdfFiles.map((file, index) => (
-                    <li key={index} className="truncate">
-                      • {file.name}
+                    <li key={index} className="flex items-center justify-between gap-2 bg-gray-50 px-2 py-1 rounded">
+                      <span className="truncate flex-1">• {file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePdf(index)}
+                        className="flex-shrink-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1 transition-colors"
+                        title="Remove file"
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <HiOutlineXMark className="w-4 h-4" />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -585,10 +615,19 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
                 <p className="text-sm font-medium" style={{ color: "#06b6d4" }}>
                   Selected {excelFiles.length} file(s):
                 </p>
-                <ul className="mt-1 text-sm text-gray-600">
+                <ul className="mt-1 text-sm text-gray-600 space-y-1">
                   {excelFiles.map((file, index) => (
-                    <li key={index} className="truncate">
-                      • {file.name}
+                    <li key={index} className="flex items-center justify-between gap-2 bg-gray-50 px-2 py-1 rounded">
+                      <span className="truncate flex-1">• {file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExcel(index)}
+                        className="flex-shrink-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1 transition-colors"
+                        title="Remove file"
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <HiOutlineXMark className="w-4 h-4" />
+                      </button>
                     </li>
                   ))}
                 </ul>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { HiOutlineCheckCircle } from 'react-icons/hi2';
 import HelpIcon from './HelpIcon';
 import CustomStrategyForm from './CustomStrategyForm';
 import { ExtractionStrategyConfig, StrategyTemplate } from '@/types/extractionStrategy';
@@ -523,8 +524,11 @@ All homes added to this chain will automatically use the selected extraction str
             {customStrategyConfig && newChainExtractionType === 'custom' && (
               <div className="bg-green-50 border border-green-200 rounded-md p-3">
                 <p className="text-sm text-green-800">
-                  ✓ Custom strategy configured ({customStrategyConfig.noteTypes.validTypes.length} note types, 
-                  {customStrategyConfig.followUpNotes.enabled ? ' follow-up enabled' : ' no follow-up'})
+                  <span className="flex items-center gap-2">
+                    <HiOutlineCheckCircle className="text-lg" />
+                    <span>Custom strategy configured ({customStrategyConfig.noteTypes.validTypes.length} note types, 
+                  {customStrategyConfig.followUpNotes.enabled ? ' follow-up enabled' : ' no follow-up'})</span>
+                  </span>
                 </p>
                 <button
                   type="button"

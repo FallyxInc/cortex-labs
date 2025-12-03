@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { getClaudeClient, getAIModel } from '@/lib/claude-client';
 
 // Target output fields that we need to extract from PDF
 const TARGET_OUTPUT_FIELDS = [
@@ -68,15 +68,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey = process.env.CLAUDE_API_KEY;
-    if (!apiKey) {
+    // Get Claude client and model from centralized config
+    let anthropic;
+    try {
+      anthropic = getClaudeClient();
+    } catch (error) {
       return NextResponse.json(
-        { error: 'Claude API key not configured' },
+        { error: 'Claude API key not configured. Please set CLAUDE_API_KEY or ANTHROPIC_API_KEY environment variable.' },
         { status: 500 }
       );
     }
-
-    const anthropic = new Anthropic({ apiKey });
 
     // Truncate PDF text if too long (Claude has token limits)
     const maxTextLength = 100000; // ~25k tokens
@@ -293,10 +294,9 @@ IMPORTANT:
 - Always mark Excel fields as "EXCEL" and PDF fields as "PDF"
 - Excel data is used as the base incident record and merged with PDF notes`;
 
-    // Use Claude Sonnet 4.5 (recommended for best balance of intelligence, speed, and cost)
-    // You can override via CLAUDE_MODEL environment variable if needed
-    // Options: claude-sonnet-4-5, claude-haiku-4-5, claude-opus-4-5, claude-opus-4-1
-    const modelName = process.env.CLAUDE_MODEL || 'claude-sonnet-4-5';
+    // Use centralized AI model configuration (defaults to claude-3-haiku-20240307)
+    // Can be overridden via AI_MODEL environment variable
+    const modelName = getAIModel();
     
     const response = await anthropic.messages.create({
       model: modelName,

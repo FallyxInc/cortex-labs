@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineChartBar, HiOutlineArrowRight } from 'react-icons/hi2';
 import HelpIcon from './HelpIcon';
 
 interface User {
@@ -86,6 +87,7 @@ export default function UserManagement() {
       succeeded: number;
       failed: number;
     };
+    errors?: string[];
   } | null>(null);
 
   useEffect(() => {
@@ -494,9 +496,12 @@ export default function UserManagement() {
         fetchUsers(); // Refresh user list
         setBulkImportFile(null);
       } else {
+        console.error('Bulk import error response:', data);
         if (data.errors && Array.isArray(data.errors)) {
-          showMessage(`Validation errors: ${data.errors.length} error(s) found. See details below.`, 'error');
+          const errorMessage = `Validation errors: ${data.errors.length} error(s) found. ${data.errors.slice(0, 3).join('; ')}${data.errors.length > 3 ? '...' : ''}`;
+          showMessage(errorMessage, 'error');
           setImportResults({
+            errors: data.errors,
             results: [],
             summary: {
               total: data.totalRows || 0,
@@ -505,7 +510,7 @@ export default function UserManagement() {
             },
           });
         } else {
-          showMessage(data.error || 'Failed to import users', 'error');
+          showMessage(data.error || data.details || 'Failed to import users', 'error');
         }
       }
     } catch (error) {
@@ -1032,18 +1037,33 @@ The first row should contain column headers. Each subsequent row represents one 
             <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
               <h5 className="font-medium text-gray-900 mb-3">Import Results:</h5>
               <div className="mb-4 space-y-1 text-sm">
-                <div className="text-green-600">
-                  ✅ Succeeded: {importResults.summary.succeeded} user(s)
+                <div className="text-green-600 flex items-center gap-2">
+                  <HiOutlineCheckCircle className="text-lg" />
+                  Succeeded: {importResults.summary.succeeded} user(s)
                 </div>
-                <div className="text-red-600">
-                  ❌ Failed: {importResults.summary.failed} user(s)
+                <div className="text-red-600 flex items-center gap-2">
+                  <HiOutlineXCircle className="text-lg" />
+                  Failed: {importResults.summary.failed} user(s)
                 </div>
-                <div className="text-gray-600">
-                  📊 Total: {importResults.summary.total} row(s)
+                <div className="text-gray-600 flex items-center gap-2">
+                  <HiOutlineChartBar className="text-lg" />
+                  Total: {importResults.summary.total} row(s)
                 </div>
               </div>
 
-              {importResults.results.length > 0 && (
+              {/* Display validation errors if any */}
+              {importResults.errors && Array.isArray(importResults.errors) && importResults.errors.length > 0 && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                  <h6 className="font-medium text-red-900 mb-2">Validation Errors:</h6>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-red-800 max-h-60 overflow-y-auto">
+                    {importResults.errors.map((error: string, idx: number) => (
+                      <li key={idx}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {importResults.results && importResults.results.length > 0 && (
                 <div className="mt-4 max-h-96 overflow-y-auto">
                   <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-100 sticky top-0">
@@ -1063,9 +1083,15 @@ The first row should contain column headers. Each subsequent row represents one 
                           <td className="px-3 py-2 whitespace-nowrap text-gray-900">{result.email}</td>
                           <td className="px-3 py-2 whitespace-nowrap">
                             {result.success ? (
-                              <span className="text-green-600 font-medium">✓ Success</span>
+                              <span className="text-green-600 font-medium flex items-center gap-1">
+                                <HiOutlineCheckCircle className="text-base" />
+                                Success
+                              </span>
                             ) : (
-                              <span className="text-red-600 font-medium">✗ Failed</span>
+                              <span className="text-red-600 font-medium flex items-center gap-1">
+                                <HiOutlineXCircle className="text-base" />
+                                Failed
+                              </span>
                             )}
                           </td>
                           <td className="px-3 py-2 text-gray-600">{result.error || 'User created successfully'}</td>
@@ -1518,12 +1544,14 @@ Click 'Scan Users' to analyze all users and see what needs to be migrated."
               <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
                 <h4 className="font-medium text-gray-900 mb-3">Migration Results:</h4>
                 <div className="space-y-2 text-sm">
-                  <div className="text-green-600">
-                    ✅ Updated: {migrationResults.updated.length} user(s)
+                  <div className="text-green-600 flex items-center gap-2">
+                    <HiOutlineCheckCircle className="text-lg" />
+                    Updated: {migrationResults.updated.length} user(s)
                   </div>
                   {migrationResults.failed.length > 0 && (
-                    <div className="text-red-600">
-                      ❌ Failed: {migrationResults.failed.length} user(s)
+                    <div className="text-red-600 flex items-center gap-2">
+                      <HiOutlineXCircle className="text-lg" />
+                      Failed: {migrationResults.failed.length} user(s)
                       <ul className="list-disc list-inside ml-4 mt-1">
                         {migrationResults.failed.map((f, idx) => (
                           <li key={idx} className="text-xs">{f.userId.substring(0, 20)}... - {f.error}</li>
@@ -1532,8 +1560,9 @@ Click 'Scan Users' to analyze all users and see what needs to be migrated."
                     </div>
                   )}
                   {migrationResults.skipped.length > 0 && (
-                    <div className="text-gray-600">
-                      ⏭️ Skipped: {migrationResults.skipped.length} user(s)
+                    <div className="text-gray-600 flex items-center gap-2">
+                      <HiOutlineArrowRight className="text-lg" />
+                      Skipped: {migrationResults.skipped.length} user(s)
                     </div>
                   )}
                 </div>
@@ -1545,3 +1574,4 @@ Click 'Scan Users' to analyze all users and see what needs to be migrated."
     </div>
   );
 }
+

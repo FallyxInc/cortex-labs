@@ -3,6 +3,20 @@ import { getAuth } from 'firebase-admin/auth';
 import { adminDb } from '@/lib/firebase-admin';
 import * as XLSX from 'xlsx';
 
+// Helper function to convert display name to camelCase for Firebase ID
+function toCamelCase(str: string): string {
+  return str
+    .replace(/[^a-zA-Z0-9]/g, ' ')
+    .split(' ')
+    .map((word, index) => {
+      if (index === 0) {
+        return word.charAt(0).toLowerCase() + word.slice(1).toLowerCase();
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join('');
+}
+
 interface ImportUser {
   username: string;
   email: string;
@@ -63,12 +77,26 @@ export async function POST(request: NextRequest) {
       raw: false,
     }) as Record<string, any>[];
 
+    console.log('Parsed Excel data rows:', data.length);
+    if (data.length > 0) {
+      console.log('Sample row:', data[0]);
+      console.log('Sample row keys:', Object.keys(data[0]));
+    }
+
     if (data.length === 0) {
       return NextResponse.json(
         { error: 'Excel file is empty or has no data rows' },
         { status: 400 }
       );
     }
+
+    // Helper function to normalize names for flexible matching
+    const normalizeName = (name: string): string => {
+      return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '') // Remove all non-alphanumeric
+        .trim();
+    };
 
     // Get all chains and homes for name-to-ID mapping
     const chainsRef = adminDb.ref('/chains');
@@ -89,6 +117,8 @@ export async function POST(request: NextRequest) {
     const homesSnapshot = await homesRef.once('value');
     const homesData = homesSnapshot.exists() ? homesSnapshot.val() : {};
     const homeMap = new Map<string, string>(); // name/id -> id
+    const allHomeNames: string[] = []; // For error messages
+    
     for (const key in homesData) {
       if (key === 'users' || key === 'reviews' || key === 'chains' || key === 'homeMappings') {
         continue;
@@ -96,10 +126,29 @@ export async function POST(request: NextRequest) {
       const homeData = homesData[key];
       if (homeData && typeof homeData === 'object' && 'behaviours' in homeData) {
         const displayName = homeData.mapping?.displayName || key;
+        const normalizedDisplay = normalizeName(displayName);
+        const normalizedKey = normalizeName(key);
+        
+        // Store multiple variations for flexible lookup
         homeMap.set(displayName.toLowerCase(), key);
         homeMap.set(displayName, key);
+        homeMap.set(normalizedDisplay, key);
         homeMap.set(key.toLowerCase(), key);
         homeMap.set(key, key);
+        homeMap.set(normalizedKey, key);
+        
+        // Also handle common variations
+        // Remove common suffixes like "Care Centre", "Care", "Place", etc.
+        const displayWithoutSuffix = displayName
+          .replace(/\s+(Care Centre|Care|Place|Gardens?|Centre|Center)$/i, '')
+          .trim();
+        if (displayWithoutSuffix && displayWithoutSuffix !== displayName) {
+          homeMap.set(displayWithoutSuffix.toLowerCase(), key);
+          homeMap.set(displayWithoutSuffix, key);
+          homeMap.set(normalizeName(displayWithoutSuffix), key);
+        }
+        
+        allHomeNames.push(`${displayName} (ID: ${key})`);
       }
     }
 
@@ -107,7 +156,15 @@ export async function POST(request: NextRequest) {
     const usersToImport: ImportUser[] = [];
     const errors: string[] = [];
 
-    data.forEach((row, index) => {
+    // Debug: Log first row to see what columns we're getting
+    if (data.length > 0) {
+      console.log('First row columns:', Object.keys(data[0]));
+      console.log('First row data:', data[0]);
+    }
+
+    // Process rows sequentially to allow async home creation
+    for (let index = 0; index < data.length; index++) {
+      const row = data[index];
       const rowNumber = index + 2; // +2 because Excel rows are 1-indexed and we skip header
       
       // Normalize column names (case-insensitive, trim whitespace)
@@ -115,6 +172,12 @@ export async function POST(request: NextRequest) {
       Object.keys(row).forEach(key => {
         normalizedRow[key.trim().toLowerCase()] = String(row[key] || '').trim();
       });
+      
+      // Debug: Log normalized columns for first row
+      if (index === 0) {
+        console.log('Normalized columns:', Object.keys(normalizedRow));
+        console.log('Normalized row data:', normalizedRow);
+      }
 
       const username = normalizedRow['username'] || normalizedRow['user name'] || '';
       const email = normalizedRow['email'] || '';
@@ -126,33 +189,33 @@ export async function POST(request: NextRequest) {
       // Validation
       if (!username) {
         errors.push(`Row ${rowNumber}: Username is required`);
-        return;
+        continue;
       }
 
       if (!email) {
         errors.push(`Row ${rowNumber}: Email is required`);
-        return;
+        continue;
       }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         errors.push(`Row ${rowNumber}: Invalid email format: ${email}`);
-        return;
+        continue;
       }
 
       if (!password) {
         errors.push(`Row ${rowNumber}: Password is required`);
-        return;
+        continue;
       }
 
       if (password.length < 6) {
         errors.push(`Row ${rowNumber}: Password must be at least 6 characters`);
-        return;
+        continue;
       }
 
       if (!role || (role !== 'admin' && role !== 'homeuser')) {
         errors.push(`Row ${rowNumber}: Role must be "admin" or "homeUser" (found: ${role})`);
-        return;
+        continue;
       }
 
       const finalRole = role === 'admin' ? 'admin' : 'homeUser';
@@ -161,33 +224,157 @@ export async function POST(request: NextRequest) {
       if (finalRole === 'homeUser') {
         if (!chainIdOrName) {
           errors.push(`Row ${rowNumber}: Chain ID or Chain Name is required for homeUser role`);
-          return;
+          continue;
         }
 
         if (!homeIdOrName) {
           errors.push(`Row ${rowNumber}: Home ID or Home Name is required for homeUser role`);
-          return;
+          continue;
         }
 
-        // Resolve chain ID
-        const chainId = chainIdMap.get(chainIdOrName) || chainMap.get(chainIdOrName.toLowerCase());
+        // Resolve chain ID with flexible matching
+        let chainId = chainIdMap.get(chainIdOrName) || 
+                     chainMap.get(chainIdOrName) || 
+                     chainMap.get(chainIdOrName.toLowerCase());
+        
         if (!chainId) {
-          errors.push(`Row ${rowNumber}: Chain not found: ${chainIdOrName}`);
-          return;
+          const availableChains = Array.from(new Set([...chainIdMap.keys(), ...Array.from(chainMap.values())]))
+            .map(id => {
+              const chain = chainsData[id];
+              return chain?.name || id;
+            })
+            .join(', ');
+          errors.push(`Row ${rowNumber}: Chain not found: "${chainIdOrName}". Available chains: ${availableChains}`);
+          continue;
         }
 
-        // Resolve home ID
-        const homeId = homeMap.get(homeIdOrName) || homeMap.get(homeIdOrName.toLowerCase());
+        // Resolve or create home ID with flexible matching
+        const normalizedHomeInput = normalizeName(homeIdOrName);
+        let homeId = homeMap.get(homeIdOrName) || 
+                    homeMap.get(homeIdOrName.toLowerCase()) ||
+                    homeMap.get(normalizedHomeInput);
+        
+        // Try partial/fuzzy matching if exact match fails
         if (!homeId) {
-          errors.push(`Row ${rowNumber}: Home not found: ${homeIdOrName}`);
-          return;
+          // Also try matching after removing common suffixes
+          const homeWithoutSuffix = homeIdOrName
+            .replace(/\s+(Care Centre|Care|Place|Gardens?|Centre|Center)$/i, '')
+            .trim();
+          if (homeWithoutSuffix && homeWithoutSuffix !== homeIdOrName) {
+            homeId = homeMap.get(homeWithoutSuffix) || 
+                    homeMap.get(homeWithoutSuffix.toLowerCase()) ||
+                    homeMap.get(normalizeName(homeWithoutSuffix));
+          }
+          
+          // Try fuzzy matching by comparing normalized names
+          if (!homeId) {
+            for (const [mapKey, mapValue] of homeMap.entries()) {
+              const normalizedMapKey = normalizeName(mapKey);
+              // Check if one contains the other (for partial matches like "millcreek" vs "millcreekcare")
+              if (normalizedMapKey === normalizedHomeInput || 
+                  normalizedMapKey.includes(normalizedHomeInput) ||
+                  normalizedHomeInput.includes(normalizedMapKey)) {
+                // Make sure it's a reasonable match (at least 50% overlap)
+                const minLength = Math.min(normalizedMapKey.length, normalizedHomeInput.length);
+                const maxLength = Math.max(normalizedMapKey.length, normalizedHomeInput.length);
+                if (minLength >= 3 && (minLength / maxLength) >= 0.5) {
+                  homeId = mapValue;
+                  break;
+                }
+              }
+            }
+          }
         }
-
-        // Verify home belongs to chain
-        const homeData = homesData[homeId];
-        if (homeData?.chainId !== chainId) {
-          errors.push(`Row ${rowNumber}: Home "${homeIdOrName}" does not belong to chain "${chainIdOrName}"`);
-          return;
+        
+        // If home doesn't exist, create it
+        if (!homeId) {
+          // Check if a home with the same sanitized name already exists
+          const sanitizedName = homeIdOrName.trim().toLowerCase().replace(/\s+/g, '_');
+          const existingHomeRef = adminDb.ref(`/${sanitizedName}`);
+          const existingHomeSnapshot = await existingHomeRef.once('value');
+          
+          if (existingHomeSnapshot.exists()) {
+            // Home exists with this ID but wasn't in our map, use it
+            const existingHomeData = existingHomeSnapshot.val();
+            if (existingHomeData.chainId === chainId) {
+              homeId = sanitizedName;
+              // Update our maps for future lookups
+              homeMap.set(homeIdOrName.toLowerCase(), homeId);
+              homeMap.set(homeIdOrName, homeId);
+              homesData[homeId] = existingHomeData;
+            } else {
+              errors.push(`Row ${rowNumber}: A home with similar name exists but belongs to a different chain`);
+              continue;
+            }
+          } else {
+            // Create new home
+            const displayName = homeIdOrName.trim();
+            const firebaseId = toCamelCase(displayName);
+            
+            await existingHomeRef.set({
+              behaviours: {
+                createdAt: new Date().toISOString()
+              },
+              chainId: chainId,
+              createdAt: new Date().toISOString(),
+              mapping: {
+                firebaseId: firebaseId,
+                homeName: sanitizedName,
+                displayName: displayName
+              }
+            });
+            
+            // Update chain's homes list
+            const chainRef = adminDb.ref(`/chains/${chainId}`);
+            const chainSnapshot = await chainRef.once('value');
+            if (chainSnapshot.exists()) {
+              const chainData = chainSnapshot.val();
+              const homes = chainData.homes || [];
+              if (!homes.includes(sanitizedName)) {
+                homes.push(sanitizedName);
+                await chainRef.update({ homes });
+              }
+            }
+            
+            // Update homeMappings
+            const mappingsRef = adminDb.ref('/homeMappings');
+            const mappingsSnapshot = await mappingsRef.once('value');
+            const existingMappings = mappingsSnapshot.exists() ? mappingsSnapshot.val() : {};
+            await mappingsRef.set({
+              ...existingMappings,
+              [sanitizedName]: {
+                firebaseId: firebaseId,
+                homeName: sanitizedName,
+                displayName: displayName
+              },
+              [firebaseId]: {
+                firebaseId: firebaseId,
+                homeName: sanitizedName,
+                displayName: displayName
+              }
+            });
+            
+            homeId = sanitizedName;
+            console.log(`✅ Created new home: ${displayName} (${sanitizedName}) in chain ${chainId}`);
+            
+            // Update our maps for future lookups in this batch
+            homeMap.set(displayName.toLowerCase(), homeId);
+            homeMap.set(displayName, homeId);
+            homeMap.set(homeIdOrName.toLowerCase(), homeId);
+            homeMap.set(homeIdOrName, homeId);
+            homesData[homeId] = {
+              behaviours: { createdAt: new Date().toISOString() },
+              chainId: chainId,
+              mapping: { displayName, homeName: sanitizedName, firebaseId }
+            };
+          }
+        } else {
+          // Verify existing home belongs to chain
+          const homeData = homesData[homeId];
+          if (homeData?.chainId !== chainId) {
+            errors.push(`Row ${rowNumber}: Home "${homeIdOrName}" exists but belongs to a different chain`);
+            continue;
+          }
         }
 
         usersToImport.push({
@@ -209,10 +396,11 @@ export async function POST(request: NextRequest) {
           rowNumber,
         });
       }
-    });
+    }
 
     // If there are validation errors, return them
     if (errors.length > 0) {
+      console.error('Bulk import validation errors:', errors);
       return NextResponse.json({
         success: false,
         error: 'Validation errors found',
@@ -306,12 +494,23 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error during bulk import:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack, error });
+    
+    // Return 400 if it's a validation/parsing error, 500 for server errors
+    const statusCode = errorMessage.includes('required') || 
+                      errorMessage.includes('invalid') || 
+                      errorMessage.includes('not found') 
+                      ? 400 : 500;
+    
     return NextResponse.json(
       { 
         error: 'Failed to process bulk import', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
+        details: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && errorStack ? { stack: errorStack } : {})
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }

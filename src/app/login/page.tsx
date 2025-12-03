@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
 import { db, auth } from '@/lib/firebase';
 import '@/styles/Login.css';
@@ -13,6 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true); // Default to true for better UX
   const router = useRouter();
   const loginStartTime = useRef<number | null>(null);
   const formStartTime = useRef<number>(new Date().getTime());
@@ -58,6 +59,11 @@ export default function Login() {
     loginStartTime.current = Date.now();
 
     try {
+      // Set persistence based on "Remember Me" checkbox
+      // LOCAL persistence: persists until explicitly signed out (even after browser close)
+      // SESSION persistence: only persists for current browser session
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
       const userId = userCredential.user.uid;
       const userSnapshot = await get(ref(db, `users/${userCredential.user.uid}`));
@@ -257,6 +263,22 @@ export default function Login() {
       </div>
 
       {errorMessage && <p className="login-error-message">{errorMessage}</p>}
+
+      <div className="login-remember-me">
+        <label>
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+          />
+          <span style={{ fontSize: '14px', color: '#374151', fontWeight: '500' }}>Remember me</span>
+        </label>
+        <p>
+          {rememberMe 
+            ? 'You will stay logged in even after closing the browser' 
+            : 'You will need to log in again when you close the browser'}
+        </p>
+      </div>
 
       <button className="login-button" onClick={() => handleLogin()}>
         Login

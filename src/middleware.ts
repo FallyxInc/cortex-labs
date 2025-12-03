@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get('host') || '';
+
+  // Redirect Railway domain to ascenix domain
+  if (hostname === 'fallyx-behaviours.up.railway.app') {
+    const url = request.nextUrl.clone();
+    url.host = 'behaviours.ascenix.co';
+    url.protocol = 'https:';
+    return NextResponse.redirect(url, 308); // 308 = permanent redirect
+  }
 
   // Allow access to login, reset-password, and unauthorized pages
   if (
