@@ -22,3 +22,4 @@ export function getAIModelConfig(): AIModelConfig {
     apiKey: CLAUDE_API_KEY || '',
   };
 }
+

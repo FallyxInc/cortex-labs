@@ -42,7 +42,7 @@ export default function CustomStrategyForm({ onSave, onCancel, initialTemplate =
         ],
       },
       aiProcessing: {
-        model: template.aiProcessing?.model || 'claude-3-haiku-20240307',
+        model: template.aiProcessing?.model || 'gpt-3.5-turbo',
         temperature: template.aiProcessing?.temperature || 0.3,
         maxTokens: template.aiProcessing?.maxTokens || 1000,
       },
@@ -408,12 +408,9 @@ export default function CustomStrategyForm({ onSave, onCancel, initialTemplate =
               }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
             >
-              <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
-              <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
-              <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-              <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
-              <option value="claude-opus-4-5">Claude Opus 4.5</option>
-              <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+              <option value="gpt-4">GPT-4</option>
+              <option value="gpt-4-turbo">GPT-4 Turbo</option>
             </select>
           </div>
           <div>
