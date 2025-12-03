@@ -18,17 +18,6 @@ const nextConfig: NextConfig = {
         destination: 'https://behaviours.ascenix.co/:path*',
         permanent: true,
       },
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: 'fallyx-behaviours-staging.up.railway.app',
-          },
-        ],
-        destination: 'https://behaviours.ascenix.co/:path*',
-        permanent: true,
-      },
     ];
   },
 };
