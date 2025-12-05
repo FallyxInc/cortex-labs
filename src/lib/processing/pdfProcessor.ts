@@ -391,7 +391,10 @@ export async function processPdfFiles(
       await mkdirNode(dateDir, { recursive: true });
 
       const baseName = pdfFile.replace(/\.pdf$/i, "");
-      const outputCsv = join(dateDir, `${baseName}_behaviour_incidents.csv`);
+      let outputCsv = join(dateDir, `${baseName}_behaviour_incidents.csv`);
+      if (date) {
+        outputCsv = join(dateDir, `${date.year}-${date.month}-${date.day}_behaviour_incidents.csv`);
+      }
 
       await saveToCsv(entries, outputCsv);
     } else {

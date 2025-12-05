@@ -166,10 +166,10 @@ export async function processExcelFiles(
           await mkdir(dateDir, { recursive: true });
 
           const baseName = xlsFile.replace(/\.(xls|xlsx)$/i, "");
-          const outputCsv = join(
-            dateDir,
-            `${baseName}_processed_incidents.csv`,
-          );
+          let outputCsv = join(dateDir, `${baseName}_processed_incidents.csv`);
+          if (date) {
+            outputCsv = join(dateDir, `${date.year}-${date.month}-${date.day}_processed_incidents.csv`);
+          }
 
           await processExcelFile(xlsPath, outputCsv, chain);
         } else {

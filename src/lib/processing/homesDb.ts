@@ -346,7 +346,11 @@ export function extractDateFromFilename(
     const parts = filename.replace(/\.[^/.]+$/, "").split("_");
 
     // Find the part that matches MM-DD-YYYY format
-    const dateRegex = /^(\d{2})-(\d{2})-(\d{4})$/;
+    // or YYYY-MM-DD format
+    let dateRegex = /^(\d{2})-(\d{2})-(\d{4})$/;
+    if (!dateRegex.test(filename)) {
+      dateRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
+    }
 
     for (const part of parts) {
       const match = part.match(dateRegex);

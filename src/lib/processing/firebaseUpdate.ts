@@ -80,7 +80,10 @@ export async function syncFirebaseWithCsv(
     const filename = csvFilepath.split("/").pop() || "";
 
     // Extract year and month from filepath
-    const match = csvFilepath.match(/\/(\d{4})_(\d{2})_/);
+    let match = csvFilepath.match(/\/(\d{4})_(\d{2})_/);
+    if (!match) {
+      match = csvFilepath.match(/\/(\d{4})-(\d{2})-(\d{2})/);
+    }
     if (!match) {
       throw new Error(`Could not extract date from filepath: ${csvFilepath}`);
     }
