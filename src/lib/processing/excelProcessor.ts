@@ -159,7 +159,7 @@ export async function processExcelFiles(
         if (date) {
           const dateDir = join(
             analyzedDir,
-            `${date.year}_${date.month}_${date.day}`,
+            `${date.month}-${date.day}-${date.year}`,
           );
 
           const { mkdir } = await import("fs/promises");
@@ -168,7 +168,7 @@ export async function processExcelFiles(
           const baseName = xlsFile.replace(/\.(xls|xlsx)$/i, "");
           let outputCsv = join(dateDir, `${baseName}_processed_incidents.csv`);
           if (date) {
-            outputCsv = join(dateDir, `${date.year}-${date.month}-${date.day}_processed_incidents.csv`);
+            outputCsv = join(dateDir, `${date.month}-${date.day}-${date.year}_processed_incidents.csv`);
           }
 
           await processExcelFile(xlsPath, outputCsv, chain);
