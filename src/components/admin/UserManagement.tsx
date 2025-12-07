@@ -281,7 +281,7 @@ export default function UserManagement() {
     }
 
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -292,7 +292,7 @@ export default function UserManagement() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        showMessage('User deleted successfully!', 'success');
+        showMessage(data.message || 'User deleted successfully!', 'success');
         fetchUsers();
         setSelectedUsers(new Set());
       } else {
@@ -321,12 +321,8 @@ export default function UserManagement() {
       // Delete users in parallel
       const deletePromises = userIds.map(async (userId) => {
         try {
-          const response = await fetch('/api/admin/users', {
+          const response = await fetch(`/api/admin/users/${userId}/delete`, {
             method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ userId }),
           });
 
           const data = await response.json();
