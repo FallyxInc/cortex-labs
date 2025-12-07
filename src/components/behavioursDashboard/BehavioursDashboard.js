@@ -8,9 +8,6 @@ import { saveAs } from 'file-saver';
 import { Chart, ArcElement, PointElement, LineElement } from 'chart.js';
 import { ref, onValue, off, get, update, child, set, serverTimestamp } from 'firebase/database';
 import { db, auth } from '@/lib/firebase';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { 
   trackPageVisit, 
   trackExportButtonClick, 
@@ -18,6 +15,7 @@ import {
   trackDashboardInteraction,
   trackTimeOnPage
 } from '@/lib/mixpanel';
+import { handleSavePDF as exportToPDF } from '@/lib/exportUtils';
 import {
   markPostFallNotes,
   countFallsByExactInjury,
@@ -376,250 +374,20 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   const tableRef = useRef(null);
 
   const handleSavePDF = async () => {
-    exportClickCountRef.current += 1;
-    
-    // Track export click
-    trackExportButtonClick({
-      exportType: 'pdf',
-      pageName: `dashboard_${name}`,
-      section: showFollowUpTable ? 'follow_up' : 'overview',
-      homeId: altName,
-      dataType: showFollowUpTable ? 'follow_up' : 'behaviours',
-      recordCount: showFollowUpTable ? (followUpData.length > 0 ? filteredFollowUpData.length : DUMMY_FOLLOW_UP_DATA.length) : data.length,
-      clickCount: exportClickCountRef.current,
+    await exportToPDF({
+      tableRef,
+      name,
+      altName,
+      showFollowUpTable,
+      followUpData,
+      filteredFollowUpData,
+      data,
+      desiredMonth,
+      desiredYear,
+      months_backword,
+      exportClickCountRef,
+      dummyFollowUpData: DUMMY_FOLLOW_UP_DATA,
     });
-
-    if (tableRef.current) {
-      const originalStyles = {};
-      const originalScrollTop = tableRef.current.scrollTop;
-      
-      // Store original styles
-      const element = tableRef.current;
-      originalStyles.overflowX = element.style.overflowX;
-      originalStyles.overflowY = element.style.overflowY;
-      originalStyles.maxHeight = element.style.maxHeight;
-      
-      // Expand all table content - click all "Show more" buttons
-      const expandButtons = element.querySelectorAll('button');
-      expandButtons.forEach(button => {
-        const buttonText = button.textContent?.trim();
-        if (buttonText === 'Show more') {
-          button.click();
-        }
-      });
-      
-      // Remove text truncation styles from table cells and store original styles
-      const tableCells = element.querySelectorAll('td');
-      const originalCellStyles = [];
-      tableCells.forEach((cell, index) => {
-        originalCellStyles[index] = {
-          whiteSpace: cell.style.whiteSpace || '',
-          overflow: cell.style.overflow || '',
-          textOverflow: cell.style.textOverflow || '',
-          maxHeight: cell.style.maxHeight || ''
-        };
-        cell.style.whiteSpace = 'normal';
-        cell.style.overflow = 'visible';
-        cell.style.textOverflow = 'clip';
-        cell.style.maxHeight = 'none';
-      });
-      
-      // Wait for expansion to render
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Scroll to top to capture from beginning
-      element.scrollTop = 0;
-      
-      // Remove height restrictions and ensure all content is visible
-      element.style.overflowX = 'visible';
-      element.style.overflowY = 'visible';
-      element.style.maxHeight = 'none';
-      
-      // Find table containers and remove their maxHeight restrictions
-      element.querySelectorAll('table').forEach(table => {
-        let container = table.parentElement;
-        while (container && container !== element) {
-          const computedStyle = window.getComputedStyle(container);
-          const maxHeight = computedStyle.maxHeight;
-          if (maxHeight && maxHeight !== 'none' && maxHeight !== '100%') {
-            const key = `table-container-${container.offsetTop}-${container.offsetLeft}`;
-            if (!originalStyles[key]) {
-              originalStyles[key] = {
-                element: container,
-                maxHeight: container.style.maxHeight || '',
-                overflowY: container.style.overflowY || '',
-                overflowX: container.style.overflowX || ''
-              };
-              container.style.maxHeight = 'none';
-              container.style.overflowY = 'visible';
-              container.style.overflowX = 'visible';
-            }
-          }
-          container = container.parentElement;
-        }
-      });
-      
-      // Add font size reduction CSS class
-      const styleId = 'pdf-export-font-reduction';
-      let styleElement = document.getElementById(styleId);
-      if (!styleElement) {
-        styleElement = document.createElement('style');
-        styleElement.id = styleId;
-        document.head.appendChild(styleElement);
-      }
-      styleElement.textContent = `
-        #pdf-export-active table {
-          font-size: 10pt !important;
-        }
-        #pdf-export-active th, #pdf-export-active td {
-          font-size: 10pt !important;
-          padding: 8px 12px !important;
-        }
-      `;
-      
-      // Add ID to element for CSS targeting
-      const originalId = element.id;
-      element.id = 'pdf-export-active';
-      
-      const selectElements = element.querySelectorAll('select');
-      const originalSelectStyles = [];
-      selectElements.forEach((select) => {
-        const computedStyle = window.getComputedStyle(select);
-        originalSelectStyles.push({
-          element: select,
-          textAlign: select.style.textAlign || '',
-          textAlignLast: select.style.textAlignLast || '',
-          paddingTop: select.style.paddingTop || ''
-        });
-        select.style.textAlign = 'center';
-        select.style.textAlignLast = 'center';
-        // Apply negative top padding to pull text up
-        const currentPaddingTop = parseFloat(computedStyle.paddingTop) || 0;
-        select.style.paddingTop = `${currentPaddingTop - 2}px`;
-      });
-      
-      // Apply negative top padding to most text elements
-      const textElements = element.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, td, th');
-      const originalTextStyles = [];
-      textElements.forEach((el, index) => {
-        // Skip if it's a button or select (already handled)
-        if (el.tagName === 'BUTTON' || el.tagName === 'SELECT') return;
-        
-        const computedStyle = window.getComputedStyle(el);
-        const paddingTop = computedStyle.paddingTop;
-        if (paddingTop && parseFloat(paddingTop) > 0) {
-          originalTextStyles.push({
-            element: el,
-            paddingTop: el.style.paddingTop || ''
-          });
-          const currentPaddingTop = parseFloat(paddingTop);
-          el.style.paddingTop = `${Math.max(0, currentPaddingTop - 1)}px`;
-        }
-      });
-      
-      // Wait for styles to apply
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: 'a4',
-      });
-      
-      const pageHeight = pdf.internal.pageSize.height;
-      const pageWidth = pdf.internal.pageSize.width;
-      const totalHeight = element.scrollHeight;
-      const totalWidth = element.scrollWidth;
-      
-      // Calculate scale to fit width if needed
-      const widthScale = totalWidth > pageWidth ? pageWidth / totalWidth : 1;
-      const scale = Math.min(2, widthScale * 2);
-      
-      const canvas = await html2canvas(element, {
-        scale: scale,
-        width: totalWidth,
-        height: totalHeight,
-        scrollX: 0,
-        scrollY: 0,
-        useCORS: true,
-        logging: false,
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let position = 0;
-
-      // Loop to split the canvas and add to each page
-      while (position < imgHeight) {
-        pdf.addImage(imgData, 'PNG', 0, -position, imgWidth, imgHeight);
-
-        position += pageHeight;
-
-        if (position < imgHeight) {
-          pdf.addPage();
-        }
-      }
-      
-      // Restore original styles
-      element.style.overflowX = originalStyles.overflowX || 'auto';
-      element.style.overflowY = originalStyles.overflowY || 'auto';
-      element.style.maxHeight = originalStyles.maxHeight || '';
-      element.scrollTop = originalScrollTop;
-      element.id = originalId || '';
-      
-      // Restore all container styles
-      Object.keys(originalStyles).forEach(key => {
-        if (key.startsWith('table-container-')) {
-          const { element: containerEl, maxHeight, overflowY, overflowX } = originalStyles[key];
-          if (containerEl) {
-            containerEl.style.maxHeight = maxHeight || '';
-            containerEl.style.overflowY = overflowY || '';
-            containerEl.style.overflowX = overflowX || '';
-          }
-        }
-      });
-      
-      // Restore table cell styles
-      const restoredTableCells = element.querySelectorAll('td');
-      restoredTableCells.forEach((cell, index) => {
-        if (originalCellStyles[index]) {
-          cell.style.whiteSpace = originalCellStyles[index].whiteSpace;
-          cell.style.overflow = originalCellStyles[index].overflow;
-          cell.style.textOverflow = originalCellStyles[index].textOverflow;
-          cell.style.maxHeight = originalCellStyles[index].maxHeight;
-        }
-      });
-      
-      // Restore select styles
-      originalSelectStyles.forEach((selectStyle) => {
-        if (selectStyle.element) {
-          selectStyle.element.style.textAlign = selectStyle.textAlign;
-          selectStyle.element.style.textAlignLast = selectStyle.textAlignLast;
-          selectStyle.element.style.paddingTop = selectStyle.paddingTop;
-        }
-      });
-      
-      // Restore text element styles
-      originalTextStyles.forEach((textStyle) => {
-        if (textStyle.element) {
-          textStyle.element.style.paddingTop = textStyle.paddingTop;
-        }
-      });
-      
-      // Remove font reduction CSS
-      if (styleElement) {
-        styleElement.remove();
-      }
-      
-      // Set filename based on current table
-      const monthNum = months_backword[desiredMonth];
-      const filename = showFollowUpTable 
-        ? `${name}_${desiredYear}_${monthNum}_follow_ups.pdf`
-        : `${name}_${desiredYear}_${monthNum}_behaviours_data.pdf`;
-      
-      pdf.save(filename);
-    }
   };
 
   const handleSaveCSV = () => {
@@ -702,6 +470,9 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       return;
     }
 
+    setIsLoading(true);
+    setFollowUpLoading(true);
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     
@@ -724,9 +495,11 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     const allBehavioursData = data;
     const allFollowUpData = followUpData;
     const listeners = [];
-
-    let completedFetches = 0;
-    const totalFetches = dateRanges.length * 2; // behaviours + follow-ups
+    
+    let completedBehavioursFetches = 0;
+    let completedFollowUpFetches = 0;
+    const totalBehavioursFetches = dateRanges.length;
+    const totalFollowUpFetches = dateRanges.length;
 
     dateRanges.forEach(({ year, month }) => {
       // Fetch behaviours data
@@ -752,8 +525,8 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
           allBehavioursData.push(...filteredData);
         }
         
-        completedFetches++;
-        if (completedFetches === totalFetches) {
+        completedBehavioursFetches++;
+        if (completedBehavioursFetches === totalBehavioursFetches) {
           // Sort by date descending
           const sortedData = allBehavioursData.sort(
             (a, b) => new Date(b.date) - new Date(a.date)
@@ -791,8 +564,8 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
           allFollowUpData.push(...filteredFollowUpData);
         }
         
-        completedFetches++;
-        if (completedFetches === totalFetches) {
+        completedFollowUpFetches++;
+        if (completedFollowUpFetches === totalFollowUpFetches) {
           // Sort by date descending
           const sortedFollowUpData = allFollowUpData.sort(
             (a, b) => new Date(b.date) - new Date(a.date)
@@ -1348,7 +1121,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             {/* {analysisChartData.datasets.length > 0 && <Bar data={analysisChartData} options={analysisChartOptions} />} */}
             {showFollowUpTable &&
               <FollowUpChart
-                data={(followUpData.length > 0 ? filteredFollowUpData : DUMMY_FOLLOW_UP_DATA)}
+                data={(followUpData.length > 0 ? filteredFollowUpData : [])}
                 desiredYear={desiredYear}
                 desiredMonth={desiredMonth}
               />
@@ -1615,14 +1388,15 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
         </div>
       </div>
 
-      <div className={styles.tableSection}>
+                  <div className={styles.tableSection}>
+                    
         {!showFollowUpTable ? (
           <BeTrackingTable
             filteredData={filteredData} 
             cleanDuplicateText={cleanDuplicateText} 
             storageKey={`${name}_${desiredYear}_${desiredMonth}_behaviours_checked`}
           />
-        ) : (
+                    ) : (
           <BeFollowUpTable
             filteredData={filteredFollowUpData}
             followUpLoading={followUpLoading}

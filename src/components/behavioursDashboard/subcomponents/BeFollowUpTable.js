@@ -1,6 +1,6 @@
 import React from 'react';
 
-const BeFollowUpTable = ({ filteredData, DUMMY_FOLLOW_UP_DATA, followUpLoading }) => {
+const BeFollowUpTable = ({ filteredData, followUpLoading }) => {
     return (
         <div>
             {followUpLoading ? (
@@ -21,7 +21,7 @@ const BeFollowUpTable = ({ filteredData, DUMMY_FOLLOW_UP_DATA, followUpLoading }
                     <tbody>
                         {/* Use Firebase data if available, otherwise show dummy data */}
                         {filteredData.map((item, index) => (
-                            <tr key={item.id || index} style={index % 2 === 1 ? s.evenRow : {}}>
+                            <tr key={index} style={index % 2 === 1 ? s.evenRow : {}}>
                                 <td style={s.tableCell}>{index + 1}</td>
                                 <td style={s.tableCell}>{item.resident_name || ''}</td>
                                 <td style={s.tableCell}>{item.date || ''}</td>
