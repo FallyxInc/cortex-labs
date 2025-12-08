@@ -383,7 +383,7 @@ export async function processPdfFiles(
     if (date) {
       const dateDir = join(
         analyzedDir,
-        `${date.year}_${date.month}_${date.day}`,
+        `${date.month}-${date.day}-${date.year}`,
       );
 
       // Create directory (Next.js fs/promises doesn't have mkdir with recursive option in some versions)
@@ -391,7 +391,10 @@ export async function processPdfFiles(
       await mkdirNode(dateDir, { recursive: true });
 
       const baseName = pdfFile.replace(/\.pdf$/i, "");
-      const outputCsv = join(dateDir, `${baseName}_behaviour_incidents.csv`);
+      let outputCsv = join(dateDir, `${baseName}_behaviour_incidents.csv`);
+      if (date) {
+        outputCsv = join(dateDir, `${date.month}-${date.day}-${date.year}_behaviour_incidents.csv`);
+      }
 
       await saveToCsv(entries, outputCsv);
     } else {

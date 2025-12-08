@@ -3,6 +3,7 @@
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
 import { adminDb } from "@/lib/firebase-admin";
+import { extractDateFromFilename } from "./homesDb";
 
 interface UpdateFieldMapping {
   [key: string]: string;
@@ -80,16 +81,13 @@ export async function syncFirebaseWithCsv(
     const filename = csvFilepath.split("/").pop() || "";
 
     // Extract year and month from filepath
-    const match = csvFilepath.match(/\/(\d{4})_(\d{2})_/);
-    if (!match) {
+    const date = extractDateFromFilename(filename);
+    if (!date) {
       throw new Error(`Could not extract date from filepath: ${csvFilepath}`);
     }
 
-    const currentYear = match[1];
-    const currentMonth = match[2];
-
     console.log(`\n${"=".repeat(50)}`);
-    const firebasePath = `${homeId}/${currentYear}/${currentMonth}`;
+    const firebasePath = `${homeId}/behaviours/${date.year}/${date.month}`;
     console.log(`Searching Firebase path: ${firebasePath}`);
 
     // Get Firebase data

@@ -343,22 +343,29 @@ export function extractDateFromFilename(
 ): { month: string; day: string; year: string } | null {
   try {
     // Remove extension and split by underscore
-    const parts = filename.replace(/\.[^/.]+$/, "").split("_");
+    // const parts = filename.replace(/\.[^/.]+$/, "").split("_");
 
     // Find the part that matches MM-DD-YYYY format
-    const dateRegex = /^(\d{2})-(\d{2})-(\d{4})$/;
-
-    for (const part of parts) {
-      const match = part.match(dateRegex);
+    // or YYYY-MM-DD format anywhere in the filename
+    let dateRegex = /(\d{2})-(\d{2})-(\d{4})/;
+    let match = filename.match(dateRegex);
+    
+    if (match) {
+      const [, month, day, year] = match;
+      return { month: month, day: day, year: year };
+    }
+    else {
+      // Try YYYY-MM-DD format
+      dateRegex = /(\d{4})-(\d{2})-(\d{2})/;
+      match = filename.match(dateRegex);  
       if (match) {
-        const [, month, day, year] = match;
-        // Create date (month is 0-indexed in JavaScript)
+        const [, year, month, day] = match;
         return { month: month, day: day, year: year };
       }
     }
 
     return null;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

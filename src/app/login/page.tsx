@@ -2,29 +2,120 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
 import { db, auth } from '@/lib/firebase';
 import '@/styles/Login.css';
 import { trackLogin, trackFormInteraction, trackFeatureUsage } from '@/lib/mixpanel';
-
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true); // Default to true for better UX
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
   const loginStartTime = useRef<number | null>(null);
   const formStartTime = useRef<number>(new Date().getTime());
 
-  useEffect(() => {
-    // Track form start
+  const loginUser = async (userId: string, userData: unknown) => {
+    if (
+      typeof userData !== 'object' || 
+      userData === null || 
+      !('role' in userData) || 
+      !('loginCount' in userData) 
+    ) {
+      console.log('User data invalid:', userData);
+      return;
+    }
+
+    const role = userData.role as string;
+    const loginCount = userData.loginCount as number;
+
+    // Update login count
+    const updatedLoginCount = (loginCount || 0) + 1;
+    await set(ref(db, `users/${userId}/loginCount`), updatedLoginCount);
+
+    const timeToLogin = loginStartTime.current ? Date.now() - loginStartTime.current : undefined;
+
+    // Track successful login
+    trackLogin({
+      method: 'email',
+      success: true,
+      userId,
+      role: role,
+      loginCount: updatedLoginCount,
+      timeToLogin,
+    });
+
+    // Track form completion
+    const timeToComplete = Date.now() - formStartTime.current;
     trackFormInteraction({
       formName: 'login',
-      action: 'started',
+      action: 'submitted',
+      timeToComplete,
     });
-  }, []);
+    if (role === 'admin') {
+      router.push('/admin');
+      return;
+    } else if (role === 'homeUser') {
+      if ('homeId' in userData) {
+        const homeId = userData.homeId as string;
+        router.push(`/${homeId}`);
+        return;
+      }
+      else {
+        // If homeUser doesn't have a homeId, show error
+        setErrorMessage('Your account is not assigned to a home. Please contact an administrator.');
+        trackLogin({
+          method: 'email',
+          success: false,
+          error: 'no_home_assigned',
+          userId,
+          role: role,
+        });
+      }
+    } else {  
+      // Legacy role mappings
+      const roleMapping: { [key: string]: string } = {
+        'niagara-ltc': 'niagara',
+        'generations': 'generations',
+        'shepherd': 'shepherd',
+      };
+      const mappedRole = roleMapping[role] || role;
+      router.push('/' + mappedRole);
+      return;
+    }
+  }
+  useEffect(() => {
+    // Check if user is already authenticated (for persisted sessions)
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userSnapshot = await get(ref(db, `users/${user.uid}`));
+          if (userSnapshot.exists()) {
+            
+            await loginUser(user.uid, userSnapshot.val());
+          }
+        } catch (error) {
+          console.error('Error checking user data:', error);
+        }
+      }
+      // Only set checkingAuth to false if user is not authenticated
+      setCheckingAuth(false);
+    });
+
+  }, [router]);
+
+  useEffect(() => {
+    if (!checkingAuth) {
+      // Track form start only after auth check is complete
+      trackFormInteraction({
+        formName: 'login',
+        action: 'started',
+      });
+    }
+  }, [checkingAuth]);
 
   const handleLogin = async (event?: React.FormEvent) => {
     if (event) event.preventDefault();
@@ -69,63 +160,7 @@ export default function Login() {
       const userSnapshot = await get(ref(db, `users/${userCredential.user.uid}`));
 
       if (userSnapshot.exists()) {
-        const userData = userSnapshot.val();
-        const updatedLoginCount = (userData.loginCount || 0) + 1;
-        await set(ref(db, `users/${userId}/loginCount`), updatedLoginCount);
-
-        const timeToLogin = loginStartTime.current ? Date.now() - loginStartTime.current : undefined;
-
-        // Track successful login
-        trackLogin({
-          method: 'email',
-          success: true,
-          userId,
-          role: userData.role,
-          loginCount: updatedLoginCount,
-          timeToLogin,
-        });
-
-        // Track form completion
-        const timeToComplete = Date.now() - formStartTime.current;
-        trackFormInteraction({
-          formName: 'login',
-          action: 'submitted',
-          timeToComplete,
-        });
-
-        const role = userData.role;
-        
-        // Route based on role
-        if (role === 'admin') {
-          // Admin users go to admin dashboard
-          router.push('/admin');
-        } else if (role === 'homeUser') {
-          // Home users go to their assigned home dashboard
-          const homeId = userData.homeId;
-          if (homeId) {
-            router.push(`/${homeId}`);
-          } else {
-            // If homeUser doesn't have a homeId, show error
-            setErrorMessage('Your account is not assigned to a home. Please contact an administrator.');
-            trackLogin({
-              method: 'email',
-              success: false,
-              error: 'no_home_assigned',
-              userId,
-              role: userData.role,
-            });
-          }
-        } else {
-          // Legacy role mappings for old home-based roles
-          const roleMapping: { [key: string]: string } = {
-            'niagara-ltc': 'niagara',
-            'generations': 'generations',
-            'shepherd': 'shepherd',
-          };
-          
-          const mappedRole = roleMapping[role] || role;
-          router.push('/' + mappedRole);
-        }
+        loginUser(userId, userSnapshot.val());
       }
     } catch (error: unknown) {
       console.error('Error during login:', error);
@@ -180,6 +215,19 @@ export default function Login() {
       });
     }
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="login-page-wrapper">
+        <div className="login-container">
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto"></div>
+            <p style={{ marginTop: '10px', color: '#6b7280' }}>Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-page-wrapper">
@@ -273,11 +321,6 @@ export default function Login() {
           />
           <span style={{ fontSize: '14px', color: '#374151', fontWeight: '500' }}>Remember me</span>
         </label>
-        <p>
-          {rememberMe 
-            ? 'You will stay logged in even after closing the browser' 
-            : 'You will need to log in again when you close the browser'}
-        </p>
       </div>
 
       <button className="login-button" onClick={() => handleLogin()}>

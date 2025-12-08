@@ -8,9 +8,6 @@ import { saveAs } from 'file-saver';
 import { Chart, ArcElement, PointElement, LineElement } from 'chart.js';
 import { ref, onValue, off, get, update, child, set, serverTimestamp } from 'firebase/database';
 import { db, auth } from '@/lib/firebase';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { 
   trackPageVisit, 
   trackExportButtonClick, 
@@ -18,6 +15,7 @@ import {
   trackDashboardInteraction,
   trackTimeOnPage
 } from '@/lib/mixpanel';
+import { handleSavePDF as exportToPDF } from '@/lib/exportUtils';
 import {
   markPostFallNotes,
   countFallsByExactInjury,
@@ -376,78 +374,25 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   const tableRef = useRef(null);
 
   const handleSavePDF = async () => {
-    exportClickCountRef.current += 1;
-    trackInteraction();
-    
-    // Track export click
-    trackExportButtonClick({
-      exportType: 'pdf',
-      pageName: `dashboard_${name}`,
-      section: showFollowUpTable ? 'follow_up' : 'overview',
-      homeId: altName,
-      dataType: showFollowUpTable ? 'follow_up' : 'behaviours',
-      recordCount: showFollowUpTable ? (followUpData.length > 0 ? filteredFollowUpData.length : DUMMY_FOLLOW_UP_DATA.length) : data.length,
-      clickCount: exportClickCountRef.current,
+    await exportToPDF({
+      tableRef,
+      name,
+      altName,
+      showFollowUpTable,
+      followUpData,
+      filteredFollowUpData,
+      data,
+      desiredMonth,
+      desiredYear,
+      months_backword,
+      exportClickCountRef,
+      dummyFollowUpData: DUMMY_FOLLOW_UP_DATA,
     });
-
-    // work no blank but last pages lack
-
-    if (tableRef.current) {
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: 'a4',
-      });
-      tableRef.current.style.overflowX = 'visible';
-      const pageHeight = pdf.internal.pageSize.height;
-      const pageWidth = pdf.internal.pageSize.width;
-      const totalHeight = tableRef.current.scrollHeight;
-      tableRef.current.scrollTop = totalHeight - pageHeight;
-      const canvas = await html2canvas(tableRef.current, {
-        scale: 2,
-        width: tableRef.current.scrollWidth,
-        height: 1.25 * totalHeight,
-      });
-      // console.log('canvas width');
-      // console.log('canvas width');
-      // console.log('canvas height');
-      // console.log('canvas height');
-      const imgData = canvas.toDataURL('image/png');
-      const imgWidth = pageWidth;
-      // const newWindow = window.open();
-      // newWindow.document.write(`<img src="${imgData}" alt="Captured Image"/>`);
-
-      // canvas.height / canvas.width = imgheight / imgwidth
-      // imgheight = canvas.height * imgwidth / canvas.width
-      const imgHeight = (canvas.height * imgWidth) / canvas.width; // 按比例压缩高度
-      let position = 0;
-
-      // Loop to split the canvas and add to each page
-      while (position < imgHeight) {
-        pdf.addImage(imgData, 'PNG', 0, -position, imgWidth, imgHeight);
-
-        position += pageHeight;
-
-        // If the current height has not reached the total image height, add a new page
-        if (position < imgHeight) {
-          pdf.addPage();
-        }
-      }
-      tableRef.current.style.overflowX = 'auto';
-      
-      // Set filename based on current table
-      const monthNum = months_backword[desiredMonth];
-      const filename = showFollowUpTable 
-        ? `${name}_${desiredYear}_${monthNum}_follow_ups.pdf`
-        : `${name}_${desiredYear}_${monthNum}_behaviours_data.pdf`;
-      
-      pdf.save(filename);
-    }
   };
 
   const handleSaveCSV = () => {
     exportClickCountRef.current += 1;
-    trackInteraction();
+    // trackInteraction();
     
     let modifiedData;
     let filename;
@@ -525,6 +470,9 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       return;
     }
 
+    setIsLoading(true);
+    setFollowUpLoading(true);
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     
@@ -547,9 +495,11 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     const allBehavioursData = data;
     const allFollowUpData = followUpData;
     const listeners = [];
-
-    let completedFetches = 0;
-    const totalFetches = dateRanges.length * 2; // behaviours + follow-ups
+    
+    let completedBehavioursFetches = 0;
+    let completedFollowUpFetches = 0;
+    const totalBehavioursFetches = dateRanges.length;
+    const totalFollowUpFetches = dateRanges.length;
 
     dateRanges.forEach(({ year, month }) => {
       // Fetch behaviours data
@@ -575,8 +525,8 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
           allBehavioursData.push(...filteredData);
         }
         
-        completedFetches++;
-        if (completedFetches === totalFetches) {
+        completedBehavioursFetches++;
+        if (completedBehavioursFetches === totalBehavioursFetches) {
           // Sort by date descending
           const sortedData = allBehavioursData.sort(
             (a, b) => new Date(b.date) - new Date(a.date)
@@ -614,8 +564,8 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
           allFollowUpData.push(...filteredFollowUpData);
         }
         
-        completedFetches++;
-        if (completedFetches === totalFetches) {
+        completedFollowUpFetches++;
+        if (completedFollowUpFetches === totalFollowUpFetches) {
           // Sort by date descending
           const sortedFollowUpData = allFollowUpData.sort(
             (a, b) => new Date(b.date) - new Date(a.date)
@@ -949,7 +899,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
   }, [activeSection, activeOverviewTab]);
 
   return (
-    <div className={styles.dashboard} ref={tableRef}>
+    <div className={styles.dashboard}>
       <div className={styles.dashboardLayout}>
         {/* Left Sidebar Navigation */}
         <div className={styles.sidebar}>
@@ -1100,7 +1050,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
         </div>
 
         {/* Main Content Area */}
-        <div className={styles.mainContent}>
+        <div className={styles.mainContent} ref={tableRef}>
           {/* Top Header Bar */}
           <div className={styles.topHeaderBar}>
             <div className={styles.topHeaderLeft}>
@@ -1171,7 +1121,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             {/* {analysisChartData.datasets.length > 0 && <Bar data={analysisChartData} options={analysisChartOptions} />} */}
             {showFollowUpTable &&
               <FollowUpChart
-                data={(followUpData.length > 0 ? filteredFollowUpData : DUMMY_FOLLOW_UP_DATA)}
+                data={(followUpData.length > 0 ? filteredFollowUpData : [])}
                 desiredYear={desiredYear}
                 desiredMonth={desiredMonth}
               />
@@ -1438,17 +1388,17 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
         </div>
       </div>
 
-      <div className={styles.tableSection}>
+                  <div className={styles.tableSection}>
+                    
         {!showFollowUpTable ? (
-          <BeTrackingTable 
+          <BeTrackingTable
             filteredData={filteredData} 
             cleanDuplicateText={cleanDuplicateText} 
             storageKey={`${name}_${desiredYear}_${desiredMonth}_behaviours_checked`}
           />
-        ) : (
-          <BeFollowUpTable 
+                    ) : (
+          <BeFollowUpTable
             filteredData={filteredFollowUpData}
-            DUMMY_FOLLOW_UP_DATA={DUMMY_FOLLOW_UP_DATA}
             followUpLoading={followUpLoading}
           />
         )}
