@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { ChainExtractionConfig, StoredChainExtractionConfig } from '@/lib/processing/types';
+
+export interface ChainWithConfig {
+  id: string;
+  name: string;
+  homes: string[];
+  extractionType?: string;
+  hasConfig: boolean;
+  config?: StoredChainExtractionConfig;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export async function GET() {
   try {
     const chainsRef = adminDb.ref('/chains');
     const snapshot = await chainsRef.once('value');
-    
+
     if (!snapshot.exists()) {
       return NextResponse.json({
         success: true,
@@ -14,11 +26,21 @@ export async function GET() {
     }
 
     const chainsData = snapshot.val();
-    const chains = Object.keys(chainsData).map(chainId => ({
-      id: chainId,
-      name: chainsData[chainId].name || chainId,
-      homes: chainsData[chainId].homes || []
-    }));
+    const chains: ChainWithConfig[] = Object.keys(chainsData).map(chainId => {
+      const chainData = chainsData[chainId];
+      const config = chainData.config as StoredChainExtractionConfig | undefined;
+
+      return {
+        id: chainId,
+        name: chainData.name || chainId,
+        homes: chainData.homes || [],
+        extractionType: chainData.extractionType,
+        hasConfig: !!config,
+        config: config,
+        createdAt: chainData.createdAt,
+        updatedAt: chainData.updatedAt || config?.updatedAt,
+      };
+    });
 
     return NextResponse.json({
       success: true,

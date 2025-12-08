@@ -132,7 +132,19 @@ export interface NoteTypeExtractionConfig {
   hasEvaluation?: boolean;
 }
 
+// Excel field mapping for incident data extraction
+export interface ExcelFieldMapping {
+  excelColumn: string;
+  confidence?: number;
+  reasoning?: string;
+  dataSource: 'EXCEL';
+}
+
 export interface ChainExtractionConfig {
+  // Chain identification (required for stored configs)
+  chainId?: string;
+  chainName?: string;
+
   behaviourNoteTypes: string[];
   followUpNoteTypes: string[];
   extraFollowUpNoteTypes?: string[]; // Optional extra note types to append to follow-up records
@@ -150,6 +162,19 @@ export interface ChainExtractionConfig {
   // Note-type-specific extraction configs (overrides default)
   behaviourNoteConfigs?: Record<string, NoteTypeExtractionConfig>;
   followUpNoteConfigs?: Record<string, NoteTypeExtractionConfig>;
+
+  // Excel field mappings for incident data
+  excelFieldMappings?: Record<string, ExcelFieldMapping>;
+
+  // Timestamps for stored configs
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Stored chain config with required fields
+export interface StoredChainExtractionConfig extends ChainExtractionConfig {
+  chainId: string;
+  chainName: string;
 }
 
 export interface ExtractedBehaviourFields {

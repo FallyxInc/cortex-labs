@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { OnboardingConfig } from '../../../lib/onboardingUtils';
+import { useState } from 'react';
+import { StoredChainExtractionConfig, NoteTypeExtractionConfig, FieldExtractionConfig, ExtractionType } from '../../../lib/processing/types';
 
 interface EditConfigurationViewProps {
-  config: OnboardingConfig;
+  config: StoredChainExtractionConfig;
   chainId: string;
   chainName: string;
   onChainIdChange: (value: string) => void;
   onChainNameChange: (value: string) => void;
-  onSave: (updatedConfig: OnboardingConfig) => void;
+  onSave: (updatedConfig: StoredChainExtractionConfig) => void;
   onCancel: () => void;
 }
 
@@ -20,176 +20,273 @@ export function EditConfigurationView({
   onSave,
   onCancel,
 }: EditConfigurationViewProps) {
-  const [editedConfig, setEditedConfig] = useState<OnboardingConfig>({ ...config });
-  const [editingNoteType, setEditingNoteType] = useState<string | null>(null);
-  const [editingField, setEditingField] = useState<{ noteTypeKey: string; fieldKey: string } | null>(null);
+  const [editedConfig, setEditedConfig] = useState<StoredChainExtractionConfig>({ ...config });
+
+  // Helper to get all note types with their configs
+  const getAllNoteTypesWithConfigs = () => {
+    const noteTypes: { name: string; isFollowUp: boolean; config: NoteTypeExtractionConfig | null }[] = [];
+
+    // Behaviour note types
+    for (const noteType of editedConfig.behaviourNoteTypes) {
+      noteTypes.push({
+        name: noteType,
+        isFollowUp: false,
+        config: editedConfig.behaviourNoteConfigs?.[noteType] || null,
+      });
+    }
+
+    // Follow-up note types
+    for (const noteType of editedConfig.followUpNoteTypes) {
+      noteTypes.push({
+        name: noteType,
+        isFollowUp: true,
+        config: editedConfig.followUpNoteConfigs?.[noteType] || null,
+      });
+    }
+
+    return noteTypes;
+  };
 
   const handleAddNoteType = () => {
     const noteTypeName = prompt('Enter note type name:');
     if (!noteTypeName) return;
 
     const isFollowUp = confirm('Is this a follow-up note type?');
-    const noteTypeKey = `note_${Date.now()}`;
 
-    setEditedConfig(prev => ({
-      ...prev,
-      noteTypeConfigs: {
-        ...prev.noteTypeConfigs,
-        [noteTypeKey]: {
-          name: noteTypeName,
-          isFollowUp,
-          fields: {},
-        },
-      },
-      ...(isFollowUp
-        ? { followUpNoteTypes: [...prev.followUpNoteTypes, noteTypeName] }
-        : { behaviourNoteTypes: [...prev.behaviourNoteTypes, noteTypeName] }),
-    }));
+    setEditedConfig(prev => {
+      const newConfig = { ...prev };
+
+      if (isFollowUp) {
+        newConfig.followUpNoteTypes = [...prev.followUpNoteTypes, noteTypeName];
+        newConfig.followUpNoteConfigs = {
+          ...prev.followUpNoteConfigs,
+          [noteTypeName]: {
+            extractionMarkers: {},
+            hasTimeFrequency: false,
+            hasEvaluation: false,
+          },
+        };
+      } else {
+        newConfig.behaviourNoteTypes = [...prev.behaviourNoteTypes, noteTypeName];
+        newConfig.behaviourNoteConfigs = {
+          ...prev.behaviourNoteConfigs,
+          [noteTypeName]: {
+            extractionMarkers: {},
+            hasTimeFrequency: false,
+            hasEvaluation: false,
+          },
+        };
+      }
+
+      return newConfig;
+    });
   };
 
-  const handleRemoveNoteType = (noteTypeKey: string, noteTypeName: string) => {
+  const handleRemoveNoteType = (noteTypeName: string, isFollowUp: boolean) => {
     if (!confirm(`Remove note type "${noteTypeName}"?`)) return;
 
-    const noteTypeConfig = editedConfig.noteTypeConfigs[noteTypeKey];
     setEditedConfig(prev => {
       const newConfig = { ...prev };
-      delete newConfig.noteTypeConfigs[noteTypeKey];
 
-      if (noteTypeConfig.isFollowUp) {
+      if (isFollowUp) {
         newConfig.followUpNoteTypes = prev.followUpNoteTypes.filter(nt => nt !== noteTypeName);
+        if (newConfig.followUpNoteConfigs) {
+          const newConfigs = { ...newConfig.followUpNoteConfigs };
+          delete newConfigs[noteTypeName];
+          newConfig.followUpNoteConfigs = newConfigs;
+        }
       } else {
         newConfig.behaviourNoteTypes = prev.behaviourNoteTypes.filter(nt => nt !== noteTypeName);
+        if (newConfig.behaviourNoteConfigs) {
+          const newConfigs = { ...newConfig.behaviourNoteConfigs };
+          delete newConfigs[noteTypeName];
+          newConfig.behaviourNoteConfigs = newConfigs;
+        }
       }
 
       return newConfig;
     });
   };
 
-  const handleUpdateNoteTypeName = (noteTypeKey: string, oldName: string, newName: string) => {
+  const handleUpdateNoteTypeName = (oldName: string, newName: string, isFollowUp: boolean) => {
     if (!newName || newName === oldName) return;
 
-    const noteTypeConfig = editedConfig.noteTypeConfigs[noteTypeKey];
     setEditedConfig(prev => {
       const newConfig = { ...prev };
-      newConfig.noteTypeConfigs[noteTypeKey] = {
-        ...noteTypeConfig,
-        name: newName,
-      };
 
-      if (noteTypeConfig.isFollowUp) {
+      if (isFollowUp) {
         newConfig.followUpNoteTypes = prev.followUpNoteTypes.map(nt => nt === oldName ? newName : nt);
+        if (prev.followUpNoteConfigs?.[oldName]) {
+          const newConfigs = { ...prev.followUpNoteConfigs };
+          newConfigs[newName] = newConfigs[oldName];
+          delete newConfigs[oldName];
+          newConfig.followUpNoteConfigs = newConfigs;
+        }
       } else {
         newConfig.behaviourNoteTypes = prev.behaviourNoteTypes.map(nt => nt === oldName ? newName : nt);
+        if (prev.behaviourNoteConfigs?.[oldName]) {
+          const newConfigs = { ...prev.behaviourNoteConfigs };
+          newConfigs[newName] = newConfigs[oldName];
+          delete newConfigs[oldName];
+          newConfig.behaviourNoteConfigs = newConfigs;
+        }
       }
 
       return newConfig;
     });
   };
 
-  const handleAddField = (noteTypeKey: string) => {
-    const fieldKey = prompt('Enter field key (e.g., behaviour_type, interventions):');
+  const handleAddField = (noteTypeName: string, isFollowUp: boolean) => {
+    const fieldKey = prompt('Enter field key (e.g., behaviour_type, interventions, description):');
     if (!fieldKey) return;
 
     const fieldName = prompt('Enter field name (as it appears in PDF):');
     if (!fieldName) return;
 
-    setEditedConfig(prev => ({
-      ...prev,
-      noteTypeConfigs: {
-        ...prev.noteTypeConfigs,
-        [noteTypeKey]: {
-          ...prev.noteTypeConfigs[noteTypeKey],
-          fields: {
-            ...prev.noteTypeConfigs[noteTypeKey].fields,
+    setEditedConfig(prev => {
+      const newConfig = { ...prev };
+      const configKey = isFollowUp ? 'followUpNoteConfigs' : 'behaviourNoteConfigs';
+
+      const noteConfig = prev[configKey]?.[noteTypeName] || {
+        extractionMarkers: {},
+        hasTimeFrequency: false,
+        hasEvaluation: false,
+      };
+
+      newConfig[configKey] = {
+        ...prev[configKey],
+        [noteTypeName]: {
+          ...noteConfig,
+          extractionMarkers: {
+            ...noteConfig.extractionMarkers,
             [fieldKey]: {
               fieldName,
               endMarkers: [],
             },
           },
         },
-      },
-    }));
-  };
-
-  const handleRemoveField = (noteTypeKey: string, fieldKey: string) => {
-    if (!confirm(`Remove field "${fieldKey}"?`)) return;
-
-    setEditedConfig(prev => {
-      const newConfig = { ...prev };
-      const fields = { ...newConfig.noteTypeConfigs[noteTypeKey].fields };
-      delete fields[fieldKey];
-      newConfig.noteTypeConfigs[noteTypeKey] = {
-        ...newConfig.noteTypeConfigs[noteTypeKey],
-        fields,
       };
+
       return newConfig;
     });
   };
 
-  const handleUpdateFieldName = (noteTypeKey: string, fieldKey: string, newFieldName: string) => {
+  const handleRemoveField = (noteTypeName: string, fieldKey: string, isFollowUp: boolean) => {
+    if (!confirm(`Remove field "${fieldKey}"?`)) return;
+
+    setEditedConfig(prev => {
+      const newConfig = { ...prev };
+      const configKey = isFollowUp ? 'followUpNoteConfigs' : 'behaviourNoteConfigs';
+
+      const noteConfig = prev[configKey]?.[noteTypeName];
+      if (!noteConfig) return prev;
+
+      const newMarkers = { ...noteConfig.extractionMarkers };
+      delete newMarkers[fieldKey as ExtractionType];
+
+      newConfig[configKey] = {
+        ...prev[configKey],
+        [noteTypeName]: {
+          ...noteConfig,
+          extractionMarkers: newMarkers,
+        },
+      };
+
+      return newConfig;
+    });
+  };
+
+  const handleUpdateFieldName = (noteTypeName: string, fieldKey: string, newFieldName: string, isFollowUp: boolean) => {
     if (!newFieldName) return;
 
-    setEditedConfig(prev => ({
-      ...prev,
-      noteTypeConfigs: {
-        ...prev.noteTypeConfigs,
-        [noteTypeKey]: {
-          ...prev.noteTypeConfigs[noteTypeKey],
-          fields: {
-            ...prev.noteTypeConfigs[noteTypeKey].fields,
+    setEditedConfig(prev => {
+      const newConfig = { ...prev };
+      const configKey = isFollowUp ? 'followUpNoteConfigs' : 'behaviourNoteConfigs';
+
+      const noteConfig = prev[configKey]?.[noteTypeName];
+      if (!noteConfig) return prev;
+
+      newConfig[configKey] = {
+        ...prev[configKey],
+        [noteTypeName]: {
+          ...noteConfig,
+          extractionMarkers: {
+            ...noteConfig.extractionMarkers,
             [fieldKey]: {
-              ...prev.noteTypeConfigs[noteTypeKey].fields[fieldKey],
+              ...noteConfig.extractionMarkers[fieldKey as ExtractionType]!,
               fieldName: newFieldName,
             },
           },
         },
-      },
-    }));
+      };
+
+      return newConfig;
+    });
   };
 
-  const handleAddEndMarker = (noteTypeKey: string, fieldKey: string) => {
+  const handleAddEndMarker = (noteTypeName: string, fieldKey: string, isFollowUp: boolean) => {
     const endMarker = prompt('Enter end marker text:');
     if (!endMarker) return;
 
-    setEditedConfig(prev => ({
-      ...prev,
-      noteTypeConfigs: {
-        ...prev.noteTypeConfigs,
-        [noteTypeKey]: {
-          ...prev.noteTypeConfigs[noteTypeKey],
-          fields: {
-            ...prev.noteTypeConfigs[noteTypeKey].fields,
+    setEditedConfig(prev => {
+      const newConfig = { ...prev };
+      const configKey = isFollowUp ? 'followUpNoteConfigs' : 'behaviourNoteConfigs';
+
+      const noteConfig = prev[configKey]?.[noteTypeName];
+      if (!noteConfig) return prev;
+
+      const currentField = noteConfig.extractionMarkers[fieldKey as ExtractionType];
+      if (!currentField) return prev;
+
+      newConfig[configKey] = {
+        ...prev[configKey],
+        [noteTypeName]: {
+          ...noteConfig,
+          extractionMarkers: {
+            ...noteConfig.extractionMarkers,
             [fieldKey]: {
-              ...prev.noteTypeConfigs[noteTypeKey].fields[fieldKey],
-              endMarkers: [...prev.noteTypeConfigs[noteTypeKey].fields[fieldKey].endMarkers, endMarker],
+              ...currentField,
+              endMarkers: [...currentField.endMarkers, endMarker],
             },
           },
         },
-      },
-    }));
+      };
+
+      return newConfig;
+    });
   };
 
-  const handleRemoveEndMarker = (noteTypeKey: string, fieldKey: string, index: number) => {
-    setEditedConfig(prev => ({
-      ...prev,
-      noteTypeConfigs: {
-        ...prev.noteTypeConfigs,
-        [noteTypeKey]: {
-          ...prev.noteTypeConfigs[noteTypeKey],
-          fields: {
-            ...prev.noteTypeConfigs[noteTypeKey].fields,
+  const handleRemoveEndMarker = (noteTypeName: string, fieldKey: string, index: number, isFollowUp: boolean) => {
+    setEditedConfig(prev => {
+      const newConfig = { ...prev };
+      const configKey = isFollowUp ? 'followUpNoteConfigs' : 'behaviourNoteConfigs';
+
+      const noteConfig = prev[configKey]?.[noteTypeName];
+      if (!noteConfig) return prev;
+
+      const currentField = noteConfig.extractionMarkers[fieldKey as ExtractionType];
+      if (!currentField) return prev;
+
+      newConfig[configKey] = {
+        ...prev[configKey],
+        [noteTypeName]: {
+          ...noteConfig,
+          extractionMarkers: {
+            ...noteConfig.extractionMarkers,
             [fieldKey]: {
-              ...prev.noteTypeConfigs[noteTypeKey].fields[fieldKey],
-              endMarkers: prev.noteTypeConfigs[noteTypeKey].fields[fieldKey].endMarkers.filter((_, i) => i !== index),
+              ...currentField,
+              endMarkers: currentField.endMarkers.filter((_, i) => i !== index),
             },
           },
         },
-      },
-    }));
+      };
+
+      return newConfig;
+    });
   };
 
   const handleSave = () => {
-    const updatedConfig: OnboardingConfig = {
+    const updatedConfig: StoredChainExtractionConfig = {
       ...editedConfig,
       chainId,
       chainName,
@@ -197,12 +294,17 @@ export function EditConfigurationView({
     onSave(updatedConfig);
   };
 
+  const noteTypesWithConfigs = getAllNoteTypesWithConfigs();
+  const totalFields = noteTypesWithConfigs.reduce((sum, nt) => {
+    return sum + Object.keys(nt.config?.extractionMarkers || {}).length;
+  }, 0);
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Edit Chain Configuration</h2>
         <p className="text-gray-600 mb-4">
-          Update the chain information and field configurations.
+          Update the chain information and field extraction configurations.
         </p>
       </div>
 
@@ -215,7 +317,7 @@ export function EditConfigurationView({
             <input
               type="text"
               value={chainId}
-              onChange={(e) => onChainIdChange(e.target.value)}
+              onChange={(e) => onChainIdChange(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
               className="w-full px-3 py-2 border rounded-lg"
               placeholder="e.g., mill_creek"
             />
@@ -246,15 +348,12 @@ export function EditConfigurationView({
               {editedConfig.followUpNoteTypes.length}
             </div>
             <div>
-              <span className="font-medium">Total Note Types:</span>{' '}
-              {Object.keys(editedConfig.noteTypeConfigs).length}
+              <span className="font-medium">Total Fields:</span>{' '}
+              {totalFields}
             </div>
             <div>
-              <span className="font-medium">Total Fields:</span>{' '}
-              {Object.values(editedConfig.noteTypeConfigs).reduce(
-                (sum, config) => sum + Object.keys(config.fields).length,
-                0
-              )}
+              <span className="font-medium">Matching Window:</span>{' '}
+              {editedConfig.matchingWindowHours || 24} hours
             </div>
           </div>
         </div>
@@ -262,7 +361,7 @@ export function EditConfigurationView({
 
       <div className="border rounded-lg p-6 bg-white">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Note Types & Fields</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Note Types & Field Extraction</h3>
           <button
             onClick={handleAddNoteType}
             className="px-3 py-1.5 text-sm bg-cyan-500 text-white rounded hover:bg-cyan-600"
@@ -272,33 +371,33 @@ export function EditConfigurationView({
         </div>
 
         <div className="space-y-6">
-          {Object.entries(editedConfig.noteTypeConfigs).map(([noteTypeKey, noteTypeConfig]) => (
-            <div key={noteTypeKey} className="border rounded-lg p-4 bg-gray-50">
+          {noteTypesWithConfigs.map(({ name: noteTypeName, isFollowUp, config: noteConfig }) => (
+            <div key={noteTypeName} className={`border rounded-lg p-4 ${isFollowUp ? 'bg-blue-50' : 'bg-yellow-50'}`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
                   <input
                     type="text"
-                    value={noteTypeConfig.name}
-                    onChange={(e) => handleUpdateNoteTypeName(noteTypeKey, noteTypeConfig.name, e.target.value)}
+                    value={noteTypeName}
+                    onChange={(e) => handleUpdateNoteTypeName(noteTypeName, e.target.value, isFollowUp)}
                     className="px-3 py-1.5 border rounded-lg font-semibold bg-white"
                   />
                   <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    noteTypeConfig.isFollowUp
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-blue-100 text-blue-800'
+                    isFollowUp
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-yellow-100 text-yellow-800'
                   }`}>
-                    {noteTypeConfig.isFollowUp ? 'Follow-up' : 'Behaviour'}
+                    {isFollowUp ? 'Follow-up' : 'Behaviour'}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => handleAddField(noteTypeKey)}
+                    onClick={() => handleAddField(noteTypeName, isFollowUp)}
                     className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
                   >
                     + Add Field
                   </button>
                   <button
-                    onClick={() => handleRemoveNoteType(noteTypeKey, noteTypeConfig.name)}
+                    onClick={() => handleRemoveNoteType(noteTypeName, isFollowUp)}
                     className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
                   >
                     Remove
@@ -307,21 +406,21 @@ export function EditConfigurationView({
               </div>
 
               <div className="ml-4 space-y-3 mt-3">
-                {Object.entries(noteTypeConfig.fields).map(([fieldKey, fieldConfig]) => (
+                {noteConfig && Object.entries(noteConfig.extractionMarkers).map(([fieldKey, fieldConfig]) => (
                   <div key={fieldKey} className="bg-white border rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-sm text-gray-700">{fieldKey}</span>
                         <input
                           type="text"
-                          value={fieldConfig.fieldName}
-                          onChange={(e) => handleUpdateFieldName(noteTypeKey, fieldKey, e.target.value)}
+                          value={Array.isArray(fieldConfig.fieldName) ? fieldConfig.fieldName[0] : fieldConfig.fieldName}
+                          onChange={(e) => handleUpdateFieldName(noteTypeName, fieldKey, e.target.value, isFollowUp)}
                           className="px-2 py-1 text-sm border rounded flex-1 max-w-xs"
                           placeholder="Field name in PDF"
                         />
                       </div>
                       <button
-                        onClick={() => handleRemoveField(noteTypeKey, fieldKey)}
+                        onClick={() => handleRemoveField(noteTypeName, fieldKey, isFollowUp)}
                         className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
                       >
                         Remove
@@ -332,7 +431,7 @@ export function EditConfigurationView({
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-gray-600">End Markers:</span>
                         <button
-                          onClick={() => handleAddEndMarker(noteTypeKey, fieldKey)}
+                          onClick={() => handleAddEndMarker(noteTypeName, fieldKey, isFollowUp)}
                           className="px-2 py-0.5 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
                         >
                           + Add
@@ -344,10 +443,10 @@ export function EditConfigurationView({
                             <div key={index} className="flex items-center space-x-2">
                               <span className="text-xs px-2 py-1 bg-gray-100 rounded">{marker}</span>
                               <button
-                                onClick={() => handleRemoveEndMarker(noteTypeKey, fieldKey, index)}
+                                onClick={() => handleRemoveEndMarker(noteTypeName, fieldKey, index, isFollowUp)}
                                 className="text-xs text-red-600 hover:text-red-800"
                               >
-                                ×
+                                x
                               </button>
                             </div>
                           ))}
@@ -358,14 +457,14 @@ export function EditConfigurationView({
                     </div>
                   </div>
                 ))}
-                {Object.keys(noteTypeConfig.fields).length === 0 && (
+                {(!noteConfig || Object.keys(noteConfig.extractionMarkers).length === 0) && (
                   <p className="text-sm text-gray-400 italic ml-4">No fields configured</p>
                 )}
               </div>
             </div>
           ))}
 
-          {Object.keys(editedConfig.noteTypeConfigs).length === 0 && (
+          {noteTypesWithConfigs.length === 0 && (
             <p className="text-center text-gray-400 py-8">No note types configured. Add one to get started.</p>
           )}
         </div>

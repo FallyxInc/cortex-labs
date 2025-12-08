@@ -1,37 +1,80 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { PdfConfigurationPage } from './onboarding/PdfConfiguration';
 import { ExcelConfigurationPage } from './onboarding/ExcelConfigurationPage';
 import { ReviewAndSavePage } from './onboarding/OnboardingConfigSubmit';
-import { LabelDialog } from './onboarding/OnboardingLabelDialog';
 import { EditConfigurationView } from './onboarding/EditConfigurationView';
-import { WizardStep, OnboardingConfig, ExcelData, Highlight, ExcelFieldMapping, DataSourceMapping, escapeHtml, normalizeConfig } from '@/lib/onboardingUtils';
+import { StoredChainExtractionConfig, ChainExtractionConfig, ExcelFieldMapping } from '@/lib/processing/types';
 import { AIOutputFormat } from '@/lib/processing/onboardingUtils';
+
+export type WizardStep = 'pdf-config' | 'excel-config' | 'review' | 'saved' | 'edit-config';
+
+export interface ExcelData {
+  headers: string[];
+  rows: Record<string, unknown>[];
+  preview: string;
+}
+
+export interface DataSourceMapping {
+  excel: string[];
+  pdf: string[];
+  note: string;
+}
+
+const DEFAULT_PDF_CONFIG: ChainExtractionConfig = {
+  behaviourNoteTypes: [],
+  followUpNoteTypes: [],
+  extraFollowUpNoteTypes: [],
+  injuryColumns: { start: 13, end: 37 },
+  matchingWindowHours: 24,
+  fieldExtractionMarkers: {},
+  hasTimeFrequency: false,
+  hasEvaluation: false,
+  behaviourNoteConfigs: {},
+  followUpNoteConfigs: {},
+};
+
+// Normalize config to ensure all required fields exist
+const normalizeConfig = (config: Partial<StoredChainExtractionConfig>): StoredChainExtractionConfig => {
+  return {
+    chainId: config.chainId || '',
+    chainName: config.chainName || '',
+    behaviourNoteTypes: config.behaviourNoteTypes || [],
+    followUpNoteTypes: config.followUpNoteTypes || [],
+    extraFollowUpNoteTypes: config.extraFollowUpNoteTypes || [],
+    injuryColumns: config.injuryColumns || { start: 13, end: 37 },
+    matchingWindowHours: config.matchingWindowHours || 24,
+    fieldExtractionMarkers: config.fieldExtractionMarkers || {},
+    hasTimeFrequency: config.hasTimeFrequency || false,
+    hasEvaluation: config.hasEvaluation || false,
+    behaviourNoteConfigs: config.behaviourNoteConfigs || {},
+    followUpNoteConfigs: config.followUpNoteConfigs || {},
+    excelFieldMappings: config.excelFieldMappings || {},
+    createdAt: config.createdAt,
+    updatedAt: config.updatedAt,
+  };
+};
 
 export default function OnboardingWizard() {
   const [step, setStep] = useState<WizardStep>('pdf-config');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [pdfText, setPdfText] = useState<string>('');
-  const [pdfPages, setPdfPages] = useState<string[]>([]);
   const [excelData, setExcelData] = useState<ExcelData | null>(null);
-  const [highlights, setHighlights] = useState<Highlight[]>([]);
-  const [selectedText, setSelectedText] = useState<string>('');
-  const [currentHighlight, setCurrentHighlight] = useState<Partial<Highlight> | null>(null);
-  const [config, setConfig] = useState<OnboardingConfig | null>(null);
+  const [pdfExtractionConfig, setPdfExtractionConfig] = useState<ChainExtractionConfig>(DEFAULT_PDF_CONFIG);
+  const [config, setConfig] = useState<StoredChainExtractionConfig | null>(null);
   const [chainId, setChainId] = useState<string>('');
   const [chainName, setChainName] = useState<string>('');
-  const [savedConfigs, setSavedConfigs] = useState<OnboardingConfig[]>([]);
+  const [savedConfigs, setSavedConfigs] = useState<StoredChainExtractionConfig[]>([]);
   const [loadingConfigs, setLoadingConfigs] = useState(false);
-  const [viewingConfig, setViewingConfig] = useState<OnboardingConfig | null>(null);
-  const [editingConfig, setEditingConfig] = useState<OnboardingConfig | null>(null);
+  const [viewingConfig, setViewingConfig] = useState<StoredChainExtractionConfig | null>(null);
+  const [editingConfig, setEditingConfig] = useState<StoredChainExtractionConfig | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AIOutputFormat | null>(null);
   const [dataSourceMapping, setDataSourceMapping] = useState<DataSourceMapping | null>(null);
   const [excelFieldMappings, setExcelFieldMappings] = useState<Record<string, ExcelFieldMapping>>({});
   const [aiLoading, setAiLoading] = useState(false);
-  const textRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadSavedConfigs();
@@ -95,7 +138,6 @@ export default function OnboardingWizard() {
 
       if (data.pdfText) {
         setPdfText(data.pdfText);
-        setPdfPages(data.pages || []);
       }
 
       return data;
@@ -168,8 +210,6 @@ export default function OnboardingWizard() {
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
           setAiSuggestions(aiData.suggestions);
-
-          applyAISuggestionsForPdf(aiData.suggestions, extractedPdfText);
         } else {
           console.warn('AI analysis failed, continuing without suggestions');
           alert('AI analysis failed. Please try again.');
@@ -238,210 +278,6 @@ export default function OnboardingWizard() {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const applyAISuggestionsForPdf = (suggestions: any, fullText: string) => {
-    const newHighlights: Highlight[] = [];
-
-    if (suggestions.behaviourNoteTypes) {
-      for (const noteType of suggestions.behaviourNoteTypes) {
-        const index = fullText.indexOf(noteType.noteType);
-        if (index !== -1) {
-          newHighlights.push({
-            id: `ai-note-${Date.now()}-${Math.random()}`,
-            text: noteType.noteType,
-            startIndex: index,
-            endIndex: index + noteType.noteType.length,
-            label: noteType.noteType,
-            labelType: 'note-type',
-            aiGenerated: true,
-          });
-        }
-      }
-    }
-
-    if (suggestions.followUpNoteTypes) {
-      for (const noteType of suggestions.followUpNoteTypes) {
-        const index = fullText.indexOf(noteType.noteType);
-        if (index !== -1) {
-          newHighlights.push({
-            id: `ai-followup-${Date.now()}-${Math.random()}`,
-            text: noteType.noteType,
-            startIndex: index,
-            endIndex: index + noteType.noteType.length,
-            label: noteType.noteType,
-            labelType: 'note-type',
-            aiGenerated: true,
-          });
-        }
-      }
-    }
-
-    if (suggestions.fieldExtractionMarkers) {
-      const firstNoteType = newHighlights.find(h => h.labelType === 'note-type')?.label || '';
-
-      for (const [fieldKey, fieldData] of Object.entries(suggestions.fieldExtractionMarkers)) {
-        const field = fieldData as { fieldName: string; endMarkers: string[]; confidence?: number; dataSource?: string };
-        const index = fullText.indexOf(field.fieldName);
-        if (index !== -1) {
-          newHighlights.push({
-            id: `ai-field-${Date.now()}-${Math.random()}`,
-            text: field.fieldName,
-            startIndex: index,
-            endIndex: index + field.fieldName.length,
-            label: fieldKey,
-            labelType: 'field-name',
-            noteType: firstNoteType,
-            fieldKey: fieldKey,
-            aiGenerated: true,
-          });
-
-          if (field.endMarkers && Array.isArray(field.endMarkers) && field.endMarkers.length > 0) {
-            for (const endMarker of field.endMarkers) {
-              const endIndex = fullText.indexOf(endMarker, index + field.fieldName.length);
-              if (endIndex !== -1) {
-                newHighlights.push({
-                  id: `ai-endmarker-${Date.now()}-${Math.random()}`,
-                  text: endMarker,
-                  startIndex: endIndex,
-                  endIndex: endIndex + endMarker.length,
-                  label: `End marker for ${fieldKey}`,
-                  labelType: 'end-marker',
-                  noteType: firstNoteType,
-                  fieldKey: fieldKey,
-                  aiGenerated: true,
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    setHighlights(newHighlights);
-  };
-
-  // ============================================================================
-  // PDF TEXT SELECTION & HIGHLIGHTING
-  // ============================================================================
-
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    const selectedText = range.toString().trim();
-
-    if (!selectedText || selectedText.length < 2) return;
-
-    const textNode = textRef.current;
-    if (!textNode) return;
-
-    const fullText = textNode.textContent || '';
-
-    let startIndex = -1;
-    let endIndex = -1;
-
-    const startContainer = range.startContainer;
-    const endContainer = range.endContainer;
-
-    const walker = document.createTreeWalker(
-      textNode,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
-
-    let charCount = 0;
-    let foundStart = false;
-    let foundEnd = false;
-
-    let node = walker.nextNode();
-    while (node) {
-      const nodeLength = node.textContent?.length || 0;
-
-      if (node === startContainer && !foundStart) {
-        startIndex = charCount + range.startOffset;
-        foundStart = true;
-      }
-
-      if (node === endContainer && !foundEnd) {
-        endIndex = charCount + range.endOffset;
-        foundEnd = true;
-        break;
-      }
-
-      charCount += nodeLength;
-      node = walker.nextNode();
-    }
-
-    if (startIndex === -1 || endIndex === -1) {
-      const firstIndex = fullText.indexOf(selectedText);
-      if (firstIndex !== -1) {
-        startIndex = firstIndex;
-        endIndex = firstIndex + selectedText.length;
-      } else {
-        return;
-      }
-    }
-
-    const overlaps = highlights.some(h => {
-      return (startIndex < h.endIndex && endIndex > h.startIndex);
-    });
-
-    if (!overlaps && startIndex >= 0 && endIndex > startIndex) {
-      setSelectedText(selectedText);
-
-      setCurrentHighlight({
-        text: selectedText,
-        startIndex,
-        endIndex,
-      });
-    }
-  };
-
-  const handleLabelHighlight = (label: string, labelType: Highlight['labelType'], noteType?: string, fieldKey?: string) => {
-    if (!currentHighlight) return;
-
-    const highlight: Highlight = {
-      id: `highlight-${Date.now()}-${Math.random()}`,
-      text: currentHighlight.text || '',
-      startIndex: currentHighlight.startIndex || 0,
-      endIndex: currentHighlight.endIndex || 0,
-      label,
-      labelType,
-      noteType,
-      fieldKey,
-    };
-
-    setHighlights([...highlights, highlight]);
-    setCurrentHighlight(null);
-    setSelectedText('');
-
-    window.getSelection()?.removeAllRanges();
-  };
-
-  const renderHighlightedText = () => {
-    if (!pdfText) return null;
-
-    const sortedHighlights = [...highlights].sort((a, b) => a.startIndex - b.startIndex);
-
-    let html = '';
-    let lastIndex = 0;
-
-    for (const highlight of sortedHighlights) {
-      html += escapeHtml(pdfText.substring(lastIndex, highlight.startIndex));
-
-      const color = highlight.labelType === 'note-type' ? '#fef3c7' :
-                   highlight.labelType === 'field-name' ? '#dbeafe' :
-                   highlight.labelType === 'end-marker' ? '#fce7f3' : '#e5e7eb';
-      html += `<mark style="background-color: ${color}; padding: 2px 4px; border-radius: 3px;" title="${highlight.label}">${escapeHtml(highlight.text)}</mark>`;
-
-      lastIndex = highlight.endIndex;
-    }
-
-    html += escapeHtml(pdfText.substring(lastIndex));
-
-    return html;
-  };
 
   // ============================================================================
   // EXCEL FIELD MAPPING
@@ -488,58 +324,20 @@ export default function OnboardingWizard() {
   // ============================================================================
 
   const buildConfiguration = () => {
-    const noteTypeHighlights = highlights.filter(h => h.labelType === 'note-type');
-    const fieldHighlights = highlights.filter(h => h.labelType === 'field-name');
-    const endMarkerHighlights = highlights.filter(h => h.labelType === 'end-marker');
-
-    const behaviourNoteTypes: string[] = [];
-    const followUpNoteTypes: string[] = [];
-    const noteTypeConfigs: OnboardingConfig['noteTypeConfigs'] = {};
-
-    for (const noteHighlight of noteTypeHighlights) {
-      const noteTypeName = noteHighlight.label;
-      const isFollowUp = noteHighlight.text.toLowerCase().includes('follow') ||
-                        noteHighlight.text.toLowerCase().includes('follow-up');
-
-      if (isFollowUp) {
-        followUpNoteTypes.push(noteTypeName);
-      } else {
-        behaviourNoteTypes.push(noteTypeName);
-      }
-
-      noteTypeConfigs[noteTypeName] = {
-        name: noteTypeName,
-        isFollowUp,
-        fields: {},
-      };
-    }
-
-    for (const fieldHighlight of fieldHighlights) {
-      const noteType = fieldHighlight.noteType || '';
-      if (!noteType || !noteTypeConfigs[noteType]) continue;
-
-      const fieldKey = fieldHighlight.fieldKey || fieldHighlight.label.toLowerCase().replace(/\s+/g, '_');
-      const fieldName = fieldHighlight.text;
-
-      const endMarkers: string[] = [];
-      for (const endMarker of endMarkerHighlights) {
-        if (endMarker.noteType === noteType && endMarker.fieldKey === fieldKey) {
-          endMarkers.push(endMarker.text);
-        }
-      }
-
-      noteTypeConfigs[noteType].fields[fieldKey] = {
-        fieldName,
-        endMarkers,
-      };
-    }
-
-    const newConfig: OnboardingConfig = {
+    // Build StoredChainExtractionConfig directly from pdfExtractionConfig
+    const newConfig: StoredChainExtractionConfig = {
       chainId,
       chainName,
-      behaviourNoteTypes,
-      followUpNoteTypes,
-      noteTypeConfigs,
+      behaviourNoteTypes: pdfExtractionConfig.behaviourNoteTypes,
+      followUpNoteTypes: pdfExtractionConfig.followUpNoteTypes,
+      extraFollowUpNoteTypes: pdfExtractionConfig.extraFollowUpNoteTypes || [],
+      injuryColumns: pdfExtractionConfig.injuryColumns || { start: 13, end: 37 },
+      matchingWindowHours: pdfExtractionConfig.matchingWindowHours || 24,
+      fieldExtractionMarkers: pdfExtractionConfig.fieldExtractionMarkers,
+      hasTimeFrequency: pdfExtractionConfig.hasTimeFrequency || false,
+      hasEvaluation: pdfExtractionConfig.hasEvaluation || false,
+      behaviourNoteConfigs: pdfExtractionConfig.behaviourNoteConfigs || {},
+      followUpNoteConfigs: pdfExtractionConfig.followUpNoteConfigs || {},
       excelFieldMappings: excelFieldMappings,
     };
 
@@ -586,9 +384,8 @@ export default function OnboardingWizard() {
         setPdfFile(null);
         setExcelFile(null);
         setPdfText('');
-        setPdfPages([]);
         setExcelData(null);
-        setHighlights([]);
+        setPdfExtractionConfig(DEFAULT_PDF_CONFIG);
         setExcelFieldMappings({});
       }
       setConfig(null);
@@ -624,11 +421,11 @@ export default function OnboardingWizard() {
     setStep('saved');
   };
 
-  const handleLoadConfig = (savedConfig: OnboardingConfig) => {
+  const handleLoadConfig = (savedConfig: StoredChainExtractionConfig) => {
     setViewingConfig(savedConfig);
   };
 
-  const handleEditConfig = (savedConfig: OnboardingConfig) => {
+  const handleEditConfig = (savedConfig: StoredChainExtractionConfig) => {
     setEditingConfig(savedConfig);
     setChainId(savedConfig.chainId);
     setChainName(savedConfig.chainName);
@@ -637,7 +434,7 @@ export default function OnboardingWizard() {
     setStep('edit-config');
   };
 
-  const handleEditConfigSave = (updatedConfig: OnboardingConfig) => {
+  const handleEditConfigSave = (updatedConfig: StoredChainExtractionConfig) => {
     setConfig(updatedConfig);
     setEditingConfig(updatedConfig);
     setChainId(updatedConfig.chainId);
@@ -706,9 +503,8 @@ export default function OnboardingWizard() {
     setPdfFile(null);
     setExcelFile(null);
     setPdfText('');
-    setPdfPages([]);
     setExcelData(null);
-    setHighlights([]);
+    setPdfExtractionConfig(DEFAULT_PDF_CONFIG);
     setExcelFieldMappings({});
     setConfig(null);
     setChainId('');
@@ -759,34 +555,17 @@ export default function OnboardingWizard() {
 
       {/* PDF Configuration Page */}
       {step === 'pdf-config' && (
-        <>
-          <PdfConfigurationPage
-            pdfFile={pdfFile}
-            pdfText={pdfText}
-            pdfPages={pdfPages}
-            highlights={highlights}
-            selectedText={selectedText}
-            aiLoading={aiLoading}
-            aiSuggestions={aiSuggestions}
-            onPdfUpload={handlePdfUpload}
-            onAnalyzePdf={handleAnalyzePdf}
-            onTextSelection={handleTextSelection}
-            onClearAiHighlights={() => setHighlights(highlights.filter(h => !h.aiGenerated))}
-            onContinue={handlePdfContinue}
-            onSkip={handlePdfSkip}
-            onViewSavedConfigs={handleViewSavedConfigs}
-            renderHighlightedText={renderHighlightedText}
-          />
-
-          {currentHighlight && (
-            <LabelDialog
-              highlight={currentHighlight}
-              existingHighlights={highlights}
-              onSave={handleLabelHighlight}
-              onCancel={() => setCurrentHighlight(null)}
-            />
-          )}
-        </>
+        <PdfConfigurationPage
+          pdfFile={pdfFile}
+          pdfText={pdfText}
+          config={pdfExtractionConfig}
+          onConfigChange={setPdfExtractionConfig}
+          onPdfUpload={handlePdfUpload}
+          onAnalyzePdf={handleAnalyzePdf}
+          onContinue={handlePdfContinue}
+          onSkip={handlePdfSkip}
+          onViewSavedConfigs={handleViewSavedConfigs}
+        />
       )}
 
       {/* Excel Configuration Page */}
