@@ -6,10 +6,12 @@ export function middleware(request: NextRequest) {
 
   // Redirect Railway subdomain to custom domain in production
   if (host === 'fallyx-behaviours.up.railway.app') {
+    console.log('Redirecting from Railway to custom domain');
     const url = request.nextUrl.clone();
     url.host = 'behaviours.ascenix.co';
     url.protocol = 'https';
-    return NextResponse.redirect(url, 301);
+    console.log('Redirecting to:', url.toString());
+    // return NextResponse.redirect(url, 301);
   }
 
   const { pathname } = request.nextUrl;
