@@ -290,6 +290,16 @@ export function PdfConfigurationPage({
       }
     };
 
+    const isFieldLabel = (label: string) => {
+      const lower = label.toLowerCase();
+      return lower.includes('field:') || lower.includes('config field') || lower === 'field + end marker';
+    };
+
+    const isEndLabel = (label: string) => {
+      const lower = label.toLowerCase();
+      return lower.includes('end:') || lower.includes('config end') || lower.includes('end marker');
+    };
+
     // Render segments
     let result = '';
     segments.forEach(segment => {
@@ -311,9 +321,10 @@ export function PdfConfigurationPage({
       // Multiple overlapping highlights - prefer Field + End (exact label) if present
       const preferred = segment.highlights.find(h => h.label === 'Field + End Marker') || segment.highlights[0];
       const labels = segment.highlights.map(h => h.label).join(' + ');
-      const bg = preferred.label === 'Field + End Marker'
-        ? getBgColor('bg-purple-300')
-        : getBgColor(preferred.color);
+      const hasField = segment.highlights.some(h => isFieldLabel(h.label));
+      const hasEnd = segment.highlights.some(h => isEndLabel(h.label));
+      const isFieldEndCombo = preferred.label === 'Field + End Marker' || (hasField && hasEnd);
+      const bg = isFieldEndCombo ? getBgColor('bg-purple-300') : getBgColor(preferred.color);
       result += `<span class="px-1" style="background:${bg};" title="${escapeHtml(labels)}">${escapeHtml(text)}</span>`;
     });
 
