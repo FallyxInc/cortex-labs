@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ExcelData, AIOutputFormat } from '../../../lib/chainConfig';
 import { ExcelExtractionConfig } from '../../../lib/processing/types';
 
@@ -129,18 +129,33 @@ export function ExcelConfigurationPage({
     onExcelExtractionChange(nextConfig);
   };
 
-  const handleRangeChange = (key: 'start' | 'end', raw: string) => {
-    const parsed = Number(raw);
-    if (Number.isNaN(parsed)) return;
-    const zeroBased = Math.max(1, parsed) - 1;
+  const [injuryStartEditing, setInjuryStartEditing] = useState<string | null>(null);
+  const [injuryEndEditing, setInjuryEndEditing] = useState<string | null>(null);
+
+  const handleRangeFocus = (key: 'start' | 'end') => {
+    const value = key === 'start' 
+      ? resolvedExtraction.injuryColumns.start 
+      : resolvedExtraction.injuryColumns.end;
+    if (key === 'start') setInjuryStartEditing(value.toString());
+    else setInjuryEndEditing(value.toString());
+  };
+
+  const handleRangeBlur = (key: 'start' | 'end') => {
+    const raw = key === 'start' ? injuryStartEditing : injuryEndEditing;
+    const parsed = raw === '' || raw === null ? 0 : Number(raw);
+    const value = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+
     const nextConfig: ExcelExtractionConfig = {
       ...resolvedExtraction,
       injuryColumns: {
         ...resolvedExtraction.injuryColumns,
-        [key]: zeroBased,
+        [key]: value,
       },
     };
     onExcelExtractionChange(nextConfig);
+    
+    if (key === 'start') setInjuryStartEditing(null);
+    else setInjuryEndEditing(null);
   };
 
   const applyAISuggestions = () => {
@@ -261,9 +276,11 @@ export function ExcelConfigurationPage({
                   Start (col #)
                   <input
                     type="number"
-                    min={1}
-                    value={resolvedExtraction.injuryColumns.start + 1}
-                    onChange={(e) => handleRangeChange('start', e.target.value)}
+                    min={0}
+                    value={injuryStartEditing ?? resolvedExtraction.injuryColumns.start}
+                    onChange={(e) => setInjuryStartEditing(e.target.value)}
+                    onFocus={() => handleRangeFocus('start')}
+                    onBlur={() => handleRangeBlur('start')}
                     className="mt-1 w-full rounded border px-2 py-1 text-sm"
                   />
                 </label>
@@ -271,15 +288,17 @@ export function ExcelConfigurationPage({
                   End (col #)
                   <input
                     type="number"
-                    min={resolvedExtraction.injuryColumns.start + 1}
-                    value={resolvedExtraction.injuryColumns.end + 1}
-                    onChange={(e) => handleRangeChange('end', e.target.value)}
+                    min={0}
+                    value={injuryEndEditing ?? resolvedExtraction.injuryColumns.end}
+                    onChange={(e) => setInjuryEndEditing(e.target.value)}
+                    onFocus={() => handleRangeFocus('end')}
+                    onBlur={() => handleRangeBlur('end')}
                     className="mt-1 w-full rounded border px-2 py-1 text-sm"
                   />
                 </label>
               </div>
               <p className="text-xs text-gray-600">
-                Columns between start and end (inclusive) are scanned for &quot;Y&quot; to build the injuries string.
+                Columns between start and end (inclusive) are scanned for &quot;Y&quot; to build the injuries list.
               </p>
             </div>
           </div>
@@ -318,7 +337,7 @@ export function ExcelConfigurationPage({
           <div className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900">Excel preview with detections</h3>
+                <h3 className="font-semibold text-gray-900">Excel Detection Preview</h3>
                 <p className="text-xs text-gray-600">Click on columns, then use buttons above to assign fields.</p>
               </div>
               <div className="flex flex-wrap items-center gap-1 text-[11px]">
@@ -352,7 +371,7 @@ export function ExcelConfigurationPage({
                             `${CELL_TONE[col.tone] || ''} hover:bg-cyan-50`
                         }`}
                       >
-                        {col.index + 1}
+                        {col.index}
                       </th>
                     ))}
                   </tr>
