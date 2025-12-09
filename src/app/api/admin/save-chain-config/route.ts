@@ -5,7 +5,7 @@ import { StoredChainExtractionConfig, ChainExtractionConfig } from '@/lib/proces
 /**
  * Validate ChainExtractionConfig
  */
-function validateChainExtractionConfig(config: ChainExtractionConfig): string[] {
+function validateChainConfig(config: ChainExtractionConfig): string[] {
   const errors: string[] = [];
 
   if (!config.chainId || config.chainId.trim() === '') {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate the config
-    const validationErrors = validateChainExtractionConfig(config);
+    const validationErrors = validateChainConfig(config);
     if (validationErrors.length > 0) {
       return NextResponse.json(
         {
@@ -194,4 +194,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

@@ -2,26 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 
-import { PdfConfigurationPage } from './onboarding/PdfConfiguration';
-import { ExcelConfigurationPage } from './onboarding/ExcelConfigurationPage';
-import { ReviewAndSavePage } from './onboarding/OnboardingConfigSubmit';
-import { EditConfigurationView } from './onboarding/EditConfigurationView';
-import { StoredChainExtractionConfig, ChainExtractionConfig, ExcelFieldMapping } from '@/lib/processing/types';
-import { AIOutputFormat } from '@/lib/processing/onboardingUtils';
+import { PdfConfigurationPage } from './config/PdfConfiguratiionPage';
+import { ExcelConfigurationPage } from './config/ExcelConfigurationPage';
+import { ReviewAndSavePage } from './config/ConfigSubmitPage';
+import { ConfigManagementPage } from './config/ConfigManagementPage';
+import { StoredChainExtractionConfig, ChainExtractionConfig } from '@/lib/processing/types';
+import { AIOutputFormat, ExcelData, DataSourceMapping, ExcelFieldMapping } from '@/lib/chainConfig';
 
-export type WizardStep = 'pdf-config' | 'excel-config' | 'review' | 'saved' | 'edit-config';
-
-export interface ExcelData {
-  headers: string[];
-  rows: Record<string, unknown>[];
-  preview: string;
-}
-
-export interface DataSourceMapping {
-  excel: string[];
-  pdf: string[];
-  note: string;
-}
+export type ConfigManagerStep = 'manage' | 'pdf-config' | 'excel-config' | 'review';
 
 const DEFAULT_PDF_CONFIG: ChainExtractionConfig = {
   behaviourNoteTypes: [],
@@ -57,8 +45,8 @@ const normalizeConfig = (config: Partial<StoredChainExtractionConfig>): StoredCh
   };
 };
 
-export default function OnboardingWizard() {
-  const [step, setStep] = useState<WizardStep>('pdf-config');
+export default function ConfigManagerWizard() {
+  const [step, setStep] = useState<ConfigManagerStep>('manage');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [pdfText, setPdfText] = useState<string>('');
@@ -352,7 +340,7 @@ export default function OnboardingWizard() {
     if (!config) return;
 
     try {
-      const response = await fetch('/api/admin/save-onboarding-config', {
+      const response = await fetch('/api/admin/save-chain-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -375,19 +363,15 @@ export default function OnboardingWizard() {
 
       await loadSavedConfigs();
 
-      // Reset to start new configuration
-      if (editingConfig) {
-        setStep('saved');
-        setEditingConfig(null);
-      } else {
-        setStep('pdf-config');
-        setPdfFile(null);
-        setExcelFile(null);
-        setPdfText('');
-        setExcelData(null);
-        setPdfExtractionConfig(DEFAULT_PDF_CONFIG);
-        setExcelFieldMappings({});
-      }
+      // Reset to management page
+      setStep('manage');
+      setEditingConfig(null);
+      setPdfFile(null);
+      setExcelFile(null);
+      setPdfText('');
+      setExcelData(null);
+      setPdfExtractionConfig(DEFAULT_PDF_CONFIG);
+      setExcelFieldMappings({});
       setConfig(null);
       setChainId('');
       setChainName('');
@@ -402,7 +386,7 @@ export default function OnboardingWizard() {
   const loadSavedConfigs = async () => {
     setLoadingConfigs(true);
     try {
-      const response = await fetch('/api/admin/save-onboarding-config');
+      const response = await fetch('/api/admin/save-chain-config');
       if (response.ok) {
         const data = await response.json();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -418,7 +402,7 @@ export default function OnboardingWizard() {
 
   const handleViewSavedConfigs = async () => {
     await loadSavedConfigs();
-    setStep('saved');
+    setStep('manage');
   };
 
   const handleLoadConfig = (savedConfig: StoredChainExtractionConfig) => {
@@ -426,20 +410,37 @@ export default function OnboardingWizard() {
   };
 
   const handleEditConfig = (savedConfig: StoredChainExtractionConfig) => {
+    // Pre-fill the PDF extraction config with existing values
+    setPdfExtractionConfig({
+      behaviourNoteTypes: savedConfig.behaviourNoteTypes,
+      followUpNoteTypes: savedConfig.followUpNoteTypes,
+      extraFollowUpNoteTypes: savedConfig.extraFollowUpNoteTypes || [],
+      injuryColumns: savedConfig.injuryColumns,
+      matchingWindowHours: savedConfig.matchingWindowHours,
+      fieldExtractionMarkers: savedConfig.fieldExtractionMarkers,
+      hasTimeFrequency: savedConfig.hasTimeFrequency,
+      hasEvaluation: savedConfig.hasEvaluation,
+      behaviourNoteConfigs: savedConfig.behaviourNoteConfigs || {},
+      followUpNoteConfigs: savedConfig.followUpNoteConfigs || {},
+    });
     setEditingConfig(savedConfig);
     setChainId(savedConfig.chainId);
     setChainName(savedConfig.chainName);
-    setConfig(savedConfig);
-    setExcelFieldMappings(savedConfig.excelFieldMappings || {});
-    setStep('edit-config');
-  };
-
-  const handleEditConfigSave = (updatedConfig: StoredChainExtractionConfig) => {
-    setConfig(updatedConfig);
-    setEditingConfig(updatedConfig);
-    setChainId(updatedConfig.chainId);
-    setChainName(updatedConfig.chainName);
-    setStep('review');
+    // Convert the excel field mappings to ensure required fields have values
+    const mappings: Record<string, ExcelFieldMapping> = {};
+    if (savedConfig.excelFieldMappings) {
+      Object.entries(savedConfig.excelFieldMappings).forEach(([key, mapping]) => {
+        mappings[key] = {
+          excelColumn: mapping.excelColumn,
+          confidence: mapping.confidence ?? 1.0,
+          reasoning: mapping.reasoning ?? 'Loaded from saved config',
+          dataSource: mapping.dataSource,
+        };
+      });
+    }
+    setExcelFieldMappings(mappings);
+    // Go to pdf-config step - same flow as create
+    setStep('pdf-config');
   };
 
   const handleCloseViewConfig = () => {
@@ -451,7 +452,13 @@ export default function OnboardingWizard() {
     setChainId('');
     setChainName('');
     setConfig(null);
-    setStep('saved');
+    setPdfExtractionConfig(DEFAULT_PDF_CONFIG);
+    setExcelFieldMappings({});
+    setPdfFile(null);
+    setExcelFile(null);
+    setPdfText('');
+    setExcelData(null);
+    setStep('manage');
   };
 
   const handleDeleteConfig = async (chainIdToDelete: string) => {
@@ -460,7 +467,7 @@ export default function OnboardingWizard() {
     }
 
     try {
-      const response = await fetch(`/api/admin/save-onboarding-config?chainId=${chainIdToDelete}`, {
+      const response = await fetch(`/api/admin/save-chain-config?chainId=${chainIdToDelete}`, {
         method: 'DELETE',
       });
 
@@ -522,35 +529,29 @@ export default function OnboardingWizard() {
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
-      {/* Progress Steps */}
-      {step !== 'saved' && step !== 'edit-config' && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            {['PDF Config', 'Excel Config', 'Review'].map((label, index) => {
-              const stepValue = ['pdf-config', 'excel-config', 'review'][index];
-              const currentIndex = ['pdf-config', 'excel-config', 'review'].indexOf(step);
-              return (
-                <React.Fragment key={stepValue}>
-                  <div className="flex items-center">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                        step === stepValue
-                          ? 'bg-cyan-500 text-white'
-                          : index < currentIndex
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}
-                    >
-                      {index + 1}
-                    </div>
-                    <span className="ml-2 text-sm font-medium text-gray-700">{label}</span>
-                  </div>
-                  {index < 2 && <div className="flex-1 h-1 mx-4 bg-gray-200" />}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
+      {/* Configuration Management Page */}
+      {step === 'manage' && (
+        <ConfigManagementPage
+          savedConfigs={savedConfigs}
+          loadingConfigs={loadingConfigs}
+          viewingConfig={viewingConfig}
+          onStartNew={handleStartNewConfig}
+          onViewConfig={handleLoadConfig}
+          onEditConfig={handleEditConfig}
+          onDeleteConfig={handleDeleteConfig}
+          onCloseViewConfig={handleCloseViewConfig}
+          onExportConfig={(configToExport: StoredChainExtractionConfig) => {
+            const blob = new Blob([JSON.stringify(configToExport, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${configToExport.chainId}_config.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }}
+        />
       )}
 
       {/* PDF Configuration Page */}
@@ -564,7 +565,8 @@ export default function OnboardingWizard() {
           onAnalyzePdf={handleAnalyzePdf}
           onContinue={handlePdfContinue}
           onSkip={handlePdfSkip}
-          onViewSavedConfigs={handleViewSavedConfigs}
+          onBack={editingConfig ? handleCancelEdit : handleViewSavedConfigs}
+          isEditing={!!editingConfig}
         />
       )}
 
@@ -589,38 +591,16 @@ export default function OnboardingWizard() {
       )}
 
       {/* Review & Save Page */}
-      {(step === 'review' || step === 'saved') && (
+      {step === 'review' && (
         <ReviewAndSavePage
-          mode={step === 'saved' ? 'saved' : 'review'}
           config={config}
           chainId={chainId}
           chainName={chainName}
-          savedConfigs={savedConfigs}
-          loadingConfigs={loadingConfigs}
-          viewingConfig={viewingConfig}
           editingConfig={editingConfig}
           onChainIdChange={setChainId}
           onChainNameChange={setChainName}
           onBack={() => setStep('excel-config')}
           onSave={handleSaveConfiguration}
-          onStartNew={handleStartNewConfig}
-          onViewConfig={handleLoadConfig}
-          onEditConfig={handleEditConfig}
-          onDeleteConfig={handleDeleteConfig}
-          onCloseViewConfig={handleCloseViewConfig}
-        />
-      )}
-
-      {/* Edit Configuration */}
-      {step === 'edit-config' && editingConfig && (
-        <EditConfigurationView
-          config={editingConfig}
-          chainId={chainId}
-          chainName={chainName}
-          onChainIdChange={setChainId}
-          onChainNameChange={setChainName}
-          onSave={handleEditConfigSave}
-          onCancel={handleCancelEdit}
         />
       )}
     </div>

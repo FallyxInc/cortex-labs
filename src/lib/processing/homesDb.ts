@@ -1,7 +1,7 @@
 // Central place for chains and homes configuration (TypeScript port of homes_db.py)
 
 import { ChainExtractionConfig } from "./types";
-import { getChainExtractionConfigFromFirebase } from "./onboardingUtils";
+import { getChainConfigFromFirebase } from "@/lib/chainConfig";
 
 export interface ChainConfig {
   name: string;
@@ -384,7 +384,7 @@ export async function getChainExtractionConfig(
 
   // Then check Firebase for dynamically created configs
   try {
-    const firebaseConfig = await getChainExtractionConfigFromFirebase(chainId);
+    const firebaseConfig = await getChainConfigFromFirebase(chainId);
     if (firebaseConfig) {
       // Cache it in memory for future use
       CHAIN_EXTRACTION_CONFIGS[chainId] = firebaseConfig;

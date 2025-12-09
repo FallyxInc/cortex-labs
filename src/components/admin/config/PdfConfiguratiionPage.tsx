@@ -10,7 +10,8 @@ interface PdfConfigurationPageProps {
   onAnalyzePdf: () => void;
   onContinue: () => void;
   onSkip: () => void;
-  onViewSavedConfigs: () => void;
+  onBack: () => void;
+  isEditing?: boolean;
 }
 
 const EXTRACTION_TYPES = Object.values(ExtractionType);
@@ -32,7 +33,8 @@ export function PdfConfigurationPage({
   onAnalyzePdf,
   onContinue,
   onSkip,
-  onViewSavedConfigs,
+  onBack,
+  isEditing = false,
 }: PdfConfigurationPageProps) {
   const [selectedText, setSelectedText] = useState<string>('');
   const pdfRef = useRef<HTMLDivElement>(null);
@@ -355,29 +357,40 @@ export function PdfConfigurationPage({
     onContinue();
   };
 
+  // Check if config has any values (for edit mode display)
+  const hasExistingConfig = config.behaviourNoteTypes.length > 0 ||
+    config.followUpNoteTypes.length > 0 ||
+    Object.keys(config.fieldExtractionMarkers).length > 0;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Step 1: PDF Configuration</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            {isEditing ? 'Edit PDF Configuration' : 'PDF Configuration'}
+          </h2>
           <p className="text-gray-600 mb-4">
-            Upload a PDF and configure the extraction settings for behaviour notes.
+            {isEditing
+              ? 'Update the extraction settings. You can optionally upload a new PDF to reference.'
+              : 'Configure the extraction settings for behaviour notes. Uploading a PDF is optional but helps with configuration.'}
           </p>
         </div>
         <button
-          onClick={onViewSavedConfigs}
+          onClick={onBack}
           className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
         >
-          View Saved Configurations
+          {isEditing ? 'Cancel Edit' : 'Back to Configurations'}
         </button>
       </div>
 
-      {/* PDF Upload Section */}
+      {/* PDF Upload Section - Optional */}
       {!pdfText && (
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload PDF File</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Upload Reference PDF
+          </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Upload a PDF containing behaviour notes to view while configuring
+            Upload a PDF to reference while editing, or continue with the configuration below.
           </p>
           <input
             type="file"
@@ -413,11 +426,11 @@ export function PdfConfigurationPage({
         </div>
       )}
 
-      {/* Two-Column Layout: PDF Viewer + Config Editor */}
-      {pdfText && (
-        <div className="grid grid-cols-2 gap-6 ">
-          {/* Left Column: PDF Viewer */}
-          <div className="rounded-lg pt-4 ">
+      {/* Two-Column Layout: PDF Viewer + Config Editor (or single column if no PDF) */}
+      <div className={pdfText ? "grid grid-cols-2 gap-6" : ""}>
+        {/* Left Column: PDF Viewer (only shown when PDF is loaded) */}
+        {pdfText && (
+          <div className="rounded-lg pt-4">
             <h3 className="font-semibold mb-4 text-gray-900">PDF Content</h3>
             <p className="text-xs text-gray-600 mb-2">
               Select text to use in configuration
@@ -437,10 +450,11 @@ export function PdfConfigurationPage({
               dangerouslySetInnerHTML={{ __html: renderHighlightedPdf() }}
             />
           </div>
+        )}
 
-          {/* Right Column: Config Editor */}
-          <div className="rounded-lg p-4 bg-white overflow-y-auto">
-            <h3 className="font-semibold mb-4 text-gray-900">Extraction Configuration</h3>
+        {/* Config Editor Column (always shown) */}
+        <div className="rounded-lg p-4 bg-white overflow-y-auto">
+          <h3 className="font-semibold mb-4 text-gray-900">Extraction Configuration</h3>
 
             {/* Behaviour Note Types */}
             <ConfigSection title="Behaviour Note Types">
@@ -552,9 +566,8 @@ export function PdfConfigurationPage({
                 selectedText={selectedText}
               />
             </ConfigSection>
-          </div>
         </div>
-      )}
+      </div>
 
       {/* Action Buttons */}
       <div className="flex justify-between items-center pt-4 border-t">
@@ -562,16 +575,11 @@ export function PdfConfigurationPage({
           onClick={onSkip}
           className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
         >
-          Skip PDF Configuration
+          Skip to Excel Configuration
         </button>
         <button
           onClick={handleContinue}
-          disabled={!pdfText && config.behaviourNoteTypes.length === 0}
-          className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-            !pdfText && config.behaviourNoteTypes.length === 0
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-cyan-500 text-white hover:bg-cyan-600'
-          }`}
+          className="px-6 py-3 rounded-lg font-semibold transition-colors bg-cyan-500 text-white hover:bg-cyan-600"
         >
           Continue to Excel Configuration
         </button>

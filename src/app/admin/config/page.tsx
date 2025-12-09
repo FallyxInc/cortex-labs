@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase';
-import OnboardingWizard from '@/components/admin/Onboarding';
+import ConfigManagerWizard from '@/components/admin/ConfigManager';
 
-export default function OnboardingPage() {
+export default function ConfigManagerPage() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const router = useRouter();
@@ -21,16 +21,16 @@ export default function OnboardingPage() {
 
       try {
         const userSnapshot = await get(ref(db, `users/${user.uid}`));
-        
+
         if (userSnapshot.exists()) {
           const userData = userSnapshot.val();
           const role = userData.role;
-          
+
           if (role !== 'admin') {
             router.push('/unauthorized');
             return;
           }
-          
+
           setUserRole(role);
         } else {
           router.push('/login');
@@ -66,17 +66,17 @@ export default function OnboardingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
-              <img 
-                src="/assets/fallyxlogo.jpeg" 
-                alt="Fallyx Logo" 
+              <img
+                src="/assets/fallyxlogo.jpeg"
+                alt="Fallyx Logo"
                 className="h-12 w-auto"
               />
               <div className="flex items-center space-x-3">
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Automated Onboarding System
+                  Chain Configuration Manager
                 </h1>
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-300">
-                  🔬 R&D
+                  R&D
                 </span>
               </div>
             </div>
@@ -106,16 +106,15 @@ export default function OnboardingPage() {
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700">
-                  <strong className="font-semibold">R&D Status:</strong> This feature is currently in active development. 
+                  <strong className="font-semibold">R&D Status:</strong> This feature is currently in active development.
                   Some functionality may be incomplete or subject to change. Please report any issues or provide feedback.
                 </p>
               </div>
             </div>
           </div>
-          <OnboardingWizard />
+          <ConfigManagerWizard />
         </div>
       </main>
     </div>
   );
 }
-

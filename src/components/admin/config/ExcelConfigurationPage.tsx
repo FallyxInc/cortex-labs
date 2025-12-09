@@ -1,6 +1,5 @@
 import React from 'react';
-import { ExcelData, ExcelFieldMapping, DataSourceMapping } from '../../../lib/onboardingUtils';
-import { AIOutputFormat } from '../../../lib/processing/onboardingUtils';
+import { ExcelData, ExcelFieldMapping, DataSourceMapping, AIOutputFormat } from '../../../lib/chainConfig';
 
 interface ExcelConfigurationPageProps {
   excelFile: File | null;
@@ -111,7 +110,7 @@ export function ExcelConfigurationPage({
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-green-800 mb-2">
-                ✓ AI Analysis Complete
+                AI Analysis Complete
               </p>
               <p className="text-xs text-green-700 mb-2">
                 Found {Object.keys(aiSuggestions.excelFieldMappings || {}).length} Excel field mappings.

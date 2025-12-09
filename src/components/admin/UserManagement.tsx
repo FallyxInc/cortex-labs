@@ -967,17 +967,17 @@ The first row should contain column headers. Each subsequent row represents one 
               <p><strong>Required Columns (case-insensitive):</strong></p>
               <ul className="list-disc list-inside ml-4 space-y-1">
                 <li><strong>username</strong> - Display name for the user (required)</li>
-                <li><strong>email</strong> - User's email address (required, must be valid format)</li>
-                <li><strong>password</strong> - User's password (required, minimum 6 characters)</li>
-                <li><strong>role</strong> - User role: "admin" or "homeUser" (required)</li>
-                <li><strong>chainId</strong> or <strong>chainName</strong> - Chain ID or name (required if role is "homeUser")</li>
-                <li><strong>homeId</strong> or <strong>homeName</strong> - Home ID or name (required if role is "homeUser")</li>
+                <li><strong>email</strong> - User&apos;s email address (required, must be valid format)</li>
+                <li><strong>password</strong> - User&apos;s password (required, minimum 6 characters)</li>
+                <li><strong>role</strong> - User role: &quot;admin&quot; or &quot;homeUser&quot; (required)</li>
+                <li><strong>chainId</strong> or <strong>chainName</strong> - Chain ID or name (required if role is &quot;homeUser&quot;)</li>
+                <li><strong>homeId</strong> or <strong>homeName</strong> - Home ID or name (required if role is &quot;homeUser&quot;)</li>
               </ul>
               <p className="mt-2"><strong>Notes:</strong></p>
               <ul className="list-disc list-inside ml-4 space-y-1">
                 <li>First row must contain column headers</li>
                 <li>Admin users do not need chainId/homeId</li>
-                <li>You can use either IDs or names for chain/home (e.g., "kindera" or "Kindera")</li>
+                <li>You can use either IDs or names for chain/home (e.g., &quot;kindera&quot; or &quot;Kindera&quot;)</li>
                 <li>Home must belong to the specified chain</li>
                 <li>Duplicate emails will be skipped</li>
               </ul>
