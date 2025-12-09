@@ -3,7 +3,7 @@
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
 import { adminDb } from "@/lib/firebase-admin";
-import { extractDateFromFilename } from "./homesDb";
+import { extractDateFromFilename } from "@/lib/configUtils";
 
 interface UpdateFieldMapping {
   [key: string]: string;

@@ -1,25 +1,205 @@
-// Central place for chains and homes configuration (TypeScript port of homes_db.py)
+/**
+ * Chain Configuration Utilities
+ *
+ * This module consolidates all chain configuration related functionality:
+ * - Type definitions for chain configs
+ * - AI output conversion utilities
+ * - Config validation
+ * - Firebase config loading
+ * - RFC PDF generation
+ */
 
-import { ChainExtractionConfig, ExcelIncidentColumns } from "./types";
-import { getChainConfigFromFirebase } from "@/lib/chainConfig";
+import jsPDF from 'jspdf';
+import { ChainExtractionConfig, ExcelExtractionConfig, ExcelIncidentColumns, ExtractionType, FieldExtractionConfig, NoteTypeExtractionConfig } from '@/lib/processing/types';
+import { adminDb } from './firebase-admin';
 
-export interface ChainConfig {
+// ===============================
+// TYPES
+// ===============================
+
+export interface Highlight {
+  id: string;
+  text: string;
+  startIndex: number;
+  endIndex: number;
+  label: string;
+  labelType: 'note-type' | 'field-name' | 'end-marker' | 'other';
+  noteType?: string;
+  fieldKey?: string;
+  aiGenerated?: boolean;
+}
+
+export interface NoteTypeConfig {
   name: string;
-  homes: string[];
-  extraction_type: string;
-  supports_follow_up: Record<string, boolean>;
+  isFollowUp: boolean;
+  fields: Record<string, {
+    fieldName: string;
+    endMarkers: string[];
+  }>;
+}
+
+export interface ExcelFieldMapping {
+  excelColumn: string;
+  confidence: number;
+  reasoning: string;
+  dataSource: 'EXCEL';
+}
+
+export interface DataSourceMapping {
+  excel: string[];
+  pdf: string[];
+  note: string;
+}
+
+export interface ExcelData {
+  headers: string[];
+  rows: Record<string, unknown>[];
+  preview: string;
+}
+
+export const DEFAULT_EXCEL_INCIDENT_COLUMNS: ExcelIncidentColumns = {
+  incident_number: 'Incident #',
+  name: 'Resident Name',
+  date_time: 'Incident Date/Time',
+  incident_location: 'Incident Location',
+  room: 'Resident Room Number',
+  incident_type: 'Incident Type',
+};
+
+export const DEFAULT_EXCEL_EXTRACTION: ExcelExtractionConfig = {
+  injuryColumns: { start: 13, end: 37 },
+  incidentColumns: DEFAULT_EXCEL_INCIDENT_COLUMNS,
+};
+
+export type WizardStep = 'pdf-config' | 'excel-config' | 'review' | 'saved' | 'edit-config';
+
+export interface AIOutputFormat {
+  chainId: string;
+  chainName: string;
+  behaviourNoteTypes: Array<{
+    noteType: string;
+    isFollowUp: boolean;
+    confidence?: number;
+  }>;
+  followUpNoteTypes: Array<{
+    noteType: string;
+    isFollowUp: boolean;
+    confidence?: number;
+  }>;
+  fieldExtractionMarkers: Record<string, {
+    fieldName: string;
+    endMarkers: string[];
+    confidence?: number;
+    dataSource?: string;
+  }>;
+  excelFieldMappings: Record<string, {
+    excelColumn: string;
+    confidence?: number;
+    reasoning?: string;
+    dataSource: 'EXCEL';
+  }>;
+  excelIncidentColumns?: ExcelIncidentColumns;
+}
+
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+// Extract date from filename in format: {name}_{date}_{time}.{ext}
+// Example: berkshire_care_09-11-2025_1111.pdf
+export function extractDateFromFilename(
+  filename: string,
+): { month: string; day: string; year: string } | null {
+  try {
+    // Remove extension and split by underscore
+    // const parts = filename.replace(/\.[^/.]+$/, "").split("_");
+
+    // Find the part that matches MM-DD-YYYY format
+    // or YYYY-MM-DD format anywhere in the filename
+    let dateRegex = /(\d{2})-(\d{2})-(\d{4})/;
+    let match = filename.match(dateRegex);
+    
+    if (match) {
+      const [, month, day, year] = match;
+      return { month: month, day: day, year: year };
+    }
+    else {
+      // Try YYYY-MM-DD format
+      dateRegex = /(\d{4})-(\d{2})-(\d{2})/;
+      match = filename.match(dateRegex);  
+      if (match) {
+        const [, year, month, day] = match;
+        return { month: month, day: day, year: year };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================================
+// FIREBASE LOADING
+// ============================================================================
+
+/**
+ * Get chain extraction config - checks hardcoded configs first, then Firebase
+ * This allows dynamic loading of configs created through onboarding
+ */
+export async function getChainExtractionConfig(
+  chainId: string
+): Promise<ChainExtractionConfig | null> {
+  // First check hardcoded configs
+  if (CHAIN_EXTRACTION_CONFIGS[chainId]) {
+    return CHAIN_EXTRACTION_CONFIGS[chainId];
+  }
+
+  // Then check Firebase for dynamically created configs
+  try {
+    const firebaseConfig = await getChainConfigFromFirebase(chainId);
+    if (firebaseConfig) {
+      // Cache it in memory for future use
+      CHAIN_EXTRACTION_CONFIGS[chainId] = firebaseConfig;
+      return firebaseConfig;
+    }
+  } catch (error) {
+    console.error(`Error loading chain config for ${chainId}:`, error);
+  }
+
+  // Fallback to responsive config if nothing found
+  console.warn(`Chain config not found for ${chainId}, falling back to responsive`);
+  return CHAIN_EXTRACTION_CONFIGS["responsive"] || null;
 }
 
 
 
-const DEFAULT_EXCEL_INCIDENT_COLUMNS: ExcelIncidentColumns = {
-  incident_number: "Incident #",
-  name: "Resident Name",
-  date_time: "Incident Date/Time",
-  incident_location: "Incident Location",
-  room: "Resident Room Number",
-  incident_type: "Incident Type",
-};
+/**
+ * Load chain extraction config dynamically from Firebase
+ */
+export async function getChainConfigFromFirebase(
+  chainId: string
+): Promise<ChainExtractionConfig | null> {
+  try {
+    const configRef = adminDb.ref(`/chains/${chainId}/config`);
+    const snapshot = await configRef.once('value');
+
+    if (snapshot.exists()) {
+      const chainConfig = snapshot.val() as ChainExtractionConfig;
+
+      return chainConfig;
+    }
+  } catch (error) {
+    console.error(`Error loading chain config for ${chainId}:`, error);
+  }
+
+  return null;
+}
+
+// ============================================================================
+// CHAIN CONFIGURATION
+// ============================================================================
 
 // Chain-specific extraction configurations
 export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
@@ -352,67 +532,3 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
     hasEvaluation: false,
   },
 };
-
-
-// Extract date from filename in format: {name}_{date}_{time}.{ext}
-// Example: berkshire_care_09-11-2025_1111.pdf
-export function extractDateFromFilename(
-  filename: string,
-): { month: string; day: string; year: string } | null {
-  try {
-    // Remove extension and split by underscore
-    // const parts = filename.replace(/\.[^/.]+$/, "").split("_");
-
-    // Find the part that matches MM-DD-YYYY format
-    // or YYYY-MM-DD format anywhere in the filename
-    let dateRegex = /(\d{2})-(\d{2})-(\d{4})/;
-    let match = filename.match(dateRegex);
-    
-    if (match) {
-      const [, month, day, year] = match;
-      return { month: month, day: day, year: year };
-    }
-    else {
-      // Try YYYY-MM-DD format
-      dateRegex = /(\d{4})-(\d{2})-(\d{2})/;
-      match = filename.match(dateRegex);  
-      if (match) {
-        const [, year, month, day] = match;
-        return { month: month, day: day, year: year };
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Get chain extraction config - checks hardcoded configs first, then Firebase
- * This allows dynamic loading of configs created through onboarding
- */
-export async function getChainExtractionConfig(
-  chainId: string
-): Promise<ChainExtractionConfig | null> {
-  // First check hardcoded configs
-  if (CHAIN_EXTRACTION_CONFIGS[chainId]) {
-    return CHAIN_EXTRACTION_CONFIGS[chainId];
-  }
-
-  // Then check Firebase for dynamically created configs
-  try {
-    const firebaseConfig = await getChainConfigFromFirebase(chainId);
-    if (firebaseConfig) {
-      // Cache it in memory for future use
-      CHAIN_EXTRACTION_CONFIGS[chainId] = firebaseConfig;
-      return firebaseConfig;
-    }
-  } catch (error) {
-    console.error(`Error loading chain config for ${chainId}:`, error);
-  }
-
-  // Fallback to responsive config if nothing found
-  console.warn(`Chain config not found for ${chainId}, falling back to responsive`);
-  return CHAIN_EXTRACTION_CONFIGS["responsive"] || null;
-}

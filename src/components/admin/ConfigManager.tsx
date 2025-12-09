@@ -7,7 +7,7 @@ import { ExcelConfigurationPage } from './config/ExcelConfigurationPage';
 import { ReviewAndSavePage } from './config/ConfigSubmitPage';
 import { ConfigManagementPage } from './config/ConfigManagementPage';
 import { ChainExtractionConfig, ExcelExtractionConfig } from '@/lib/processing/types';
-import { AIOutputFormat, ExcelData } from '@/lib/chainConfig';
+import { AIOutputFormat, ExcelData } from '@/lib/configUtils';
 
 export type ConfigManagerStep = 'manage' | 'pdf-config' | 'excel-config' | 'review';
 

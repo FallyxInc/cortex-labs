@@ -12,6 +12,7 @@ import { processPdfFiles } from "@/lib/processing/pdfProcessor";
 import { processAllMergedFiles } from "@/lib/processing/behaviourGenerator";
 import { processMergedCsvFiles } from "@/lib/processing/firebaseUpdate";
 import { processCsvFiles } from "@/lib/processing/firebaseUpload";
+import { getChainExtractionConfig } from "@/lib/configUtils";
 
 // Helper function to update progress
 async function updateProgress(
@@ -104,8 +105,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (chainId == undefined) {
-      chainId = "responsive";
+      throw new Error("Chain ID not found");
     }
+
+    const chainConfig = await getChainExtractionConfig(chainId);
+    if (!chainConfig) {
+      throw new Error(`Chain extraction config not found for ${chainId}`);
+    }
+    console.log("🔍 [API] Chain config found:", chainId, chainConfig);
 
     // If no files, we can still save metrics
     const hasFiles = pdfCount > 0 && excelCount > 0;
@@ -286,7 +293,7 @@ export async function POST(request: NextRequest) {
         await unlink(join(downloadsDir, file));
       }
       console.log(`✅ [API] Cleared ${existingFiles.length} existing file(s)`);
-    } catch (err) {
+    } catch {
       console.log("ℹ️ [API] Downloads directory empty or doesn't exist yet");
     }
 
@@ -295,7 +302,7 @@ export async function POST(request: NextRequest) {
       await rm(analyzedDir, { recursive: true, force: true });
       await mkdir(analyzedDir, { recursive: true });
       console.log(`✅ [API] Cleared analyzed directory recursively`);
-    } catch (err) {
+    } catch {
       console.log("ℹ️ [API] Analyzed directory empty or doesn't exist yet");
     }
 
@@ -374,7 +381,7 @@ export async function POST(request: NextRequest) {
         "Executing Excel processing...",
         "processing_excel",
       );
-      await processExcelFiles(downloadsDir, analyzedDir, chainId);
+      await processExcelFiles(downloadsDir, analyzedDir, chainId, chainConfig);
       const excelDuration = ((Date.now() - excelStartTime) / 1000).toFixed(2);
       await updateProgress(
         jobId,
@@ -420,6 +427,7 @@ export async function POST(request: NextRequest) {
         analyzedDir,
         homeNameForPython,
         chainId,
+        chainConfig,
       );
       const pdfDuration = ((Date.now() - pdfStartTime) / 1000).toFixed(2);
       const pdfDurationMinutes = (parseFloat(pdfDuration) / 60).toFixed(2);
@@ -466,6 +474,7 @@ export async function POST(request: NextRequest) {
         openaiApiKey,
         homeNameForPython,
         chainId,
+        chainConfig,
       );
       const behaviourDuration = (
         (Date.now() - behaviourStartTime) /

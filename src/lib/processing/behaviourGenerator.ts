@@ -3,7 +3,7 @@
 
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
-import { callClaudeAPI, getAIModelConfig } from "@/lib/claude-client";
+import { callClaudeAPI } from "@/lib/claude-client";
 import {
   BehaviourEntry,
   DEFAULT_NO_PROGRESS_TEXT,
@@ -12,7 +12,7 @@ import {
   ExtractedBehaviourFields,
   FieldExtractionConfig,
 } from "./types";
-import { CHAIN_EXTRACTION_CONFIGS } from "./homesDb";
+import { CHAIN_EXTRACTION_CONFIGS } from "@/lib/configUtils";
 
 function cleanName(name: string | null | undefined): string {
   if (!name) return "";
@@ -254,6 +254,7 @@ async function gptDetermineWhoAffected(
   row: Record<string, unknown>,
   apiKey: string,
 ): Promise<string> {
+  void apiKey;
   const systemPrompt = "You are a healthcare analyst classifying who was affected in a behaviour incident. Answer with a comma-separated list of the four categories, choosing all that apply.";
 
   const prompt = `
@@ -394,7 +395,11 @@ function collectOtherNotes(
     : "No other notes";
 }
 
-async function gptSummarizeIncident(row: Record<string, unknown>, apiKey: string): Promise<string> {
+async function gptSummarizeIncident(
+  row: Record<string, unknown>,
+  apiKey: string,
+): Promise<string> {
+  void apiKey;
   const defaultIndicators = [
     "No Progress Note Found Within 24hrs of RIM",
     DEFAULT_NO_PROGRESS_TEXT_SHORT,
@@ -441,6 +446,7 @@ async function gptDetermineIntent(
   summary: string,
   apiKey: string,
 ): Promise<string> {
+  void apiKey;
   const systemPrompt = "You are a healthcare analyst determining intent in a resident's actions. Answer only with 'yes' or 'no'.";
 
   const prompt = `
@@ -864,19 +870,16 @@ export async function processAllMergedFiles(
   apiKey: string,
   homeId: string,
   chainId: string,
+  chainConfig?: ChainExtractionConfig | null,
 ): Promise<void> {
-  // Determine chain configuration - try dynamic loading first
-  let config: ChainExtractionConfig | null = null;
-  
-  try {
-    const { getChainExtractionConfig } = await import("./homesDb");
-    config = await getChainExtractionConfig(chainId);
-  } catch (error) {
-    console.error(`Error loading chain config for ${chainId}:`, error);
-  }
+  const config =
+    chainConfig ||
+    CHAIN_EXTRACTION_CONFIGS[chainId] ||
+    CHAIN_EXTRACTION_CONFIGS["responsive"];
 
   if (!config) {
-    config = CHAIN_EXTRACTION_CONFIGS["responsive"];
+    throw new Error(`No chain extraction config available for ${chainId}`);
+  } else if (!chainConfig && !CHAIN_EXTRACTION_CONFIGS[chainId]) {
     console.log("FALLING BACK TO RESPONSIVE CHAIN EXTRACTION CONFIG");
   }
 

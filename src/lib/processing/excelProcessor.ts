@@ -3,30 +3,17 @@
 import * as XLSX from "xlsx";
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
-import { ExcelExtractionConfig, ProcessedIncident } from "./types";
-import { CHAIN_EXTRACTION_CONFIGS, extractDateFromFilename } from "./homesDb";
+import {
+  ChainExtractionConfig,
+  ExcelExtractionConfig,
+  ProcessedIncident,
+} from "./types";
+import {
+  CHAIN_EXTRACTION_CONFIGS,
+  DEFAULT_EXCEL_EXTRACTION,
+  extractDateFromFilename,
+} from "@/lib/configUtils";
 
-const DEFAULT_EXCEL_INCIDENT_COLUMNS = {
-  incident_number: "Incident #",
-  name: "Resident Name",
-  date_time: "Incident Date/Time",
-  incident_location: "Incident Location",
-  room: "Resident Room Number",
-  incident_type: "Incident Type",
-};
-
-const DEFAULT_INJURY_COLUMNS = { start: 13, end: 87 };
-
-function resolveExcelExtractionConfig(chain: string): ExcelExtractionConfig {
-  const cfg = CHAIN_EXTRACTION_CONFIGS[chain];
-  if (cfg?.excelExtraction) {
-    return cfg.excelExtraction;
-  }
-  return {
-    injuryColumns: DEFAULT_INJURY_COLUMNS,
-    incidentColumns: DEFAULT_EXCEL_INCIDENT_COLUMNS,
-  };
-}
 
 function getInjuries(
   row: Record<string, unknown>,
@@ -59,12 +46,12 @@ function getInjuries(
 export async function processExcelFile(
   inputFile: string,
   outputFile: string,
-  chain: string,
+  chainConfig?: ChainExtractionConfig | null,
 ): Promise<void> {
   try {
     const fileBuffer = await readFile(inputFile);
     const workbook = XLSX.read(fileBuffer, { type: "buffer", cellDates: true });
-    const excelExtraction = resolveExcelExtractionConfig(chain);
+    const excelExtraction = chainConfig?.excelExtraction || DEFAULT_EXCEL_EXTRACTION;
     const excelColumns = excelExtraction.incidentColumns;
 
     // Read the first sheet
@@ -161,6 +148,7 @@ export async function processExcelFiles(
   downloadsDir: string,
   analyzedDir: string,
   chain: string,
+  chainConfig?: ChainExtractionConfig | null,
 ): Promise<void> {
   try {
     const files = await readdir(downloadsDir);
@@ -195,7 +183,7 @@ export async function processExcelFiles(
             outputCsv = join(dateDir, `${date.month}-${date.day}-${date.year}_processed_incidents.csv`);
           }
 
-          await processExcelFile(xlsPath, outputCsv, chain);
+          await processExcelFile(xlsPath, outputCsv, chainConfig);
         } else {
           console.log(`Date information not found in file name: ${xlsFile}`);
         }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ExcelData, AIOutputFormat } from '../../../lib/chainConfig';
+import { ExcelData, AIOutputFormat } from '../../../lib/configUtils';
 import { ExcelExtractionConfig } from '../../../lib/processing/types';
 
 type IncidentColumnKey = keyof ExcelExtractionConfig['incidentColumns'];
