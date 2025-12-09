@@ -1,292 +1,442 @@
-import React from 'react';
-import { ExcelData, ExcelFieldMapping, DataSourceMapping, AIOutputFormat } from '../../../lib/chainConfig';
+import React, { useMemo, useState } from 'react';
+import { ExcelData, AIOutputFormat } from '../../../lib/chainConfig';
+import { ExcelExtractionConfig } from '../../../lib/processing/types';
+
+type IncidentColumnKey = keyof ExcelExtractionConfig['incidentColumns'];
 
 interface ExcelConfigurationPageProps {
   excelFile: File | null;
   excelData: ExcelData | null;
-  excelFieldMappings: Record<string, ExcelFieldMapping>;
-  aiLoading: boolean;
+  excelExtraction: ExcelExtractionConfig;
   aiSuggestions: AIOutputFormat | null;
-  dataSourceMapping: DataSourceMapping | null;
   onExcelUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onAnalyzeExcel: () => void;
-  onExcelFieldMap: (fieldKey: string, column: string) => void;
-  onAddExcelFieldMapping: () => void;
-  onRemoveExcelFieldMapping: (fieldKey: string) => void;
+  onExcelExtractionChange: (config: ExcelExtractionConfig) => void;
+  onRemoveExcelFile: () => void;
   onBack: () => void;
   onContinue: () => void;
-  onSkip: () => void;
 }
+
+const INCIDENT_FIELD_META: Array<{
+  key: IncidentColumnKey;
+  label: string;
+  hint: string;
+}> = [
+  { key: 'incident_number', label: 'Incident #', hint: 'Unique incident identifier' },
+  { key: 'name', label: 'Resident Name', hint: 'Full resident name' },
+  { key: 'date_time', label: 'Incident Date/Time', hint: 'Combined date and time column' },
+  { key: 'incident_location', label: 'Incident Location', hint: 'Location or unit of the incident' },
+  { key: 'room', label: 'Resident Room', hint: 'Room or bed number' },
+  { key: 'incident_type', label: 'Incident Type', hint: 'Category or type of incident' },
+];
+
+const BADGE_CLASSES: Record<string, string> = {
+  incident_number: 'bg-amber-100 text-amber-900 border-amber-200',
+  name: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+  date_time: 'bg-blue-100 text-blue-900 border-blue-200',
+  incident_location: 'bg-indigo-100 text-indigo-900 border-indigo-200',
+  room: 'bg-sky-100 text-sky-900 border-sky-200',
+  incident_type: 'bg-purple-100 text-purple-900 border-purple-200',
+  injury: 'bg-rose-100 text-rose-900 border-rose-200',
+  mapping: 'bg-gray-100 text-gray-800 border-gray-200',
+};
+
+const CELL_TONE: Record<string, string> = {
+  incident_number: 'bg-amber-50',
+  name: 'bg-emerald-50',
+  date_time: 'bg-blue-50',
+  incident_location: 'bg-indigo-50',
+  room: 'bg-sky-50',
+  incident_type: 'bg-purple-50',
+  injury: 'bg-rose-50',
+  selected: 'bg-cyan-100',
+};
+
+const DEFAULT_INCIDENT_COLUMNS: ExcelExtractionConfig['incidentColumns'] = {
+  incident_number: 'Incident #',
+  name: 'Resident Name',
+  date_time: 'Incident Date/Time',
+  incident_location: 'Incident Location',
+  room: 'Resident Room Number',
+  incident_type: 'Incident Type',
+};
 
 export function ExcelConfigurationPage({
   excelFile,
   excelData,
-  excelFieldMappings,
-  aiLoading,
+  excelExtraction,
   aiSuggestions,
-  dataSourceMapping,
   onExcelUpload,
-  onAnalyzeExcel,
-  onExcelFieldMap,
-  onAddExcelFieldMapping,
-  onRemoveExcelFieldMapping,
+  onExcelExtractionChange,
+  onRemoveExcelFile,
   onBack,
   onContinue,
-  onSkip,
 }: ExcelConfigurationPageProps) {
+  const headers = useMemo(() => excelData?.headers || [], [excelData]);
+  const rows = excelData?.rows || [];
+  const headerDatalistId = 'excel-headers-list';
+  const [selectedHeader, setSelectedHeader] = useState<string>('');
+
+  const resolvedExtraction = useMemo<ExcelExtractionConfig>(() => {
+    return {
+      injuryColumns: excelExtraction?.injuryColumns || { start: 13, end: 37 },
+      incidentColumns: {
+        ...DEFAULT_INCIDENT_COLUMNS,
+        ...(excelExtraction?.incidentColumns || {}),
+      },
+    };
+  }, [excelExtraction]);
+
+  const incidentLookup = useMemo(() => {
+    const lookup = new Map<string, IncidentColumnKey[]>();
+    Object.entries(resolvedExtraction.incidentColumns).forEach(([key, col]) => {
+      if (!col) return;
+      const normalized = col.toString().trim().toLowerCase();
+      lookup.set(normalized, [...(lookup.get(normalized) || []), key as IncidentColumnKey]);
+    });
+    return lookup;
+  }, [resolvedExtraction.incidentColumns]);
+
+  const columnMeta = useMemo(() => {
+    return headers.map((header, index) => {
+      const normalized = header?.toString().trim().toLowerCase() || '';
+      const badges: Array<{ label: string; tone: string }> = [];
+      const incidentTags = incidentLookup.get(normalized);
+      incidentTags?.forEach((tag) => {
+        badges.push({ label: INCIDENT_FIELD_META.find(f => f.key === tag)?.label || tag, tone: tag });
+      });
+
+      if (index >= resolvedExtraction.injuryColumns.start && index <= resolvedExtraction.injuryColumns.end) {
+        badges.push({ label: 'Injury columns', tone: 'injury' });
+      }
+
+      const isSelected = selectedHeader === header;
+      const dominantTone = isSelected
+        ? 'selected'
+        : badges.find(b => b.tone === 'injury')?.tone || badges[0]?.tone || '';
+
+      return { header, index, badges, tone: dominantTone, isSelected };
+    });
+  }, [headers, incidentLookup, resolvedExtraction.injuryColumns, selectedHeader]);
+
+  const handleIncidentColumnChange = (fieldKey: IncidentColumnKey, column: string) => {
+    const nextConfig: ExcelExtractionConfig = {
+      ...resolvedExtraction,
+      incidentColumns: {
+        ...resolvedExtraction.incidentColumns,
+        [fieldKey]: column,
+      },
+    };
+    onExcelExtractionChange(nextConfig);
+  };
+
+  const handleRangeChange = (key: 'start' | 'end', raw: string) => {
+    const parsed = Number(raw);
+    if (Number.isNaN(parsed)) return;
+    const zeroBased = Math.max(1, parsed) - 1;
+    const nextConfig: ExcelExtractionConfig = {
+      ...resolvedExtraction,
+      injuryColumns: {
+        ...resolvedExtraction.injuryColumns,
+        [key]: zeroBased,
+      },
+    };
+    onExcelExtractionChange(nextConfig);
+  };
+
+  const applyAISuggestions = () => {
+    if (!aiSuggestions?.excelFieldMappings) return;
+
+    const newIncidentColumns = { ...resolvedExtraction.incidentColumns };
+    
+    Object.entries(aiSuggestions.excelFieldMappings).forEach(([fieldKey, mapping]) => {
+      const key = fieldKey as IncidentColumnKey;
+      if (INCIDENT_FIELD_META.some(f => f.key === key)) {
+        newIncidentColumns[key] = mapping.excelColumn;
+      }
+    });
+
+    onExcelExtractionChange({
+      ...resolvedExtraction,
+      incidentColumns: newIncidentColumns,
+    });
+  };
+
+  const missingIncidentFields = INCIDENT_FIELD_META.filter(
+    (f) => !resolvedExtraction.incidentColumns[f.key]
+  );
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Step 2: Excel Configuration</h2>
-        <p className="text-gray-600 mb-4">
-          Upload an Excel file containing base incident records. The Excel file typically provides 8 fields:
-          incident_number, name, date, time, incident_location, room, injuries, incident_type.
-          Map the Excel columns to these standard fields.
-        </p>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-          <p className="text-sm text-blue-800">
-            <strong>Data Source Priority:</strong> Excel is always the source of truth for base incident data.
-            PDF behaviour notes are matched and merged with Excel records by resident name and time window.
-          </p>
-        </div>
-      </div>
-
-      {/* Excel Upload Section */}
-      {!excelData && (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Excel File</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Contains base incident records (.xls or .xlsx)
-          </p>
-          <input
-            type="file"
-            accept=".xls,.xlsx"
-            onChange={onExcelUpload}
-            className="hidden"
-            id="excel-upload"
-          />
-          <label
-            htmlFor="excel-upload"
-            className="cursor-pointer inline-block px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-          >
-            Choose Excel File
-          </label>
-          {excelFile && (
-            <p className="mt-4 text-sm text-gray-600">Selected: {excelFile.name}</p>
-          )}
-        </div>
-      )}
-
-      {/* Analyze Excel Button */}
-      {excelFile && !excelData && !aiLoading && (
-        <div className="text-center">
-          <button
-            onClick={onAnalyzeExcel}
-            className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-semibold"
-          >
-            Analyze Excel with AI
-          </button>
-          <p className="text-xs text-gray-500 mt-2">
-            Click to extract data and analyze column mappings
-          </p>
-        </div>
-      )}
-
-      {/* AI Loading */}
-      {aiLoading && (
-        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-            <p className="text-sm font-medium text-blue-700">
-              AI is analyzing the Excel file and generating field mappings...
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Step 2: Excel Configuration</h2>
+            <p className="text-sm text-gray-600">
+              Configure incident columns and injury window, then upload and review the full Excel sheet with live highlights.
             </p>
           </div>
+          <div className="flex flex-col items-start gap-2">
+            {excelFile && (
+              <div className="flex items-center gap-2 text-xs text-gray-700">
+                <span className="rounded bg-gray-100 px-2 py-1 border border-gray-200">File: {excelFile.name}</span>
+                <button
+                  onClick={onRemoveExcelFile}
+                  className="rounded bg-red-500 px-2 py-1 text-white hover:bg-red-600"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {aiSuggestions?.excelFieldMappings && (
+              <button
+                onClick={applyAISuggestions}
+                className="px-3 py-2 text-sm rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+              >
+                Apply AI suggestions
+              </button>
+            )}
+          </div>
         </div>
-      )}
 
-      {/* AI Suggestions */}
-      {aiSuggestions && !aiLoading && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-800 mb-2">
-                AI Analysis Complete
-              </p>
-              <p className="text-xs text-green-700 mb-2">
-                Found {Object.keys(aiSuggestions.excelFieldMappings || {}).length} Excel field mappings.
-                Review and adjust the mappings below.
-              </p>
-              {dataSourceMapping && (
-                <div className="mt-2 text-xs text-green-700">
-                  <p className="font-semibold">Data Sources:</p>
-                  <p><strong>Excel (8 fields):</strong> {dataSourceMapping.excel?.join(', ') || 'N/A'}</p>
-                  <p className="text-sm text-gray-600 mt-2 italic">
-                    Note: Excel is always the source of truth. PDF fields are merged with Excel records.
-                  </p>
-                </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-3 rounded-lg border bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold pl-1 text-gray-900">Core incident columns</h3>
+              </div>
+              {missingIncidentFields.length > 0 && (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-200">
+                  {missingIncidentFields.length} missing
+                </span>
               )}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {INCIDENT_FIELD_META.map((field) => (
+                <div key={field.key} className="rounded border border-gray-200 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{field.label}</p>
+                      <p className="text-xs text-gray-600">{field.hint}</p>
+                    </div>
+                    <span
+                      className={`ml-2 inline-flex items-center rounded px-2 py-1 text-[11px] font-medium border ${
+                        resolvedExtraction.incidentColumns[field.key]
+                          ? BADGE_CLASSES[field.key]
+                          : 'bg-gray-100 text-gray-600 border-gray-200'
+                      }`}
+                    >
+                      {resolvedExtraction.incidentColumns[field.key] || 'Not set'}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      list={headerDatalistId}
+                      value={resolvedExtraction.incidentColumns[field.key]}
+                      onChange={(e) => handleIncidentColumnChange(field.key, e.target.value)}
+                      placeholder="Type or pick a column header"
+                      className="flex-1 rounded border px-2 py-1 text-sm"
+                    />
+                    {selectedHeader && (
+                      <button
+                        onClick={() => handleIncidentColumnChange(field.key, selectedHeader)}
+                        className="rounded bg-cyan-500 px-3 py-1 text-xs font-semibold text-white hover:bg-cyan-600"
+                      >
+                        Use column
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="rounded-lg border bg-white p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-gray-900 text-sm">Injury columns</h4>
+                <span className="text-[11px] text-gray-500">Zero-based indices</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-gray-600">
+                  Start (col #)
+                  <input
+                    type="number"
+                    min={1}
+                    value={resolvedExtraction.injuryColumns.start + 1}
+                    onChange={(e) => handleRangeChange('start', e.target.value)}
+                    className="mt-1 w-full rounded border px-2 py-1 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-gray-600">
+                  End (col #)
+                  <input
+                    type="number"
+                    min={resolvedExtraction.injuryColumns.start + 1}
+                    value={resolvedExtraction.injuryColumns.end + 1}
+                    onChange={(e) => handleRangeChange('end', e.target.value)}
+                    className="mt-1 w-full rounded border px-2 py-1 text-sm"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-600">
+                Columns between start and end (inclusive) are scanned for &quot;Y&quot; to build the injuries string.
+              </p>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Excel Data Display */}
-      {excelData && (
-        <>
-          <div className="border rounded-lg p-4 bg-gray-50 max-h-[600px] overflow-y-auto">
-            <h3 className="font-semibold mb-2 text-gray-900">Excel Data (Base Incident Records)</h3>
-            <p className="text-xs text-gray-600 mb-2">
-              Click column headers to map them to fields. Contains 8 fields: incident_number, name, date, time, incident_location, room, injuries, incident_type
-            </p>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-gray-200">
-                    {excelData.headers.slice(0, 10).map((header, idx) => {
-                      const isMapped = Object.values(excelFieldMappings).some(m => m.excelColumn === header);
-                      return (
-                        <th
-                          key={idx}
-                          onClick={() => {
-                            const fieldKey = prompt(`Map column "${header}" to which field?\n\nOptions: incident_number, name, date, time, incident_location, room, injuries, incident_type`);
-                            if (fieldKey) {
-                              onExcelFieldMap(fieldKey, header);
-                            }
-                          }}
-                          className={`border px-2 py-1 text-left font-semibold cursor-pointer hover:bg-blue-200 transition-colors ${
-                            isMapped ? 'bg-green-200' : ''
-                          }`}
-                          title={isMapped ? `Mapped to: ${Object.entries(excelFieldMappings).find(([, m]) => m.excelColumn === header)?.[0] || ''}` : 'Click to map this column'}
-                        >
-                          {header} {isMapped && '✓'}
-                        </th>
-                      );
-                    })}
+      <div className="space-y-4">
+        {!excelData && (
+          <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-4">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <h3 className="font-semibold text-gray-900">Upload Reference Excel File</h3>
+              <p className="text-xs text-gray-600">
+                Upload the Excel file to preview every column with live highlights and column numbers.
+              </p>
+              <input
+                type="file"
+                accept=".xls,.xlsx"
+                onChange={onExcelUpload}
+                className="hidden"
+                id="excel-upload"
+              />
+              <label
+                htmlFor="excel-upload"
+                className="mt-2 cursor-pointer inline-flex items-center rounded-lg bg-green-500 px-5 py-2 text-white text-sm hover:bg-green-600"
+              >
+                Upload Excel
+              </label>
+              {excelFile && (
+                <span className="text-xs text-gray-600">Selected: {excelFile.name}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {excelData && (
+          <div className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900">Excel preview with detections</h3>
+                <p className="text-xs text-gray-600">Click on columns, then use buttons above to assign fields.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                <span className="inline-flex items-center gap-1 rounded border-2 border-cyan-400 bg-cyan-100 px-2 py-0.5 text-cyan-900 font-medium">
+                  Selected
+                </span>
+                {INCIDENT_FIELD_META.map((f) => (
+                  <span
+                    key={f.key}
+                    className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 ${BADGE_CLASSES[f.key]}`}
+                  >
+                    {f.label}
+                  </span>
+                ))}
+                <span className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 ${BADGE_CLASSES.injury}`}>
+                  Injury columns
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 overflow-auto rounded border">
+              <table className="min-w-max text-xs">
+                <thead className="sticky top-0 z-10 bg-gray-50">
+                  <tr className="text-gray-600">
+                    <th className="sticky left-0 bg-gray-50 px-2 py-2 border-b border-r text-left">#</th>
+                    {columnMeta.map((col) => (
+                      <th
+                        key={`num-${col.index}`}
+                        onClick={() => setSelectedHeader(col.isSelected ? '' : col.header)}
+                        className={`px-2 py-2 border-b border-r text-left font-semibold text-[11px] cursor-pointer transition-colors ${
+                            `${CELL_TONE[col.tone] || ''} hover:bg-cyan-50`
+                        }`}
+                      >
+                        {col.index + 1}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr className="text-gray-800">
+                    <th className="sticky left-0 bg-gray-50 px-2 py-2 border-b border-r text-left font-semibold">Header</th>
+                    {columnMeta.map((col) => (
+                      <th
+                        key={`head-${col.index}`}
+                        onClick={() => setSelectedHeader(col.isSelected ? '' : col.header)}
+                        className={`px-2 py-2 border-b border-r text-left align-top cursor-pointer transition-colors ${
+                            `${CELL_TONE[col.tone] || ''} hover:bg-cyan-50`
+                        }`}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <span className={`font-semibold ${col.isSelected ? 'text-cyan-900' : ''}`}>
+                            {col.header}
+                            {col.isSelected && <span className="ml-1 text-cyan-600">✓</span>}
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {col.badges.map((badge, idx) => (
+                              <span
+                                key={`${badge.label}-${idx}`}
+                                className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-medium ${BADGE_CLASSES[badge.tone] || BADGE_CLASSES.mapping}`}
+                              >
+                                {badge.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {excelData.rows.slice(0, 20).map((row, rowIdx) => (
-                    <tr key={rowIdx} className="border-b">
-                      {excelData.headers.slice(0, 10).map((header, colIdx) => (
-                        <td key={colIdx} className="border px-2 py-1">
-                          {String(row[header] || '').substring(0, 30)}
+                  {rows.map((row, rowIdx) => (
+                    <tr key={`row-${rowIdx}`} className="border-b last:border-b-0">
+                      <td className="sticky left-0 bg-white px-2 py-1 border-r text-[11px] font-medium text-gray-700">
+                        {rowIdx + 1}
+                      </td>
+                      {columnMeta.map((col) => (
+                        <td
+                          key={`cell-${rowIdx}-${col.index}`}
+                          onClick={() => setSelectedHeader(col.isSelected ? '' : col.header)}
+                          className={`px-2 py-1 border-r align-top cursor-pointer transition-colors ${
+                            col.isSelected
+                              ? 'bg-cyan-100'
+                              : `${CELL_TONE[col.tone] || ''} hover:bg-cyan-50`
+                          }`}
+                        >
+                          {String((row as Record<string, unknown>)[col.header] ?? '')}
                         </td>
                       ))}
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {excelData.rows.length > 20 && (
-                <p className="text-xs text-gray-500 mt-2">
-                  Showing first 20 of {excelData.rows.length} rows
-                </p>
-              )}
             </div>
           </div>
+        )}
 
-          {/* Excel Field Mappings */}
-          <div className="border rounded-lg p-4 bg-green-50">
-            <div className="flex justify-between items-center mb-3">
-              <div>
-                <h3 className="font-semibold text-gray-900">Excel Field Mappings</h3>
-                <p className="text-xs text-gray-600 mt-1">
-                  Excel provides 8 fields: incident_number, name, date, time, incident_location, room, injuries, incident_type.
-                  Click column headers in the table above to map them.
-                </p>
-              </div>
-              <button
-                onClick={onAddExcelFieldMapping}
-                className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                + Add Mapping
-              </button>
-            </div>
+      </div>
 
-            {Object.keys(excelFieldMappings).length > 0 ? (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {Object.entries(excelFieldMappings).map(([fieldKey, mapping]) => (
-                  <div key={fieldKey} className="border-l-4 border-green-400 pl-3 py-2 bg-white rounded">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold text-green-900">{fieldKey}</span>
-                          {mapping.confidence && (
-                            <span className="text-xs text-gray-500">
-                              ({Math.round(mapping.confidence * 100)}% confidence)
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          Excel Column: <span className="font-mono">{mapping.excelColumn}</span>
-                        </div>
-                        {mapping.reasoning && (
-                          <div className="text-xs text-gray-500 mt-1 italic">
-                            {mapping.reasoning}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => onRemoveExcelFieldMapping(fieldKey)}
-                        className="ml-2 text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600">
-                No field mappings yet. Click column headers above or use &quot;+ Add Mapping&quot; to create mappings.
-              </p>
-            )}
-          </div>
+      <datalist id={headerDatalistId}>
+        {headers.map((header, idx) => (
+          <option key={`header-${idx}`} value={header} />
+        ))}
+      </datalist>
 
-          {/* Action Buttons */}
-          <div className="flex justify-between items-center pt-4 border-t">
-            <button
-              onClick={onBack}
-              className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Back to PDF Configuration
-            </button>
-            <button
-              onClick={onContinue}
-              disabled={Object.keys(excelFieldMappings).length === 0}
-              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-                Object.keys(excelFieldMappings).length === 0
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-green-500 text-white hover:bg-green-600'
-              }`}
-            >
-              Continue to Review
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Skip Option (when no Excel uploaded) */}
-      {!excelFile && (
-        <div className="flex justify-between items-center pt-4 border-t">
+      <div className="flex flex-col gap-4 border-t pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             onClick={onBack}
             className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
           >
             Back to PDF Configuration
           </button>
-          <div className="text-center">
-            <button
-              onClick={onSkip}
-              className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-            >
-              Skip Excel - Continue to Review
-            </button>
-            <p className="text-xs text-gray-500 mt-2">
-              You can configure chain settings without Excel
-            </p>
-          </div>
+          <button
+            onClick={onContinue}
+            className="px-6 py-3 rounded-lg font-semibold transition-colors bg-green-500 text-white hover:bg-green-600"
+          >
+            Continue to Review
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

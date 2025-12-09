@@ -7,7 +7,7 @@ import { ExcelConfigurationPage } from './config/ExcelConfigurationPage';
 import { ReviewAndSavePage } from './config/ConfigSubmitPage';
 import { ConfigManagementPage } from './config/ConfigManagementPage';
 import { ChainExtractionConfig, ExcelExtractionConfig } from '@/lib/processing/types';
-import { AIOutputFormat, ExcelData, DataSourceMapping, ExcelFieldMapping } from '@/lib/chainConfig';
+import { AIOutputFormat, ExcelData } from '@/lib/chainConfig';
 
 export type ConfigManagerStep = 'manage' | 'pdf-config' | 'excel-config' | 'review';
 
@@ -70,8 +70,6 @@ export default function ConfigManagerWizard() {
   const [viewingConfig, setViewingConfig] = useState<(ChainExtractionConfig & { chainId: string; chainName: string }) | null>(null);
   const [editingConfig, setEditingConfig] = useState<(ChainExtractionConfig & { chainId: string; chainName: string }) | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AIOutputFormat | null>(null);
-  const [dataSourceMapping, setDataSourceMapping] = useState<DataSourceMapping | null>(null);
-  const [excelFieldMappings, setExcelFieldMappings] = useState<Record<string, ExcelFieldMapping>>({});
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
@@ -95,7 +93,7 @@ export default function ConfigManagerWizard() {
     extractPdfFile(file);
   };
 
-  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -110,6 +108,11 @@ export default function ConfigManagerWizard() {
     }
 
     setExcelFile(file);
+    try {
+      await extractExcelFile(file);
+    } catch (err) {
+      console.error('Error loading Excel file:', err);
+    }
   };
 
   // ============================================================================
@@ -151,11 +154,12 @@ export default function ConfigManagerWizard() {
     }
   };
 
-  const extractExcelFile = async () => {
-    if (!excelFile) return null;
+  const extractExcelFile = async (fileParam: File | null = null) => {
+    const targetFile = fileParam || excelFile;
+    if (!targetFile) return null;
 
     const formData = new FormData();
-    formData.append('excel', excelFile);
+    formData.append('excel', targetFile);
 
     try {
       const response = await fetch('/api/admin/extract-pdf-text', {
@@ -267,117 +271,43 @@ export default function ConfigManagerWizard() {
     }
   };
 
-  const handleAnalyzeExcel = async () => {
-    try {
-      let extractedExcelData = excelData;
-
-      if (!excelData) {
-        const extractedData = await extractExcelFile();
-        extractedExcelData = extractedData?.excelData || null;
-      }
-
-      if (!extractedExcelData) {
-        alert('No Excel data to analyze');
-        return;
-      }
-
-      setAiLoading(true);
-
-      try {
-        const aiResponse = await fetch('/api/admin/analyze-pdf-config', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            pdfText: '',
-            excelData: extractedExcelData,
-          }),
-        });
-
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          setAiSuggestions(aiData.suggestions);
-          setDataSourceMapping(aiData.dataSourceMapping);
-
-          if (aiData.suggestions?.excelFieldMappings) {
-            setExcelFieldMappings(aiData.suggestions.excelFieldMappings);
-          }
-        } else {
-          console.warn('AI analysis failed, continuing without suggestions');
-          alert('AI analysis failed. Please try again.');
-        }
-      } catch (aiError) {
-        console.error('Error running AI analysis:', aiError);
-        alert('Failed to analyze Excel. Please try again.');
-      } finally {
-        setAiLoading(false);
-      }
-    } catch (error) {
-      console.error('Error in handleAnalyzeExcel:', error);
-      setAiLoading(false);
-    }
-  };
-
-
-  // ============================================================================
-  // EXCEL FIELD MAPPING
-  // ============================================================================
-
-  const handleExcelFieldMap = (fieldKey: string, column: string) => {
-    setExcelFieldMappings({
-      ...excelFieldMappings,
-      [fieldKey]: {
-        excelColumn: column,
-        confidence: 1.0,
-        reasoning: 'Manually mapped',
-        dataSource: 'EXCEL',
-      },
-    });
-  };
-
-  const handleAddExcelFieldMapping = () => {
-    const fieldKey = prompt('Enter field key (e.g., incident_number, name, date, time, incident_location, room, injuries, incident_type):');
-    if (fieldKey && excelData) {
-      const column = prompt('Enter Excel column name:');
-      if (column) {
-        setExcelFieldMappings({
-          ...excelFieldMappings,
-          [fieldKey]: {
-            excelColumn: column,
-            confidence: 1.0,
-            reasoning: 'Manually mapped',
-            dataSource: 'EXCEL',
-          },
-        });
-      }
-    }
-  };
-
-  const handleRemoveExcelFieldMapping = (fieldKey: string) => {
-    const newMappings = { ...excelFieldMappings };
-    delete newMappings[fieldKey];
-    setExcelFieldMappings(newMappings);
-  };
-
   // ============================================================================
   // CONFIGURATION BUILDING
   // ============================================================================
 
   const buildConfiguration = () => {
-    // Build ChainExtractionConfig directly from pdfExtractionConfig (without chainId/chainName)
+    const excelExtraction = pdfExtractionConfig.excelExtraction || DEFAULT_EXCEL_EXTRACTION;
+    
+    // Build excelFieldMappings from incidentColumns
+    const derivedMappings: ChainExtractionConfig['excelFieldMappings'] = {};
+    Object.entries(excelExtraction.incidentColumns).forEach(([key, column]) => {
+      if (column) {
+        derivedMappings[key] = {
+          excelColumn: column,
+          confidence: 1.0,
+          reasoning: 'Derived from incident columns',
+          dataSource: 'EXCEL',
+        };
+        // Also map date and time separately for date_time
+        if (key === 'date_time') {
+          derivedMappings['date'] = { excelColumn: column, confidence: 1.0, reasoning: 'Derived from date_time', dataSource: 'EXCEL' };
+          derivedMappings['time'] = { excelColumn: column, confidence: 1.0, reasoning: 'Derived from date_time', dataSource: 'EXCEL' };
+        }
+      }
+    });
+
     const newConfig: ChainExtractionConfig = {
       behaviourNoteTypes: pdfExtractionConfig.behaviourNoteTypes,
       followUpNoteTypes: pdfExtractionConfig.followUpNoteTypes,
       extraFollowUpNoteTypes: pdfExtractionConfig.extraFollowUpNoteTypes || [],
-      excelExtraction: pdfExtractionConfig.excelExtraction || DEFAULT_EXCEL_EXTRACTION,
+      excelExtraction,
       matchingWindowHours: pdfExtractionConfig.matchingWindowHours || 24,
       fieldExtractionMarkers: pdfExtractionConfig.fieldExtractionMarkers,
       hasTimeFrequency: pdfExtractionConfig.hasTimeFrequency || false,
       hasEvaluation: pdfExtractionConfig.hasEvaluation || false,
       behaviourNoteConfigs: pdfExtractionConfig.behaviourNoteConfigs || {},
       followUpNoteConfigs: pdfExtractionConfig.followUpNoteConfigs || {},
-      excelFieldMappings: excelFieldMappings,
+      excelFieldMappings: derivedMappings,
     };
 
     setConfig(newConfig);
@@ -426,12 +356,10 @@ export default function ConfigManagerWizard() {
       setPdfText('');
       setExcelData(null);
       setPdfExtractionConfig(DEFAULT_PDF_CONFIG);
-      setExcelFieldMappings({});
       setConfig(null);
       setChainId('');
       setChainName('');
       setAiSuggestions(null);
-      setDataSourceMapping(null);
     } catch (error) {
       console.error('Error saving configuration:', error);
       alert(`Failed to save configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -485,19 +413,6 @@ export default function ConfigManagerWizard() {
     setEditingConfig(savedConfig);
     setChainId(savedConfig.chainId || '');
     setChainName(savedConfig.chainName || '');
-    // Convert the excel field mappings to ensure required fields have values
-    const mappings: Record<string, ExcelFieldMapping> = {};
-    if (savedConfig.excelFieldMappings) {
-      Object.entries(savedConfig.excelFieldMappings).forEach(([key, mapping]) => {
-        mappings[key] = {
-          excelColumn: mapping.excelColumn,
-          confidence: mapping.confidence ?? 1.0,
-          reasoning: mapping.reasoning ?? 'Loaded from saved config',
-          dataSource: mapping.dataSource,
-        };
-      });
-    }
-    setExcelFieldMappings(mappings);
     // Go to pdf-config step - same flow as create
     setStep('pdf-config');
   };
@@ -512,7 +427,6 @@ export default function ConfigManagerWizard() {
     setChainName('');
     setConfig(null);
     setPdfExtractionConfig(DEFAULT_PDF_CONFIG);
-    setExcelFieldMappings({});
     setPdfFile(null);
     setExcelFile(null);
     setPdfText('');
@@ -560,23 +474,16 @@ export default function ConfigManagerWizard() {
     setStep('review');
   };
 
-  const handleExcelSkip = () => {
-    buildConfiguration();
-    setStep('review');
-  };
-
   const handleStartNewConfig = () => {
     setPdfFile(null);
     setExcelFile(null);
     setPdfText('');
     setExcelData(null);
     setPdfExtractionConfig(DEFAULT_PDF_CONFIG);
-    setExcelFieldMappings({});
     setConfig(null);
     setChainId('');
     setChainName('');
     setAiSuggestions(null);
-    setDataSourceMapping(null);
     setEditingConfig(null);
     setViewingConfig(null);
     setStep('pdf-config');
@@ -636,18 +543,17 @@ export default function ConfigManagerWizard() {
         <ExcelConfigurationPage
           excelFile={excelFile}
           excelData={excelData}
-          excelFieldMappings={excelFieldMappings}
-          aiLoading={aiLoading}
+          excelExtraction={pdfExtractionConfig.excelExtraction}
           aiSuggestions={aiSuggestions}
-          dataSourceMapping={dataSourceMapping}
           onExcelUpload={handleExcelUpload}
-          onAnalyzeExcel={handleAnalyzeExcel}
-          onExcelFieldMap={handleExcelFieldMap}
-          onAddExcelFieldMapping={handleAddExcelFieldMapping}
-          onRemoveExcelFieldMapping={handleRemoveExcelFieldMapping}
+          onExcelExtractionChange={(next) => setPdfExtractionConfig(prev => ({ ...prev, excelExtraction: next }))}
+          onRemoveExcelFile={() => {
+            setExcelFile(null);
+            setExcelData(null);
+            setAiSuggestions(null);
+          }}
           onBack={() => setStep('pdf-config')}
           onContinue={handleExcelContinue}
-          onSkip={handleExcelSkip}
         />
       )}
 
