@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 
-import { PdfConfigurationPage } from './config/PdfConfiguratiionPage';
+import { PdfConfigurationPage } from './config/PdfConfigurationPage';
 import { ExcelConfigurationPage } from './config/ExcelConfigurationPage';
 import { ReviewAndSavePage } from './config/ConfigSubmitPage';
 import { ConfigManagementPage } from './config/ConfigManagementPage';
-import { StoredChainExtractionConfig, ChainExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig } from '@/lib/processing/types';
 import { AIOutputFormat, ExcelData, DataSourceMapping, ExcelFieldMapping } from '@/lib/chainConfig';
 
 export type ConfigManagerStep = 'manage' | 'pdf-config' | 'excel-config' | 'review';
@@ -25,10 +25,8 @@ const DEFAULT_PDF_CONFIG: ChainExtractionConfig = {
 };
 
 // Normalize config to ensure all required fields exist
-const normalizeConfig = (config: Partial<StoredChainExtractionConfig>): StoredChainExtractionConfig => {
+const normalizeConfig = (config: Partial<ChainExtractionConfig>): ChainExtractionConfig => {
   return {
-    chainId: config.chainId || '',
-    chainName: config.chainName || '',
     behaviourNoteTypes: config.behaviourNoteTypes || [],
     followUpNoteTypes: config.followUpNoteTypes || [],
     extraFollowUpNoteTypes: config.extraFollowUpNoteTypes || [],
@@ -52,13 +50,13 @@ export default function ConfigManagerWizard() {
   const [pdfText, setPdfText] = useState<string>('');
   const [excelData, setExcelData] = useState<ExcelData | null>(null);
   const [pdfExtractionConfig, setPdfExtractionConfig] = useState<ChainExtractionConfig>(DEFAULT_PDF_CONFIG);
-  const [config, setConfig] = useState<StoredChainExtractionConfig | null>(null);
+  const [config, setConfig] = useState<ChainExtractionConfig | null>(null);
   const [chainId, setChainId] = useState<string>('');
   const [chainName, setChainName] = useState<string>('');
-  const [savedConfigs, setSavedConfigs] = useState<StoredChainExtractionConfig[]>([]);
+  const [savedConfigs, setSavedConfigs] = useState<Array<ChainExtractionConfig & { chainId: string; chainName: string }>>([]);
   const [loadingConfigs, setLoadingConfigs] = useState(false);
-  const [viewingConfig, setViewingConfig] = useState<StoredChainExtractionConfig | null>(null);
-  const [editingConfig, setEditingConfig] = useState<StoredChainExtractionConfig | null>(null);
+  const [viewingConfig, setViewingConfig] = useState<(ChainExtractionConfig & { chainId: string; chainName: string }) | null>(null);
+  const [editingConfig, setEditingConfig] = useState<(ChainExtractionConfig & { chainId: string; chainName: string }) | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AIOutputFormat | null>(null);
   const [dataSourceMapping, setDataSourceMapping] = useState<DataSourceMapping | null>(null);
   const [excelFieldMappings, setExcelFieldMappings] = useState<Record<string, ExcelFieldMapping>>({});
@@ -82,6 +80,7 @@ export default function ConfigManagerWizard() {
     }
 
     setPdfFile(file);
+    extractPdfFile(file);
   };
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,11 +104,15 @@ export default function ConfigManagerWizard() {
   // FILE EXTRACTION & AI ANALYSIS
   // ============================================================================
 
-  const extractPdfFile = async () => {
-    if (!pdfFile) return null;
+  const extractPdfFile = async (file: File | null = null) => {
+    if (!pdfFile && !file) return null;
 
     const formData = new FormData();
-    formData.append('pdf', pdfFile);
+    if (file) {
+      formData.append('pdf', file);
+    } else if (pdfFile) {
+      formData.append('pdf', pdfFile);
+    }
 
     try {
       const response = await fetch('/api/admin/extract-pdf-text', {
@@ -164,6 +167,44 @@ export default function ConfigManagerWizard() {
       console.error('Error extracting Excel:', error);
       alert(`Failed to extract Excel content: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw error;
+    }
+  };
+
+  const handleAnalyzePdfWithAI = async () => {
+    if (!pdfText) {
+      alert('No PDF text to analyze');
+      return;
+    }
+
+    setAiLoading(true);
+
+    try {
+      const aiResponse = await fetch('/api/admin/analyze-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfText, excelData: null }),
+      });
+
+      if (aiResponse.ok) {
+        const aiData = await aiResponse.json();
+        setAiSuggestions(aiData.suggestions);
+        if (aiData.extractionConfig) {
+          setPdfExtractionConfig(prev => ({
+            ...prev,
+            ...aiData.extractionConfig,
+          }));
+        }
+        else {
+          throw new Error('Config could not be produced. ');
+        }
+      } else {
+        throw new Error('AI analysis failed: ' + aiResponse.statusText);
+      }
+    } catch (error) {
+      console.error('Error running AI analysis:', error);
+      alert('Failed to analyze PDF. Please try again.');
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -312,10 +353,8 @@ export default function ConfigManagerWizard() {
   // ============================================================================
 
   const buildConfiguration = () => {
-    // Build StoredChainExtractionConfig directly from pdfExtractionConfig
-    const newConfig: StoredChainExtractionConfig = {
-      chainId,
-      chainName,
+    // Build ChainExtractionConfig directly from pdfExtractionConfig (without chainId/chainName)
+    const newConfig: ChainExtractionConfig = {
       behaviourNoteTypes: pdfExtractionConfig.behaviourNoteTypes,
       followUpNoteTypes: pdfExtractionConfig.followUpNoteTypes,
       extraFollowUpNoteTypes: pdfExtractionConfig.extraFollowUpNoteTypes || [],
@@ -337,7 +376,7 @@ export default function ConfigManagerWizard() {
   // ============================================================================
 
   const handleSaveConfiguration = async () => {
-    if (!config) return;
+    if (!config || !chainId || !chainName) return;
 
     try {
       const response = await fetch('/api/admin/save-chain-config', {
@@ -345,7 +384,11 @@ export default function ConfigManagerWizard() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(config),
+        body: JSON.stringify({
+          chainId,
+          chainName,
+          ...config,
+        }),
       });
 
       if (!response.ok) {
@@ -359,7 +402,7 @@ export default function ConfigManagerWizard() {
 
       await response.json();
 
-      alert(`Configuration saved successfully for ${config.chainName} (${config.chainId})!`);
+      alert(`Configuration saved successfully for ${chainName} (${chainId})!`);
 
       await loadSavedConfigs();
 
@@ -389,8 +432,12 @@ export default function ConfigManagerWizard() {
       const response = await fetch('/api/admin/save-chain-config');
       if (response.ok) {
         const data = await response.json();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const normalizedConfigs = (data.configs || []).map((config: any) => normalizeConfig(config));
+        // Configs from API include chainId/chainName separately
+        const normalizedConfigs = (data.configs || []).map((config: ChainExtractionConfig & { chainId: string; chainName: string }) => ({
+          ...normalizeConfig(config),
+          chainId: config.chainId,
+          chainName: config.chainName,
+        }));
         setSavedConfigs(normalizedConfigs);
       }
     } catch (error) {
@@ -405,11 +452,11 @@ export default function ConfigManagerWizard() {
     setStep('manage');
   };
 
-  const handleLoadConfig = (savedConfig: StoredChainExtractionConfig) => {
+  const handleLoadConfig = (savedConfig: ChainExtractionConfig & { chainId: string; chainName: string }) => {
     setViewingConfig(savedConfig);
   };
 
-  const handleEditConfig = (savedConfig: StoredChainExtractionConfig) => {
+  const handleEditConfig = (savedConfig: ChainExtractionConfig & { chainId: string; chainName: string }) => {
     // Pre-fill the PDF extraction config with existing values
     setPdfExtractionConfig({
       behaviourNoteTypes: savedConfig.behaviourNoteTypes,
@@ -424,8 +471,8 @@ export default function ConfigManagerWizard() {
       followUpNoteConfigs: savedConfig.followUpNoteConfigs || {},
     });
     setEditingConfig(savedConfig);
-    setChainId(savedConfig.chainId);
-    setChainName(savedConfig.chainName);
+    setChainId(savedConfig.chainId || '');
+    setChainName(savedConfig.chainName || '');
     // Convert the excel field mappings to ensure required fields have values
     const mappings: Record<string, ExcelFieldMapping> = {};
     if (savedConfig.excelFieldMappings) {
@@ -540,7 +587,7 @@ export default function ConfigManagerWizard() {
           onEditConfig={handleEditConfig}
           onDeleteConfig={handleDeleteConfig}
           onCloseViewConfig={handleCloseViewConfig}
-          onExportConfig={(configToExport: StoredChainExtractionConfig) => {
+          onExportConfig={(configToExport: ChainExtractionConfig & { chainId: string; chainName: string }) => {
             const blob = new Blob([JSON.stringify(configToExport, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -563,6 +610,8 @@ export default function ConfigManagerWizard() {
           onConfigChange={setPdfExtractionConfig}
           onPdfUpload={handlePdfUpload}
           onAnalyzePdf={handleAnalyzePdf}
+          onAnalyzeWithAI={handleAnalyzePdfWithAI}
+          isAnalyzing={aiLoading}
           onContinue={handlePdfContinue}
           onSkip={handlePdfSkip}
           onBack={editingConfig ? handleCancelEdit : handleViewSavedConfigs}
@@ -597,8 +646,8 @@ export default function ConfigManagerWizard() {
           chainId={chainId}
           chainName={chainName}
           editingConfig={editingConfig}
-          onChainIdChange={setChainId}
-          onChainNameChange={setChainName}
+          onChainIdChange={(val) => setChainId(val || '')}
+          onChainNameChange={(val) => setChainName(val || '')}
           onBack={() => setStep('excel-config')}
           onSave={handleSaveConfiguration}
         />

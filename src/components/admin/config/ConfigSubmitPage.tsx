@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StoredChainExtractionConfig, ExtractionType } from '../../../lib/processing/types';
+import { ChainExtractionConfig, ExtractionType } from '../../../lib/processing/types';
 
 interface ChainOption {
   id: string;
@@ -8,12 +8,12 @@ interface ChainOption {
 }
 
 interface ReviewAndSavePageProps {
-  config: StoredChainExtractionConfig | null;
-  chainId: string;
-  chainName: string;
-  editingConfig: StoredChainExtractionConfig | null;
-  onChainIdChange: (value: string) => void;
-  onChainNameChange: (value: string) => void;
+  config: ChainExtractionConfig | null;
+  chainId: string | null;
+  chainName: string | null;
+  editingConfig: ChainExtractionConfig | null;
+  onChainIdChange: (value: string | null) => void;
+  onChainNameChange: (value: string | null) => void;
   onBack: () => void;
   onSave: () => void;
 }
@@ -31,46 +31,57 @@ export function ReviewAndSavePage({
   const [availableChains, setAvailableChains] = useState<ChainOption[]>([]);
   const [loadingChains, setLoadingChains] = useState(false);
   const [selectedExistingChain, setSelectedExistingChain] = useState<string>('');
-  const [createNewChain, setCreateNewChain] = useState(true);
 
-  // Fetch available chains
+  // Fetch available chains and align chainId/chainName from selection or existing values
   useEffect(() => {
-    fetchAvailableChains();
-    // If editing, pre-select the existing chain
-    if (editingConfig) {
-      setCreateNewChain(false);
-      setSelectedExistingChain(editingConfig.chainId);
-    }
-  }, [editingConfig]);
-
-  const fetchAvailableChains = async () => {
-    setLoadingChains(true);
-    try {
-      const response = await fetch('/api/admin/chains');
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableChains(data.chains || []);
+    const fetchAvailableChains = async () => {
+      setLoadingChains(true);
+      try {
+        const response = await fetch('/api/admin/chains');
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableChains(data.chains || []);
+          if (chainId && data.chains) {
+            const chain = data.chains.find((c: ChainOption) => c.id === chainId);
+            if (chain) {
+              onChainIdChange(chain.id);
+              onChainNameChange(chain.name);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching chains:', error);
+      } finally {
+        setLoadingChains(false);
       }
-    } catch (error) {
-      console.error('Error fetching chains:', error);
-    } finally {
-      setLoadingChains(false);
+    };
+
+    fetchAvailableChains();
+    // Pre-select existing chain values if provided
+    setSelectedExistingChain(chainId || '');
+    if (chainId) {
+      onChainIdChange(chainId);
+    } else {
+      onChainIdChange(null);
     }
-  };
+    if (chainName) {
+      onChainNameChange(chainName);
+    } else {
+      onChainNameChange(null);
+    }
+  }, [chainId, chainName, onChainIdChange, onChainNameChange]);
 
   const handleChainSelect = (selectedChainId: string) => {
     setSelectedExistingChain(selectedChainId);
     if (selectedChainId) {
-      setCreateNewChain(false);
       const chain = availableChains.find(c => c.id === selectedChainId);
       if (chain) {
         onChainIdChange(chain.id);
         onChainNameChange(chain.name);
       }
     } else {
-      setCreateNewChain(true);
-      onChainIdChange('');
-      onChainNameChange('');
+      onChainIdChange(null);
+      onChainNameChange(null);
     }
   };
 
@@ -151,97 +162,37 @@ export function ReviewAndSavePage({
       {/* Chain Selection */}
       <div className="border rounded-lg p-4 bg-white">
         <h3 className="font-semibold text-gray-900 mb-4">Chain Selection</h3>
-
-        {/* Toggle between existing and new chain */}
-        <div className="flex gap-4 mb-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="chainSelection"
-              checked={!createNewChain}
-              onChange={() => setCreateNewChain(false)}
-              className="text-cyan-500"
-            />
-            <span className="text-sm">Select Existing Chain {editingConfig && '(Update existing)'}</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="chainSelection"
-              checked={createNewChain}
-              onChange={() => {
-                setCreateNewChain(true);
-                setSelectedExistingChain('');
-                onChainIdChange('');
-                onChainNameChange('');
-              }}
-              className="text-cyan-500"
-            />
-            <span className="text-sm">Create New Chain</span>
-          </label>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select Chain <span className="text-red-500">*</span>
+            </label>
+            {loadingChains ? (
+              <div className="flex items-center gap-2 text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-500"></div>
+                <span className="text-sm">Loading chains...</span>
+              </div>
+            ) : (
+              <select
+                value={selectedExistingChain}
+                onChange={(e) => handleChainSelect(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+              >
+                <option value="">-- Select a chain --</option>
+                {availableChains.map((chain) => (
+                  <option key={chain.id} value={chain.id}>
+                    {chain.name} ({chain.id}) {chain.hasConfig ? '- Has Config' : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+            {selectedExistingChain && availableChains.find(c => c.id === selectedExistingChain)?.hasConfig && (
+              <p className="mt-1 text-sm text-amber-600">
+                This chain already has a configuration. Saving will overwrite the existing configuration.
+              </p>
+            )}
+          </div>
         </div>
-
-        {!createNewChain ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select Chain <span className="text-red-500">*</span>
-              </label>
-              {loadingChains ? (
-                <div className="flex items-center gap-2 text-gray-500">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-500"></div>
-                  <span className="text-sm">Loading chains...</span>
-                </div>
-              ) : (
-                <select
-                  value={selectedExistingChain}
-                  onChange={(e) => handleChainSelect(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                >
-                  <option value="">-- Select a chain --</option>
-                  {availableChains.map((chain) => (
-                    <option key={chain.id} value={chain.id}>
-                      {chain.name} ({chain.id}) {chain.hasConfig ? '- Has Config' : ''}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {selectedExistingChain && availableChains.find(c => c.id === selectedExistingChain)?.hasConfig && (
-                <p className="mt-1 text-sm text-amber-600">
-                  This chain already has a configuration. Saving will update the existing configuration.
-                </p>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Chain ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={chainId}
-                onChange={(e) => onChainIdChange(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-                placeholder="e.g., kindera"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">Lowercase, no spaces (use underscores)</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Chain Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={chainName}
-                onChange={(e) => onChainNameChange(e.target.value)}
-                placeholder="e.g., Kindera Care"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Configuration Summary */}

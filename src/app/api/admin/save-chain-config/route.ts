@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { StoredChainExtractionConfig, ChainExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig } from '@/lib/processing/types';
 
 /**
  * Validate ChainExtractionConfig
@@ -8,47 +8,40 @@ import { StoredChainExtractionConfig, ChainExtractionConfig } from '@/lib/proces
 function validateChainConfig(config: ChainExtractionConfig): string[] {
   const errors: string[] = [];
 
-  if (!config.chainId || config.chainId.trim() === '') {
-    errors.push('Chain ID is required');
-  }
-
-  if (!config.chainName || config.chainName.trim() === '') {
-    errors.push('Chain name is required');
-  }
-
   if (!config.behaviourNoteTypes || config.behaviourNoteTypes.length === 0) {
     errors.push('At least one behaviour note type is required');
   }
 
   // Validate required Excel fields
-  const requiredExcelFields = ['incident_number', 'name', 'date', 'time', 'incident_type'];
-  for (const field of requiredExcelFields) {
-    if (!config.excelFieldMappings?.[field]) {
-      errors.push(`Excel field mapping for "${field}" is required`);
-    }
-  }
+  // const requiredExcelFields = ['incident_number', 'name', 'date', 'time', 'incident_type'];
+  // for (const field of requiredExcelFields) {
+  //   if (!config.excelFieldMappings?.[field]) {
+  //     errors.push(`Excel field mapping for "${field}" is required`);
+  //   }
+  // }
 
-  // Validate Excel field mappings have required properties
-  if (config.excelFieldMappings) {
-    for (const [fieldKey, mapping] of Object.entries(config.excelFieldMappings)) {
-      if (!mapping || typeof mapping !== 'object') {
-        errors.push(`Excel field mapping for "${fieldKey}" is invalid`);
-        continue;
-      }
-      if (!mapping.excelColumn || (typeof mapping.excelColumn === 'string' && mapping.excelColumn.trim() === '')) {
-        errors.push(`Excel field mapping for "${fieldKey}" is missing column name`);
-      }
-    }
-  }
+  // // Validate Excel field mappings have required properties
+  // if (config.excelFieldMappings) {
+  //   for (const [fieldKey, mapping] of Object.entries(config.excelFieldMappings)) {
+  //     if (!mapping || typeof mapping !== 'object') {
+  //       errors.push(`Excel field mapping for "${fieldKey}" is invalid`);
+  //       continue;
+  //     }
+  //     if (!mapping.excelColumn || (typeof mapping.excelColumn === 'string' && mapping.excelColumn.trim() === '')) {
+  //       errors.push(`Excel field mapping for "${fieldKey}" is missing column name`);
+  //     }
+  //   }
+  // }
 
   return errors;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const config: StoredChainExtractionConfig = await request.json();
+    const body = await request.json();
+    const { chainId, chainName, ...config } = body;
 
-    if (!config.chainId || !config.chainName) {
+    if (!chainId || !chainName) {
       return NextResponse.json(
         { error: 'Chain ID and name are required' },
         { status: 400 }
@@ -70,16 +63,16 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
 
     // Check if chain exists
-    const chainRef = adminDb.ref(`/chains/${config.chainId}`);
+    const chainRef = adminDb.ref(`/chains/${chainId}`);
     const chainSnapshot = await chainRef.once('value');
 
     // Check if config already exists
-    const configRef = adminDb.ref(`/chains/${config.chainId}/config`);
+    const configRef = adminDb.ref(`/chains/${chainId}/config`);
     const configSnapshot = await configRef.once('value');
     const configExists = configSnapshot.exists();
 
-    // Prepare config data with timestamps
-    const configData: StoredChainExtractionConfig = {
+    // Prepare config data with timestamps (without chainId/chainName)
+    const configData: ChainExtractionConfig = {
       ...config,
       createdAt: configExists ? (configSnapshot.val()?.createdAt || now) : now,
       updatedAt: now,
@@ -88,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (!chainSnapshot.exists()) {
       // Create new chain with config
       await chainRef.set({
-        name: config.chainName,
+        name: chainName,
         homes: [],
         extractionType: 'custom',
         createdAt: now,
@@ -99,7 +92,7 @@ export async function POST(request: NextRequest) {
       await configRef.set(configData);
       // Also update chain name if it changed
       await chainRef.update({
-        name: config.chainName,
+        name: chainName,
         updatedAt: now,
       });
     }
@@ -107,7 +100,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: configExists ? 'Configuration updated successfully' : 'Configuration saved successfully',
-      chainId: config.chainId,
+      chainId,
       chainConfig: configData
     });
   } catch (error) {
@@ -133,15 +126,19 @@ export async function GET() {
     }
 
     const chainsData = snapshot.val();
-    const configs: StoredChainExtractionConfig[] = [];
+    const configs: Array<ChainExtractionConfig & { chainId: string; chainName: string }> = [];
 
     for (const chainId of Object.keys(chainsData)) {
       const chainData = chainsData[chainId];
       if (chainData.config) {
+        // Remove chainId/chainName from config if they exist (backward compatibility)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const configAny = chainData.config as any;
+        const { chainId: _unused1, chainName: _unused2, ...configWithoutIds } = configAny;
         configs.push({
-          ...chainData.config,
+          ...configWithoutIds,
           chainId,
-          chainName: chainData.config.chainName || chainData.name || chainId,
+          chainName: chainData.name || chainId,
         });
       }
     }

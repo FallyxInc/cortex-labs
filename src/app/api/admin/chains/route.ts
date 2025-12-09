@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { ChainExtractionConfig, StoredChainExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig } from '@/lib/processing/types';
 
 export interface ChainWithConfig {
   id: string;
@@ -8,7 +8,7 @@ export interface ChainWithConfig {
   homes: string[];
   extractionType?: string;
   hasConfig: boolean;
-  config?: StoredChainExtractionConfig;
+  config?: ChainExtractionConfig;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -28,7 +28,15 @@ export async function GET() {
     const chainsData = snapshot.val();
     const chains: ChainWithConfig[] = Object.keys(chainsData).map(chainId => {
       const chainData = chainsData[chainId];
-      const config = chainData.config as StoredChainExtractionConfig | undefined;
+      let config = chainData.config as ChainExtractionConfig | undefined;
+      
+      // Remove chainId/chainName from config if they exist (backward compatibility)
+      if (config && ('chainId' in config || 'chainName' in config)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const configAny = config as any;
+        const { chainId: _unused1, chainName: _unused2, ...configWithoutIds } = configAny;
+        config = configWithoutIds as ChainExtractionConfig;
+      }
 
       return {
         id: chainId,
@@ -108,7 +116,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create chain structure
-    const chainData: any = {
+    const chainData: {
+      name: string;
+      homes: string[];
+      extractionType: string;
+      createdAt: string;
+      extractionConfig?: unknown;
+    } = {
       name: chainName,
       homes: [],
       extractionType: extractionType,

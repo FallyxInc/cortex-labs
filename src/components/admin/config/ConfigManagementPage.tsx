@@ -1,15 +1,15 @@
-import { StoredChainExtractionConfig, ExtractionType } from '../../../lib/processing/types';
+import { ChainExtractionConfig, ExtractionType } from '../../../lib/processing/types';
 
 interface ConfigManagementPageProps {
-  savedConfigs: StoredChainExtractionConfig[];
+  savedConfigs: Array<ChainExtractionConfig & { chainId: string; chainName: string }>;
   loadingConfigs: boolean;
-  viewingConfig: StoredChainExtractionConfig | null;
+  viewingConfig: (ChainExtractionConfig & { chainId: string; chainName: string }) | null;
   onStartNew: () => void;
-  onViewConfig: (config: StoredChainExtractionConfig) => void;
-  onEditConfig: (config: StoredChainExtractionConfig) => void;
+  onViewConfig: (config: ChainExtractionConfig & { chainId: string; chainName: string }) => void;
+  onEditConfig: (config: ChainExtractionConfig & { chainId: string; chainName: string }) => void;
   onDeleteConfig: (chainId: string) => void;
   onCloseViewConfig: () => void;
-  onExportConfig: (config: StoredChainExtractionConfig) => void;
+  onExportConfig: (config: ChainExtractionConfig & { chainId: string; chainName: string }) => void;
 }
 
 export function ConfigManagementPage({
@@ -88,7 +88,7 @@ export function ConfigManagementPage({
   };
 
   // Comprehensive config view modal
-  const renderConfigDetailsModal = (displayConfig: StoredChainExtractionConfig) => (
+  const renderConfigDetailsModal = (displayConfig: ChainExtractionConfig & { chainId: string; chainName: string }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">

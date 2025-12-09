@@ -141,10 +141,6 @@ export interface ExcelFieldMapping {
 }
 
 export interface ChainExtractionConfig {
-  // Chain identification (required for stored configs)
-  chainId?: string;
-  chainName?: string;
-
   behaviourNoteTypes: string[];
   followUpNoteTypes: string[];
   extraFollowUpNoteTypes?: string[]; // Optional extra note types to append to follow-up records
@@ -171,11 +167,6 @@ export interface ChainExtractionConfig {
   updatedAt?: string;
 }
 
-// Stored chain config with required fields
-export interface StoredChainExtractionConfig extends ChainExtractionConfig {
-  chainId: string;
-  chainName: string;
-}
 
 export interface ExtractedBehaviourFields {
   behaviour_type?: string;

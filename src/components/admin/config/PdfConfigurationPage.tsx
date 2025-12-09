@@ -68,10 +68,9 @@ export function PdfConfigurationPage({
     }
   };
 
-  // Generate highlights from config (with priority to avoid overlaps)
+  // Generate highlights from config (supports overlapping)
   const generateHighlights = (): Highlight[] => {
     const highlights: Highlight[] = [];
-    const occupiedRanges: Array<{ start: number; end: number }> = [];
     const normalize = (value: string) => value.trim().toLowerCase();
     const fieldNames = new Set<string>();
     const endMarkers = new Set<string>();
@@ -109,28 +108,16 @@ export function PdfConfigurationPage({
       if (endMarkers.has(name)) dualMarkers.add(name);
     });
 
-    // Helper to check if range overlaps with occupied ranges
-    const isOccupied = (start: number, end: number): boolean => {
-      return occupiedRanges.some(range =>
-        (start >= range.start && start < range.end) ||
-        (end > range.start && end <= range.end) ||
-        (start <= range.start && end >= range.end)
-      );
-    };
-
-    // Helper to add highlight and mark range as occupied
+    // Helper to add highlight (allows overlaps)
     const addHighlight = (text: string, start: number, end: number, color: string, label: string) => {
-      if (!isOccupied(start, end)) {
-        const isDual = dualMarkers.has(normalize(text));
-        highlights.push({
-          text,
-          start,
-          end,
-          color: isDual ? 'bg-purple-300' : color,
-          label: isDual ? 'Field + End Marker' : label
-        });
-        occupiedRanges.push({ start, end });
-      }
+      const isDual = dualMarkers.has(normalize(text));
+      highlights.push({
+        text,
+        start,
+        end,
+        color: isDual ? 'bg-purple-300' : color,
+        label: isDual ? 'Field + End Marker' : label
+      });
     };
 
     // Priority 1: Highlight behaviour note types (highest priority)
@@ -239,26 +226,97 @@ export function PdfConfigurationPage({
     return highlights.sort((a, b) => a.start - b.start);
   };
 
-  // Render highlighted PDF text
+  // Render highlighted PDF text with support for overlapping highlights
   const renderHighlightedPdf = () => {
     if (!pdfText) return '';
 
     const highlights = generateHighlights();
     if (highlights.length === 0) return pdfText;
 
-    let result = '';
-    let lastIndex = 0;
-
+    // Create a map of character positions to their highlights
+    const charMap: Map<number, Highlight[]> = new Map();
     highlights.forEach(highlight => {
-      // Add text before highlight
-      result += escapeHtml(pdfText.slice(lastIndex, highlight.start));
-      // Add highlighted text
-      result += `<span class="${highlight.color} px-1 rounded" title="${highlight.label}">${escapeHtml(highlight.text)}</span>`;
-      lastIndex = highlight.end;
+      for (let i = highlight.start; i < highlight.end; i++) {
+        if (!charMap.has(i)) {
+          charMap.set(i, []);
+        }
+        charMap.get(i)!.push(highlight);
+      }
     });
 
-    // Add remaining text
-    result += escapeHtml(pdfText.slice(lastIndex));
+    // Build segments with consistent highlight combinations
+    const segments: Array<{ start: number; end: number; highlights: Highlight[] }> = [];
+    let currentStart = 0;
+    let currentHighlights: Highlight[] = [];
+
+    const highlightsEqual = (a: Highlight[], b: Highlight[]) => {
+      if (a.length !== b.length) return false;
+      const aLabels = a.map(h => h.label).sort().join('|');
+      const bLabels = b.map(h => h.label).sort().join('|');
+      return aLabels === bLabels;
+    };
+
+    for (let i = 0; i < pdfText.length; i++) {
+      const highlights = charMap.get(i) || [];
+      
+      if (!highlightsEqual(highlights, currentHighlights)) {
+        if (i > currentStart) {
+          segments.push({ start: currentStart, end: i, highlights: currentHighlights });
+        }
+        currentStart = i;
+        currentHighlights = highlights;
+      }
+    }
+    
+    // Add final segment
+    if (currentStart < pdfText.length) {
+      segments.push({ start: currentStart, end: pdfText.length, highlights: currentHighlights });
+    }
+
+    const getBgColor = (cls: string) => {
+      switch (cls) {
+        case 'bg-yellow-200':
+          return '#FEF08A';
+        case 'bg-green-200':
+          return '#BBF7D0';
+        case 'bg-blue-200':
+          return '#BFDBFE';
+        case 'bg-pink-200':
+          return '#FBCFE8';
+        case 'bg-purple-300':
+          return '#D8B4FE';
+        default:
+          return '#E5E7EB';
+      }
+    };
+
+    // Render segments
+    let result = '';
+    segments.forEach(segment => {
+      const text = pdfText.slice(segment.start, segment.end);
+
+      if (segment.highlights.length === 0) {
+        result += escapeHtml(text);
+        return;
+      }
+
+      if (segment.highlights.length === 1) {
+        const h = segment.highlights[0];
+        const isFieldEnd = h.label === 'Field + End Marker';
+        const bg = isFieldEnd ? getBgColor('bg-purple-300') : getBgColor(h.color);
+        result += `<span class="px-1" style="background:${bg};" title="${escapeHtml(h.label)}">${escapeHtml(text)}</span>`;
+        return;
+      }
+
+      // Multiple overlapping highlights - prefer Field + End (exact label) if present
+      const preferred = segment.highlights.find(h => h.label === 'Field + End Marker') || segment.highlights[0];
+      const labels = segment.highlights.map(h => h.label).join(' + ');
+      const bg = preferred.label === 'Field + End Marker'
+        ? getBgColor('bg-purple-300')
+        : getBgColor(preferred.color);
+      result += `<span class="px-1" style="background:${bg};" title="${escapeHtml(labels)}">${escapeHtml(text)}</span>`;
+    });
+
     return result;
   };
 
@@ -506,7 +564,7 @@ export function PdfConfigurationPage({
               </button>
             </div>
             <p className="text-xs text-gray-600 mb-2">
-              Select text to use in configuration
+              Select text to use in configuration. Overlapping highlights shown with bold ring.
             </p>
             <div className="text-xs mb-3 space-y-1">
               <div className="flex items-center gap-2">
@@ -1186,8 +1244,8 @@ function FieldMarkerForm({
         disabled={isEditing && typesForSelect.length === 1}
       >
         <option value="">Select extraction type...</option>
-        {typesForSelect.map(type => (
-          <option key={type} value={type}>{type}</option>
+        {typesForSelect.map((type, index) => (
+          <option key={`${type}-${index}`} value={type}>{type}</option>
         ))}
       </select>
 
