@@ -12,6 +12,7 @@ interface ExcelConfigurationPageProps {
   onExcelUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onExcelExtractionChange: (config: ExcelExtractionConfig) => void;
   onRemoveExcelFile: () => void;
+  isAnalyzing?: boolean;
   onBack: () => void;
   onContinue: () => void;
 }
@@ -68,6 +69,7 @@ export function ExcelConfigurationPage({
   onExcelUpload,
   onExcelExtractionChange,
   onRemoveExcelFile,
+  isAnalyzing,
   onBack,
   onContinue,
 }: ExcelConfigurationPageProps) {
@@ -158,24 +160,6 @@ export function ExcelConfigurationPage({
     else setInjuryEndEditing(null);
   };
 
-  const applyAISuggestions = () => {
-    if (!aiSuggestions?.excelFieldMappings) return;
-
-    const newIncidentColumns = { ...resolvedExtraction.incidentColumns };
-    
-    Object.entries(aiSuggestions.excelFieldMappings).forEach(([fieldKey, mapping]) => {
-      const key = fieldKey as IncidentColumnKey;
-      if (INCIDENT_FIELD_META.some(f => f.key === key)) {
-        newIncidentColumns[key] = mapping.excelColumn;
-      }
-    });
-
-    onExcelExtractionChange({
-      ...resolvedExtraction,
-      incidentColumns: newIncidentColumns,
-    });
-  };
-
   const missingIncidentFields = INCIDENT_FIELD_META.filter(
     (f) => !resolvedExtraction.incidentColumns[f.key]
   );
@@ -202,13 +186,15 @@ export function ExcelConfigurationPage({
                 </button>
               </div>
             )}
-            {aiSuggestions?.excelFieldMappings && (
-              <button
-                onClick={applyAISuggestions}
-                className="px-3 py-2 text-sm rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-              >
-                Apply AI suggestions
-              </button>
+            {isAnalyzing && (
+              <span className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800 border border-cyan-200">
+                Analyzing Excel File with AI to determine column mappings...
+              </span>
+            )}
+            {!isAnalyzing && aiSuggestions?.excelFieldMappings && (
+              <span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-800 border border-green-200">
+                AI suggestions ready
+              </span>
             )}
           </div>
         </div>
@@ -333,7 +319,14 @@ export function ExcelConfigurationPage({
           </div>
         )}
 
-        {excelData && (
+        {excelData && isAnalyzing && (
+          <div className="rounded-lg border bg-white p-6 shadow-sm flex items-center gap-3 text-sm text-cyan-800">
+            <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+            Analyzing Excel File with AI to determine column mappings..
+          </div>
+        )}
+
+        {excelData && !isAnalyzing && (
           <div className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>

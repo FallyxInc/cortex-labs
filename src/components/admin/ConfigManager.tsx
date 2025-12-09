@@ -70,7 +70,8 @@ export default function ConfigManagerWizard() {
   const [viewingConfig, setViewingConfig] = useState<(ChainExtractionConfig & { chainId: string; chainName: string }) | null>(null);
   const [editingConfig, setEditingConfig] = useState<(ChainExtractionConfig & { chainId: string; chainName: string }) | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AIOutputFormat | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [pdfAiLoading, setPdfAiLoading] = useState(false);
+  const [excelAiLoading, setExcelAiLoading] = useState(false);
 
   useEffect(() => {
     loadSavedConfigs();
@@ -109,7 +110,11 @@ export default function ConfigManagerWizard() {
 
     setExcelFile(file);
     try {
-      await extractExcelFile(file);
+      const extracted = await extractExcelFile(file);
+      const extractedExcelData = extracted?.excelData || null;
+      if (extractedExcelData) {
+        await handleAnalyzeExcelWithAI(extractedExcelData);
+      }
     } catch (err) {
       console.error('Error loading Excel file:', err);
     }
@@ -186,13 +191,88 @@ export default function ConfigManagerWizard() {
     }
   };
 
+  const handleAnalyzeExcelWithAI = async (
+    excelDataOverride?: { headers: string[]; rows: Record<string, unknown>[]; preview?: string },
+  ) => {
+    try {
+      let currentExcelData = excelDataOverride || excelData;
+      if (!currentExcelData) {
+        const extracted = await extractExcelFile();
+        currentExcelData = extracted?.excelData || null;
+      }
+
+      if (!currentExcelData) {
+        alert('Upload an Excel file first to analyze.');
+        return;
+      }
+
+      setExcelAiLoading(true);
+
+      const response = await fetch('/api/admin/analyze-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          excelData: {
+            headers: currentExcelData.headers,
+            rows: currentExcelData.rows.slice(0, 200),
+            preview: currentExcelData.preview,
+            currentConfig: config?.excelExtraction,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'AI Excel analysis failed');
+      }
+
+      const data = await response.json();
+
+      if (data?.suggestions) {
+        setAiSuggestions((prev) => ({
+          chainId: prev?.chainId || '',
+          chainName: prev?.chainName || '',
+          behaviourNoteTypes: prev?.behaviourNoteTypes || [],
+          followUpNoteTypes: prev?.followUpNoteTypes || [],
+          fieldExtractionMarkers: prev?.fieldExtractionMarkers || {},
+          excelFieldMappings:
+            data.suggestions.excelFieldMappings ||
+            prev?.excelFieldMappings ||
+            {},
+          excelIncidentColumns:
+            data.suggestions.excelIncidentColumns ||
+            prev?.excelIncidentColumns,
+          ...(data.suggestions.injuryColumns
+            ? { injuryColumns: data.suggestions.injuryColumns }
+            : {}),
+        }));
+      }
+
+      if (data?.extractionConfig?.excelExtraction) {
+        setPdfExtractionConfig((prev) => ({
+          ...prev,
+          excelExtraction: data.extractionConfig.excelExtraction,
+        }));
+      }
+    } catch (error) {
+      console.error('Error running Excel AI analysis:', error);
+      alert(
+        `Failed to analyze Excel. ${
+          error instanceof Error ? error.message : 'Please try again.'
+        }`,
+      );
+    } finally {
+      setExcelAiLoading(false);
+    }
+  };
+
   const handleAnalyzePdfWithAI = async () => {
     if (!pdfText) {
       alert('No PDF text to analyze');
       return;
     }
 
-    setAiLoading(true);
+    setPdfAiLoading(true);
 
     try {
       const aiResponse = await fetch('/api/admin/analyze-pdf', {
@@ -220,7 +300,7 @@ export default function ConfigManagerWizard() {
       console.error('Error running AI analysis:', error);
       alert('Failed to analyze PDF. Please try again.');
     } finally {
-      setAiLoading(false);
+      setPdfAiLoading(false);
     }
   };
 
@@ -238,7 +318,7 @@ export default function ConfigManagerWizard() {
         return;
       }
 
-      setAiLoading(true);
+      setPdfAiLoading(true);
 
       try {
         const aiResponse = await fetch('/api/admin/analyze-pdf-config', {
@@ -263,11 +343,11 @@ export default function ConfigManagerWizard() {
         console.error('Error running AI analysis:', aiError);
         alert('Failed to analyze PDF. Please try again.');
       } finally {
-        setAiLoading(false);
+        setPdfAiLoading(false);
       }
     } catch (error) {
       console.error('Error in handleAnalyzePdf:', error);
-      setAiLoading(false);
+      setPdfAiLoading(false);
     }
   };
 
@@ -530,7 +610,7 @@ export default function ConfigManagerWizard() {
           onPdfUpload={handlePdfUpload}
           onAnalyzePdf={handleAnalyzePdf}
           onAnalyzeWithAI={handleAnalyzePdfWithAI}
-          isAnalyzing={aiLoading}
+          isAnalyzing={pdfAiLoading}
           onContinue={handlePdfContinue}
           onSkip={handlePdfSkip}
           onBack={editingConfig ? handleCancelEdit : handleViewSavedConfigs}
@@ -552,6 +632,7 @@ export default function ConfigManagerWizard() {
             setExcelData(null);
             setAiSuggestions(null);
           }}
+          isAnalyzing={excelAiLoading}
           onBack={() => setStep('pdf-config')}
           onContinue={handleExcelContinue}
         />
