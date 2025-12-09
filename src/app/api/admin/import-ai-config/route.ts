@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import {
-  convertAIOutputToOnboardingConfig,
-  convertOnboardingConfigToChainConfig,
-  validateOnboardingConfig,
+  convertAIOutputToChainConfig,
+  convertChainConfigToExtractionConfig,
+  validateChainConfig,
   AIOutputFormat,
-  OnboardingConfig
-} from '@/lib/processing/onboardingUtils';
+  ChainConfig
+} from '@/lib/chainConfig';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,11 +20,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert AI output to onboarding config format
-    const onboardingConfig = convertAIOutputToOnboardingConfig(aiOutput);
+    // Convert AI output to chain config format
+    const chainConfig = convertAIOutputToChainConfig(aiOutput);
 
     // Validate the converted config
-    const validationErrors = validateOnboardingConfig(onboardingConfig);
+    const validationErrors = validateChainConfig(chainConfig);
     if (validationErrors.length > 0) {
       return NextResponse.json(
         {
@@ -37,14 +37,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to Firebase
-    const configRef = adminDb.ref(`/onboardingConfigs/${onboardingConfig.chainId}`);
+    const configRef = adminDb.ref(`/chains/${chainConfig.chainId}/config`);
     const snapshot = await configRef.once('value');
     const exists = snapshot.exists();
 
     const now = new Date().toISOString();
-    const configData: OnboardingConfig & { createdAt: string; updatedAt: string; source: string } = {
-      ...onboardingConfig,
-      createdAt: exists ? (snapshot.val() as any).createdAt || now : now,
+    const existingConfig = (snapshot.val() as Partial<ChainConfig> | null) || null;
+    const configData: ChainConfig & { createdAt: string; updatedAt: string; source: string } = {
+      ...chainConfig,
+      createdAt: exists ? existingConfig?.createdAt || now : now,
       updatedAt: now,
       source: 'ai-import'
     };
@@ -55,16 +56,16 @@ export async function POST(request: NextRequest) {
       await configRef.set(configData);
     }
 
-    // Convert to chain config for immediate use
-    const chainConfig = convertOnboardingConfigToChainConfig(onboardingConfig);
+    // Convert to extraction config for immediate use
+    const extractionConfig = convertChainConfigToExtractionConfig(chainConfig);
 
     return NextResponse.json({
       success: true,
-      chainId: onboardingConfig.chainId,
+      chainId: chainConfig.chainId,
       message: exists ? 'Configuration updated successfully' : 'Configuration imported successfully',
       config: {
-        onboarding: onboardingConfig,
-        chain: chainConfig
+        chain: chainConfig,
+        extraction: extractionConfig
       }
     });
   } catch (error) {
