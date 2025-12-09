@@ -10,7 +10,7 @@
  */
 
 import jsPDF from 'jspdf';
-import { ChainExtractionConfig, ExtractionType, FieldExtractionConfig, NoteTypeExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig, ExcelIncidentColumns, ExtractionType, FieldExtractionConfig, NoteTypeExtractionConfig } from '@/lib/processing/types';
 import { adminDb } from './firebase-admin';
 import { CHAIN_EXTRACTION_CONFIGS } from './processing/homesDb';
 
@@ -59,6 +59,7 @@ export interface ChainConfig {
   followUpNoteTypes: string[];
   noteTypeConfigs: Record<string, NoteTypeConfig>;
   excelFieldMappings?: Record<string, ExcelFieldMapping>;
+  excelIncidentColumns?: ExcelIncidentColumns;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -68,6 +69,15 @@ export interface ExcelData {
   rows: Record<string, unknown>[];
   preview: string;
 }
+
+export const DEFAULT_EXCEL_INCIDENT_COLUMNS: ExcelIncidentColumns = {
+  incident_number: 'Incident #',
+  name: 'Resident Name',
+  date_time: 'Incident Date/Time',
+  incident_location: 'Incident Location',
+  room: 'Resident Room Number',
+  incident_type: 'Incident Type',
+};
 
 export type WizardStep = 'pdf-config' | 'excel-config' | 'review' | 'saved' | 'edit-config';
 
@@ -96,6 +106,7 @@ export interface AIOutputFormat {
     reasoning?: string;
     dataSource: 'EXCEL';
   }>;
+  excelIncidentColumns?: ExcelIncidentColumns;
 }
 
 // ============================================================================
@@ -128,6 +139,7 @@ export const normalizeChainConfig = (config: Partial<ChainConfig>): ChainConfig 
     followUpNoteTypes: config.followUpNoteTypes || [],
     noteTypeConfigs: normalizedNoteTypeConfigs,
     excelFieldMappings: config.excelFieldMappings || {},
+    excelIncidentColumns: config.excelIncidentColumns || DEFAULT_EXCEL_INCIDENT_COLUMNS,
   };
 };
 
@@ -205,7 +217,8 @@ export function convertAIOutputToChainConfig(aiOutput: AIOutputFormat): ChainCon
     behaviourNoteTypes,
     followUpNoteTypes,
     noteTypeConfigs,
-    excelFieldMappings
+    excelFieldMappings,
+    excelIncidentColumns: aiOutput.excelIncidentColumns || DEFAULT_EXCEL_INCIDENT_COLUMNS,
   };
 }
 
@@ -329,6 +342,7 @@ export function convertChainConfigToExtractionConfig(
     chainConfig.excelFieldMappings,
     excelHeaders
   );
+  const excelIncidentColumns = chainConfig.excelIncidentColumns || DEFAULT_EXCEL_INCIDENT_COLUMNS;
 
   // Check if time_frequency or evaluation are present in any note type
   const hasTimeFrequency = chainConfig.behaviourNoteTypes.some(nt =>
@@ -344,7 +358,10 @@ export function convertChainConfigToExtractionConfig(
     fieldExtractionMarkers: defaultFields,
     behaviourNoteConfigs,
     followUpNoteConfigs,
-    injuryColumns,
+    excelExtraction: {
+      injuryColumns,
+      incidentColumns: excelIncidentColumns,
+    },
     matchingWindowHours: 24,
     hasTimeFrequency,
     hasEvaluation
@@ -586,9 +603,12 @@ export const generateRFC = (config: ChainConfig) => {
     behaviourNoteTypes: config.behaviourNoteTypes,
     followUpNoteTypes: config.followUpNoteTypes,
     extraFollowUpNoteTypes: [],
-    injuryColumns: {
-      start: 13,
-      end: 87,
+    excelExtraction: {
+      injuryColumns: {
+        start: 13,
+        end: 87,
+      },
+      incidentColumns: DEFAULT_EXCEL_INCIDENT_COLUMNS,
     },
     fieldExtractionMarkers: {},
     hasTimeFrequency: false,

@@ -20,6 +20,23 @@ export interface ProcessedIncident {
   incident_type: string;
 }
 
+export interface ExcelIncidentColumns {
+  incident_number: string;
+  name: string;
+  date_time: string;
+  incident_location: string;
+  room: string;
+  incident_type: string;
+}
+
+export interface ExcelExtractionConfig {
+  injuryColumns: {
+    start: number;
+    end: number;
+  };
+  incidentColumns: ExcelIncidentColumns;
+}
+
 export interface MergedBehaviourData {
   id: number;
   date: string;
@@ -144,10 +161,7 @@ export interface ChainExtractionConfig {
   behaviourNoteTypes: string[];
   followUpNoteTypes: string[];
   extraFollowUpNoteTypes?: string[]; // Optional extra note types to append to follow-up records
-  injuryColumns: {
-    start: number;
-    end: number;
-  };
+  excelExtraction: ExcelExtractionConfig;
   matchingWindowHours?: number; // Hours window for matching behaviour notes to incidents (default: 24)
 
   // Default extraction config (used when no specific config exists for a note type)

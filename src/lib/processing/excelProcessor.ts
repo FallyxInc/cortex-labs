@@ -3,15 +3,37 @@
 import * as XLSX from "xlsx";
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
-import { ProcessedIncident } from "./types";
+import { ExcelExtractionConfig, ProcessedIncident } from "./types";
 import { CHAIN_EXTRACTION_CONFIGS, extractDateFromFilename } from "./homesDb";
+
+const DEFAULT_EXCEL_INCIDENT_COLUMNS = {
+  incident_number: "Incident #",
+  name: "Resident Name",
+  date_time: "Incident Date/Time",
+  incident_location: "Incident Location",
+  room: "Resident Room Number",
+  incident_type: "Incident Type",
+};
+
+const DEFAULT_INJURY_COLUMNS = { start: 13, end: 87 };
+
+function resolveExcelExtractionConfig(chain: string): ExcelExtractionConfig {
+  const cfg = CHAIN_EXTRACTION_CONFIGS[chain];
+  if (cfg?.excelExtraction) {
+    return cfg.excelExtraction;
+  }
+  return {
+    injuryColumns: DEFAULT_INJURY_COLUMNS,
+    incidentColumns: DEFAULT_EXCEL_INCIDENT_COLUMNS,
+  };
+}
 
 function getInjuries(
   row: Record<string, unknown>,
   allColumns: string[],
-  chain: string,
+  injuryColumnsRange: { start: number; end: number },
 ): string {
-  const columns = CHAIN_EXTRACTION_CONFIGS[chain].injuryColumns;
+  const columns = injuryColumnsRange;
   // Get injury columns (columns 13-86, indices N to CO)
   const injuryColumns = allColumns.slice(columns.start, columns.end);
   const injuries = new Set<string>();
@@ -42,6 +64,8 @@ export async function processExcelFile(
   try {
     const fileBuffer = await readFile(inputFile);
     const workbook = XLSX.read(fileBuffer, { type: "buffer", cellDates: true });
+    const excelExtraction = resolveExcelExtractionConfig(chain);
+    const excelColumns = excelExtraction.incidentColumns;
 
     // Read the first sheet
     const sheetName = workbook.SheetNames[0];
@@ -66,7 +90,7 @@ export async function processExcelFile(
     const processedData: ProcessedIncident[] = filteredData
       .map((row) => {
         // Parse date/time
-        const incidentDateTime = row["Incident Date/Time"];
+        const incidentDateTime = row[excelColumns.date_time];
         let date = "";
         let time = "";
 
@@ -92,14 +116,14 @@ export async function processExcelFile(
         }
 
         return {
-          incident_number: String(row["Incident #"] || ""),
-          name: String(row["Resident Name"] || ""),
+          incident_number: String(row[excelColumns.incident_number] || ""),
+          name: String(row[excelColumns.name] || ""),
           date,
           time,
-          incident_location: String(row["Incident Location"] || ""),
-          room: row["Resident Room Number"],
-          injuries: getInjuries(row, allColumns, chain),
-          incident_type: String(row["Incident Type"] || ""),
+          incident_location: String(row[excelColumns.incident_location] || ""),
+          room: row[excelColumns.room],
+          injuries: getInjuries(row, allColumns, excelExtraction.injuryColumns),
+          incident_type: String(row[excelColumns.incident_type] || ""),
         } as ProcessedIncident;
       })
       .filter((row) => row.name || row.date); // Remove rows where name AND date are blank

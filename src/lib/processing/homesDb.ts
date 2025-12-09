@@ -1,6 +1,6 @@
 // Central place for chains and homes configuration (TypeScript port of homes_db.py)
 
-import { ChainExtractionConfig } from "./types";
+import { ChainExtractionConfig, ExcelIncidentColumns } from "./types";
 import { getChainConfigFromFirebase } from "@/lib/chainConfig";
 
 export interface ChainConfig {
@@ -11,6 +11,15 @@ export interface ChainConfig {
 }
 
 
+
+const DEFAULT_EXCEL_INCIDENT_COLUMNS: ExcelIncidentColumns = {
+  incident_number: "Incident #",
+  name: "Resident Name",
+  date_time: "Incident Date/Time",
+  incident_location: "Incident Location",
+  room: "Resident Room Number",
+  incident_type: "Incident Type",
+};
 
 // Chain-specific extraction configurations
 export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
@@ -31,9 +40,12 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       "Family/Resident Involvment",
       "Physician Note",
     ],
-    injuryColumns: {
-      start: 13,
-      end: 37,
+    excelExtraction: {
+      injuryColumns: {
+        start: 13,
+        end: 37,
+      },
+      incidentColumns: DEFAULT_EXCEL_INCIDENT_COLUMNS,
     },
     matchingWindowHours: 24,
     // Default extraction markers (fallback if no specific config)
@@ -234,9 +246,12 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       "Family/Resident Involvment",
       "Physician Note",
     ],
-    injuryColumns: {
-      start: 13,
-      end: 87,
+    excelExtraction: {
+      injuryColumns: {
+        start: 13,
+        end: 87,
+      },
+      incidentColumns: DEFAULT_EXCEL_INCIDENT_COLUMNS,
     },
     matchingWindowHours: 20,
     fieldExtractionMarkers: {
@@ -287,9 +302,12 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       "Family/Resident Involvment",
       "Physician Note",
     ],
-    injuryColumns: {
-      start: 13,
-      end: 34,
+    excelExtraction: {
+      injuryColumns: {
+        start: 13,
+        end: 34,
+      },
+      incidentColumns: DEFAULT_EXCEL_INCIDENT_COLUMNS,
     },
     matchingWindowHours: 20,
     fieldExtractionMarkers: {

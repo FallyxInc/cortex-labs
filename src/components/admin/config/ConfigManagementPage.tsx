@@ -121,7 +121,7 @@ export function ConfigManagementPage({
               <div><strong>Chain ID:</strong> {displayConfig.chainId}</div>
               <div><strong>Chain Name:</strong> {displayConfig.chainName}</div>
               <div><strong>Matching Window:</strong> {displayConfig.matchingWindowHours || 24} hours</div>
-              <div><strong>Injury Columns:</strong> {displayConfig.injuryColumns?.start} - {displayConfig.injuryColumns?.end}</div>
+              <div><strong>Injury Columns:</strong> {displayConfig.excelExtraction?.injuryColumns.start} - {displayConfig.excelExtraction?.injuryColumns.end}</div>
             </div>
           </div>
 

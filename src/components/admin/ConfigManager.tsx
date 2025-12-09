@@ -6,16 +6,28 @@ import { PdfConfigurationPage } from './config/PdfConfigurationPage';
 import { ExcelConfigurationPage } from './config/ExcelConfigurationPage';
 import { ReviewAndSavePage } from './config/ConfigSubmitPage';
 import { ConfigManagementPage } from './config/ConfigManagementPage';
-import { ChainExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig, ExcelExtractionConfig } from '@/lib/processing/types';
 import { AIOutputFormat, ExcelData, DataSourceMapping, ExcelFieldMapping } from '@/lib/chainConfig';
 
 export type ConfigManagerStep = 'manage' | 'pdf-config' | 'excel-config' | 'review';
+
+const DEFAULT_EXCEL_EXTRACTION: ExcelExtractionConfig = {
+  injuryColumns: { start: 13, end: 37 },
+  incidentColumns: {
+    incident_number: 'Incident #',
+    name: 'Resident Name',
+    date_time: 'Incident Date/Time',
+    incident_location: 'Incident Location',
+    room: 'Resident Room Number',
+    incident_type: 'Incident Type',
+  },
+};
 
 const DEFAULT_PDF_CONFIG: ChainExtractionConfig = {
   behaviourNoteTypes: [],
   followUpNoteTypes: [],
   extraFollowUpNoteTypes: [],
-  injuryColumns: { start: 13, end: 37 },
+  excelExtraction: DEFAULT_EXCEL_EXTRACTION,
   matchingWindowHours: 24,
   fieldExtractionMarkers: {},
   hasTimeFrequency: false,
@@ -30,7 +42,7 @@ const normalizeConfig = (config: Partial<ChainExtractionConfig>): ChainExtractio
     behaviourNoteTypes: config.behaviourNoteTypes || [],
     followUpNoteTypes: config.followUpNoteTypes || [],
     extraFollowUpNoteTypes: config.extraFollowUpNoteTypes || [],
-    injuryColumns: config.injuryColumns || { start: 13, end: 37 },
+    excelExtraction: config.excelExtraction || DEFAULT_EXCEL_EXTRACTION,
     matchingWindowHours: config.matchingWindowHours || 24,
     fieldExtractionMarkers: config.fieldExtractionMarkers || {},
     hasTimeFrequency: config.hasTimeFrequency || false,
@@ -358,7 +370,7 @@ export default function ConfigManagerWizard() {
       behaviourNoteTypes: pdfExtractionConfig.behaviourNoteTypes,
       followUpNoteTypes: pdfExtractionConfig.followUpNoteTypes,
       extraFollowUpNoteTypes: pdfExtractionConfig.extraFollowUpNoteTypes || [],
-      injuryColumns: pdfExtractionConfig.injuryColumns || { start: 13, end: 37 },
+      excelExtraction: pdfExtractionConfig.excelExtraction || DEFAULT_EXCEL_EXTRACTION,
       matchingWindowHours: pdfExtractionConfig.matchingWindowHours || 24,
       fieldExtractionMarkers: pdfExtractionConfig.fieldExtractionMarkers,
       hasTimeFrequency: pdfExtractionConfig.hasTimeFrequency || false,
@@ -462,7 +474,7 @@ export default function ConfigManagerWizard() {
       behaviourNoteTypes: savedConfig.behaviourNoteTypes,
       followUpNoteTypes: savedConfig.followUpNoteTypes,
       extraFollowUpNoteTypes: savedConfig.extraFollowUpNoteTypes || [],
-      injuryColumns: savedConfig.injuryColumns,
+      excelExtraction: savedConfig.excelExtraction || DEFAULT_EXCEL_EXTRACTION,
       matchingWindowHours: savedConfig.matchingWindowHours,
       fieldExtractionMarkers: savedConfig.fieldExtractionMarkers,
       hasTimeFrequency: savedConfig.hasTimeFrequency,

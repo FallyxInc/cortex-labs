@@ -277,7 +277,7 @@ export function ReviewAndSavePage({
                 <strong>Matching Window:</strong> {config.matchingWindowHours || 24} hours
               </div>
               <div>
-                <strong>Injury Columns:</strong> {config.injuryColumns?.start || 13} - {config.injuryColumns?.end || 37}
+                <strong>Injury Columns:</strong> {config.excelExtraction?.injuryColumns.start || 13} - {config.excelExtraction?.injuryColumns.end || 37}
               </div>
             </div>
           </div>
