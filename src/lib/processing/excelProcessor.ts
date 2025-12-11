@@ -5,14 +5,12 @@ import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
 import {
   ChainExtractionConfig,
-  ExcelExtractionConfig,
   ProcessedIncident,
 } from "./types";
 import {
-  CHAIN_EXTRACTION_CONFIGS,
   DEFAULT_EXCEL_EXTRACTION,
   extractDateFromFilename,
-} from "@/lib/configUtils";
+} from "@/lib/utils/configUtils";
 
 
 function getInjuries(

@@ -18,7 +18,7 @@ const mockGetUser = jest.fn();
 
 const pathToData = new Map<string, any>();
 
-jest.mock('@/lib/firebase-admin', () => {
+jest.mock('@/lib/firebase/firebaseAdmin', () => {
   const mockRef = jest.fn((refPath: string) => {
     // Capture path in closure
     const path = refPath;

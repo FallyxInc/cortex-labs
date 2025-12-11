@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase/firebaseAdmin';
 import { ChainExtractionConfig } from '@/lib/processing/types';
 
 export interface ChainWithConfig {

@@ -14,7 +14,7 @@ const mockOnce = jest.fn();
 const mockSet = jest.fn();
 const mockUpdate = jest.fn();
 
-jest.mock('@/lib/firebase-admin', () => {
+jest.mock('@/lib/firebase/firebaseAdmin', () => {
   const mockRef = jest.fn(() => ({
     once: mockOnce,
     set: mockSet,

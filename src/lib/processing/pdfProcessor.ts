@@ -13,7 +13,7 @@ import {
 } from "./types";
 
 import { LoadParameters } from "pdf-parse";
-import { extractDateFromFilename, CHAIN_EXTRACTION_CONFIGS } from "@/lib/configUtils";
+import { extractDateFromFilename, CHAIN_EXTRACTION_CONFIGS } from "@/lib/utils/configUtils";
 
 export async function extractTextFromPdf(
   pdfPath: string,

@@ -3,7 +3,7 @@ import { writeFile, mkdir, stat, readdir, unlink, rm } from "fs/promises";
 import { join } from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase/firebaseAdmin";
 import {
   getFirebaseIdAsync,
   getHomeNameAsync,

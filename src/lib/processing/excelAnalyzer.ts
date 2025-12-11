@@ -13,7 +13,7 @@ import {
 } from './types';
 import {
   DEFAULT_EXCEL_INCIDENT_COLUMNS,
-} from '@/lib/configUtils';
+} from '@/lib/utils/configUtils';
 
 type ExcelPreviewRow = Record<string, unknown>;
 

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
-import { db, auth } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase/firebase';
 import '@/styles/Login.css';
 import { trackLogin, trackFormInteraction, trackFeatureUsage } from '@/lib/mixpanel';
 export default function Login() {

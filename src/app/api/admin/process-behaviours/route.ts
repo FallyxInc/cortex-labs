@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, readdir, unlink, rm } from "fs/promises";
 import { join } from "path";
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase/firebaseAdmin";
 import { getFirebaseIdAsync, getHomeNameAsync } from "@/lib/homeMappings";
 import { progressStore } from "../process-progress/route";
 import { processExcelFiles } from "@/lib/processing/excelProcessor";
@@ -12,7 +12,7 @@ import { processPdfFiles } from "@/lib/processing/pdfProcessor";
 import { processAllMergedFiles } from "@/lib/processing/behaviourGenerator";
 import { processMergedCsvFiles } from "@/lib/processing/firebaseUpdate";
 import { processCsvFiles } from "@/lib/processing/firebaseUpload";
-import { getChainExtractionConfig } from "@/lib/configUtils";
+import { getChainExtractionConfig } from "@/lib/utils/configUtils";
 
 // Helper function to update progress
 async function updateProgress(

@@ -40,7 +40,7 @@ async function loadFirebaseMappings(): Promise<Record<string, HomeMapping>> {
   try {
     // Only import Firebase admin on the server side
     if (typeof window === 'undefined') {
-      const { adminDb } = await import('@/lib/firebase-admin');
+      const { adminDb } = await import('@/lib/firebase/firebaseAdmin');
       const mappingsRef = adminDb.ref('/homeMappings');
       const snapshot = await mappingsRef.once('value');
       
@@ -251,7 +251,7 @@ export function validateHomeMapping(home: string): { valid: boolean; missing?: s
 export async function getChainIdAsync(home: string): Promise<string | null> {
   try {
     if (typeof window === 'undefined') {
-      const { adminDb } = await import('@/lib/firebase-admin');
+      const { adminDb } = await import('@/lib/firebase/firebaseAdmin');
       const homeName = await getHomeNameAsync(home);
       const homeRef = adminDb.ref(`/${homeName}`);
       const snapshot = await homeRef.once('value');

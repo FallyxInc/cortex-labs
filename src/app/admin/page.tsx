@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
-import { db, auth } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase/firebase';
 import HomeManagement from '@/components/admin/HomeManagement';
 import UserManagement from '@/components/admin/UserManagement';
 import FileUpload from '@/components/admin/FileUpload';

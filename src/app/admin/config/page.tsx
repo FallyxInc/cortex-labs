@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
-import { db, auth } from '@/lib/firebase';
-import ConfigManagerWizard from '@/components/admin/ConfigManager';
+import { db, auth } from '@/lib/firebase/firebase';
+import ConfigManagerWizard from '@/components/config/ConfigManager';
 
 export default function ConfigManagerPage() {
   const [loading, setLoading] = useState(true);

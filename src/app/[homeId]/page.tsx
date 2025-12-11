@@ -1,7 +1,7 @@
 'use client';
 
 import { use } from 'react';
-import BehavioursDashboard from '@/components/behavioursDashboard/BehavioursDashboard';
+import BehavioursDashboard from '@/components/dashboard/BehavioursDashboard';
 import { getDisplayName, getFirebaseId, getPythonDirName } from '@/lib/homeMappings';
 
 interface PageProps {

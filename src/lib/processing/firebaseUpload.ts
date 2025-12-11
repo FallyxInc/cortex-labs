@@ -2,8 +2,8 @@
 
 import { readFile, readdir } from "fs/promises";
 import { join } from "path";
-import { adminDb } from "@/lib/firebase-admin";
-import { extractDateFromFilename } from "@/lib/configUtils";
+import { adminDb } from "@/lib/firebase/firebaseAdmin";
+import { extractDateFromFilename } from "@/lib/utils/configUtils";
 
 function parseCsv(content: string): Record<string, any>[] {
   const lines = content.trim().split("\n");

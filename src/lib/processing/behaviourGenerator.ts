@@ -11,8 +11,8 @@ import {
   ChainExtractionConfig,
   ExtractedBehaviourFields,
   FieldExtractionConfig,
-} from "./types";
-import { CHAIN_EXTRACTION_CONFIGS } from "@/lib/configUtils";
+} from "./types"; 
+import { CHAIN_EXTRACTION_CONFIGS } from "@/lib/utils/configUtils";
 
 function cleanName(name: string | null | undefined): string {
   if (!name) return "";

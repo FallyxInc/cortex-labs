@@ -9,7 +9,6 @@ import {
   trackFormInteraction,
   trackError,
 } from "@/lib/mixpanel";
-import { auth } from "@/lib/firebase";
 
 export default function FileUpload() {
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);

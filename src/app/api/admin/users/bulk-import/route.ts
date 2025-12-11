@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase/firebaseAdmin';
 import * as XLSX from 'xlsx';
 
 // Helper function to convert display name to camelCase for Firebase ID

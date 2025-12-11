@@ -2,7 +2,7 @@
 
 import { signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { useState } from 'react';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase/firebase';
 import styles from '@/styles/UpdatePasswordPage.module.css';
 
 export default function UpdatePasswordPage() {
