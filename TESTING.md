@@ -15,3 +15,4 @@
 - test delete user and chain
   - verify deletion   
 - run `npm test` and verify output
+- run `npm run build` and verify no errors
