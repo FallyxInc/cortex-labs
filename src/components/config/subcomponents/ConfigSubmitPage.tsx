@@ -31,6 +31,13 @@ export function ReviewAndSavePage({
   const [availableChains, setAvailableChains] = useState<ChainOption[]>([]);
   const [loadingChains, setLoadingChains] = useState(false);
   const [selectedExistingChain, setSelectedExistingChain] = useState<string>('');
+  const [chainSelectionMode, setChainSelectionMode] = useState<'existing' | 'new'>('new');
+  const [newChainName, setNewChainName] = useState<string>('');
+
+  // Helper function to sanitize chain name to chainId
+  const sanitizeChainId = (name: string): string => {
+    return name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  };
 
   // Fetch available chains and align chainId/chainName from selection or existing values
   useEffect(() => {
@@ -46,6 +53,8 @@ export function ReviewAndSavePage({
             if (chain) {
               onChainIdChange(chain.id);
               onChainNameChange(chain.name);
+              setChainSelectionMode('existing');
+              setSelectedExistingChain(chain.id);
             }
           }
         }
@@ -58,8 +67,19 @@ export function ReviewAndSavePage({
 
     fetchAvailableChains();
     // Pre-select existing chain values if provided
-    setSelectedExistingChain(chainId || '');
-    if (chainId) {
+    if (chainId && !editingConfig) {
+      setSelectedExistingChain(chainId);
+      setChainSelectionMode('existing');
+      onChainIdChange(chainId);
+    } else if (chainName && !editingConfig) {
+      setNewChainName(chainName);
+      setChainSelectionMode('new');
+      const sanitizedId = sanitizeChainId(chainName);
+      onChainIdChange(sanitizedId);
+      onChainNameChange(chainName);
+    } else if (editingConfig && chainId) {
+      setSelectedExistingChain(chainId);
+      setChainSelectionMode('existing');
       onChainIdChange(chainId);
     } else {
       onChainIdChange(null);
@@ -69,7 +89,7 @@ export function ReviewAndSavePage({
     } else {
       onChainNameChange(null);
     }
-  }, [chainId, chainName, onChainIdChange, onChainNameChange]);
+  }, [chainId, chainName, editingConfig, onChainIdChange, onChainNameChange]);
 
   const handleChainSelect = (selectedChainId: string) => {
     setSelectedExistingChain(selectedChainId);
@@ -82,6 +102,34 @@ export function ReviewAndSavePage({
     } else {
       onChainIdChange(null);
       onChainNameChange(null);
+    }
+  };
+
+  const handleNewChainNameChange = (name: string) => {
+    setNewChainName(name);
+    const sanitizedId = sanitizeChainId(name);
+    onChainIdChange(sanitizedId);
+    onChainNameChange(name);
+  };
+
+  const handleModeChange = (mode: 'existing' | 'new') => {
+    setChainSelectionMode(mode);
+    if (mode === 'existing') {
+      setNewChainName('');
+      if (selectedExistingChain) {
+        handleChainSelect(selectedExistingChain);
+      } else {
+        onChainIdChange(null);
+        onChainNameChange(null);
+      }
+    } else {
+      setSelectedExistingChain('');
+      if (newChainName) {
+        handleNewChainNameChange(newChainName);
+      } else {
+        onChainIdChange(null);
+        onChainNameChange(null);
+      }
     }
   };
 
@@ -163,35 +211,98 @@ export function ReviewAndSavePage({
       <div className="border rounded-lg p-4 bg-white">
         <h3 className="font-semibold text-gray-900 mb-4">Chain Selection</h3>
         <div className="space-y-4">
+          {/* Mode Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Select Chain <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Choose an option <span className="text-red-500">*</span>
             </label>
-            {loadingChains ? (
-              <div className="flex items-center gap-2 text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-500"></div>
-                <span className="text-sm">Loading chains...</span>
-              </div>
-            ) : (
-              <select
-                value={selectedExistingChain}
-                onChange={(e) => handleChainSelect(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              >
-                <option value="">-- Select a chain --</option>
-                {availableChains.map((chain) => (
-                  <option key={chain.id} value={chain.id}>
-                    {chain.name} ({chain.id}) {chain.hasConfig ? '- Has Config' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
-            {selectedExistingChain && availableChains.find(c => c.id === selectedExistingChain)?.hasConfig && (
-              <p className="mt-1 text-sm text-amber-600">
-                This chain already has a configuration. Saving will overwrite the existing configuration.
-              </p>
-            )}
+            <div className="flex gap-4">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="chainMode"
+                  value="new"
+                  checked={chainSelectionMode === 'new'}
+                  onChange={() => handleModeChange('new')}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Create New Chain</span>
+              </label>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="chainMode"
+                  value="existing"
+                  checked={chainSelectionMode === 'existing'}
+                  onChange={() => handleModeChange('existing')}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Select Existing Chain</span>
+              </label>
+            </div>
           </div>
+
+          {/* Create New Chain Form */}
+          {chainSelectionMode === 'new' && (
+            <div className="space-y-4 border-t pt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Chain Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newChainName}
+                  onChange={(e) => handleNewChainNameChange(e.target.value)}
+                  placeholder="Enter chain name (e.g., Acme Care)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+                {newChainName && (
+                  <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                    <span className="text-gray-600">Chain ID will be: </span>
+                    <span className="font-mono text-cyan-600">{sanitizeChainId(newChainName)}</span>
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  A new chain will be created with this configuration. This enables a no-code onboarding approach.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Select Existing Chain */}
+          {chainSelectionMode === 'existing' && (
+            <div className="space-y-4 border-t pt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Chain <span className="text-red-500">*</span>
+                </label>
+                {loadingChains ? (
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-500"></div>
+                    <span className="text-sm">Loading chains...</span>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedExistingChain}
+                    onChange={(e) => handleChainSelect(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="">-- Select a chain --</option>
+                    {availableChains.map((chain) => (
+                      <option key={chain.id} value={chain.id}>
+                        {chain.name} ({chain.id}) {chain.hasConfig ? '- Has Config' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {selectedExistingChain && availableChains.find(c => c.id === selectedExistingChain)?.hasConfig && (
+                  <p className="mt-1 text-sm text-amber-600">
+                    This chain already has a configuration. Saving will overwrite the existing configuration.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -298,10 +409,15 @@ export function ReviewAndSavePage({
           className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
             !chainId || !chainName
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : chainSelectionMode === 'new'
+              ? 'bg-cyan-500 text-white hover:bg-cyan-600'
               : 'bg-green-500 text-white hover:bg-green-600'
           }`}
         >
-          {editingConfig ? 'Update Configuration' : 'Save Configuration'}
+          {chainSelectionMode === 'new' 
+            ? (editingConfig ? 'Update & Create Chain' : 'Create Chain & Save Configuration')
+            : (editingConfig ? 'Update Configuration' : 'Save Configuration')
+          }
         </button>
       </div>
     </div>
