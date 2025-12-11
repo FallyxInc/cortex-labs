@@ -83,7 +83,7 @@ describe('Chains API', () => {
 
       const request = new NextRequest('http://localhost/api/admin/chains', {
         method: 'POST',
-        body: JSON.stringify({ chainName: 'Test Chain' })
+        body: JSON.stringify({ chainName: 'Test Chain', extractionType: 'kindera' })
       });
 
       const response = await POST(request);
@@ -92,6 +92,7 @@ describe('Chains API', () => {
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.chainName).toBe('Test Chain');
+      expect(data.extractionType).toBe('kindera');
       expect(mockSet).toHaveBeenCalled();
     });
 
@@ -116,7 +117,7 @@ describe('Chains API', () => {
 
       const request = new NextRequest('http://localhost/api/admin/chains', {
         method: 'POST',
-        body: JSON.stringify({ chainName: 'Existing Chain' })
+        body: JSON.stringify({ chainName: 'Existing Chain', extractionType: 'kindera' })
       });
 
       const response = await POST(request);

@@ -11,7 +11,7 @@ import {
 } from '../homeMappings';
 
 // Mock Firebase admin
-jest.mock('../firebase-admin', () => ({
+jest.mock('@/lib/firebase/firebaseAdmin', () => ({
   adminDb: {
     ref: jest.fn((path: string) => ({
       once: jest.fn(() => Promise.resolve({

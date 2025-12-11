@@ -31,6 +31,20 @@ npm start
 
 ## Project Structure
 
+General Processing Flow
+> Referencing pdfs and csvs in files/tests may be useful
+
+- files are uploaded in components/admin/FileUpload to api/admin/process-beahviours/
+- uploaded files are moved into files/chains/[chain-name]/downloads
+- files in lib/processing are run
+- excelProcessor extracts incidents into _processed_incidents.csv
+- pdfProcessor extracts incidents with while text dump for each incident into _behaviour_incidents.csv
+- behaviourGenerator processes both .csv files, and extracts necessary field markers 
+  - merge incidents from behaviour.csv and processed.csv into merged.csv
+  - find follow up notes that aren't behaviours into follow.csv
+- firebaseUpdate updates info if there is already data uploaded
+- firebaseUpload uploads data
+
 ```
 fallyx-behaviours/
 ├── src/
