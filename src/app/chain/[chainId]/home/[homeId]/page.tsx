@@ -7,7 +7,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase/firebase';
 import BehavioursDashboard from '@/components/dashboard/BehavioursDashboard';
-import { getDisplayName, getFirebaseId, getMappingsSync } from '@/lib/homeMappings';
+import { getDisplayName, getFirebaseId } from '@/lib/homeMappings';
+import { HOME_MAPPINGS } from '@/lib/homeMappings';
 
 interface PageProps {
   params: Promise<{ chainId: string; homeId: string }>;
@@ -52,11 +53,10 @@ export default function ChainAdminHomePage({ params }: PageProps) {
           const firebaseId = getFirebaseId(homeId);
           
           // Get all possible home identifiers from mappings
-          const mappings = getMappingsSync();
           const possibleIds = [homeId, firebaseId];
           
           // Add any other mappings that point to the same firebaseId
-          Object.entries(mappings).forEach(([key, mapping]) => {
+          Object.entries(HOME_MAPPINGS).forEach(([key, mapping]) => {
             if (mapping.firebaseId === firebaseId && !possibleIds.includes(key)) {
               possibleIds.push(key);
             }
