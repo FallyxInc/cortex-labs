@@ -7,14 +7,16 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase/firebase';
 import BehavioursDashboard from '@/components/dashboard/BehavioursDashboard';
-import { getDisplayName, getFirebaseId } from '@/lib/homeMappings';
+import { getDisplayName, getFirebaseId, getMappingsSync } from '@/lib/homeMappings';
 
 interface PageProps {
   params: Promise<{ chainId: string; homeId: string }>;
 }
 
 export default function ChainAdminHomePage({ params }: PageProps) {
-  const { chainId, homeId } = use(params);
+  const { chainId, homeId: rawHomeId } = use(params);
+  // Decode the homeId to handle special characters like apostrophes
+  const homeId = decodeURIComponent(rawHomeId);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -46,12 +48,35 @@ export default function ChainAdminHomePage({ params }: PageProps) {
             return;
           }
 
-          // Verify home belongs to this chain
-          const homeRef = ref(db, `/${homeId}`);
-          const homeSnapshot = await get(homeRef);
+          // Get the actual Firebase ID for the home (handles special characters and mappings)
+          const firebaseId = getFirebaseId(homeId);
           
-          if (homeSnapshot.exists()) {
-            const homeData = homeSnapshot.val();
+          // Get all possible home identifiers from mappings
+          const mappings = getMappingsSync();
+          const possibleIds = [homeId, firebaseId];
+          
+          // Add any other mappings that point to the same firebaseId
+          Object.entries(mappings).forEach(([key, mapping]) => {
+            if (mapping.firebaseId === firebaseId && !possibleIds.includes(key)) {
+              possibleIds.push(key);
+            }
+          });
+          
+          // Verify home belongs to this chain - try all possible IDs
+          let homeData = null;
+          let foundHomeId = null;
+          
+          for (const testId of possibleIds) {
+            const homeSnapshot = await get(ref(db, `/${testId}`));
+            if (homeSnapshot.exists()) {
+              homeData = homeSnapshot.val();
+              foundHomeId = testId;
+              break;
+            }
+          }
+          
+          if (homeData) {
+            // Verify the home belongs to this chain
             if (homeData.chainId === chainId) {
               setHomeBelongsToChain(true);
             } else {
@@ -59,8 +84,25 @@ export default function ChainAdminHomePage({ params }: PageProps) {
               return;
             }
           } else {
-            router.push('/unauthorized');
-            return;
+            // Last attempt: check if home is in chain's homes list
+            const chainRef = ref(db, `chains/${chainId}`);
+            const chainSnapshot = await get(chainRef);
+            if (chainSnapshot.exists()) {
+              const chainData = chainSnapshot.val();
+              const homes = chainData.homes || [];
+              // Check if any of the possible IDs is in the chain's homes list
+              const homeInChain = possibleIds.some(id => homes.includes(id));
+              if (homeInChain) {
+                setHomeBelongsToChain(true);
+              } else {
+                console.error(`Home not found: ${homeId} (tried: ${possibleIds.join(', ')})`);
+                router.push('/unauthorized');
+                return;
+              }
+            } else {
+              router.push('/unauthorized');
+              return;
+            }
           }
           
           setUserRole(role);
@@ -97,7 +139,7 @@ export default function ChainAdminHomePage({ params }: PageProps) {
     return null;
   }
 
-  // Get Firebase ID for the dashboard component
+  // Get Firebase ID for the dashboard component (use decoded homeId)
   const firebaseId = getFirebaseId(homeId);
   
   // Get display name for the title
@@ -114,13 +156,13 @@ export default function ChainAdminHomePage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Back to Chain Overview Link */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="max-w-7xl mx-auto">
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <button
             onClick={handleBackToChain}
-            className="text-cyan-600 hover:text-cyan-700 font-medium text-sm flex items-center gap-1"
+            className="text-cyan-600 hover:text-cyan-700 font-medium text-base flex items-center gap-1.5"
           >
-            <span>←</span>
+            <span className="text-lg">←</span>
             <span>Back to Chain Overview</span>
           </button>
         </div>

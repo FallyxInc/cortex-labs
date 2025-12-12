@@ -316,7 +316,9 @@ export default function ChainAdminDashboard({ chainId }: ChainAdminDashboardProp
   };
 
   const handleHomeClick = (homeId: string) => {
-    router.push(`/chain/${chainId}/home/${homeId}`);
+    // Encode the homeId to handle special characters in URLs
+    const encodedHomeId = encodeURIComponent(homeId);
+    router.push(`/chain/${chainId}/home/${encodedHomeId}`);
   };
 
   const handleLogout = async () => {
