@@ -316,7 +316,7 @@ export default function ChainAdminDashboard({ chainId }: ChainAdminDashboardProp
   };
 
   const handleHomeClick = (homeId: string) => {
-    router.push(`/${homeId}`);
+    router.push(`/chain/${chainId}/home/${homeId}`);
   };
 
   const handleLogout = async () => {

@@ -1,0 +1,138 @@
+'use client';
+
+import { use } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { ref, get } from 'firebase/database';
+import { db, auth } from '@/lib/firebase/firebase';
+import BehavioursDashboard from '@/components/dashboard/BehavioursDashboard';
+import { getDisplayName, getFirebaseId } from '@/lib/homeMappings';
+
+interface PageProps {
+  params: Promise<{ chainId: string; homeId: string }>;
+}
+
+export default function ChainAdminHomePage({ params }: PageProps) {
+  const { chainId, homeId } = use(params);
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userChainId, setUserChainId] = useState<string | null>(null);
+  const [homeBelongsToChain, setHomeBelongsToChain] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      try {
+        const userSnapshot = await get(ref(db, `users/${user.uid}`));
+        
+        if (userSnapshot.exists()) {
+          const userData = userSnapshot.val();
+          const role = userData.role;
+          
+          if (role !== 'chainAdmin') {
+            router.push('/unauthorized');
+            return;
+          }
+
+          // Verify user has access to this chain
+          if (userData.chainId !== chainId) {
+            router.push('/unauthorized');
+            return;
+          }
+
+          // Verify home belongs to this chain
+          const homeRef = ref(db, `/${homeId}`);
+          const homeSnapshot = await get(homeRef);
+          
+          if (homeSnapshot.exists()) {
+            const homeData = homeSnapshot.val();
+            if (homeData.chainId === chainId) {
+              setHomeBelongsToChain(true);
+            } else {
+              router.push('/unauthorized');
+              return;
+            }
+          } else {
+            router.push('/unauthorized');
+            return;
+          }
+          
+          setUserRole(role);
+          setUserChainId(userData.chainId);
+        } else {
+          router.push('/login');
+          return;
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        router.push('/login');
+        return;
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router, chainId, homeId]);
+
+  const handleBackToChain = () => {
+    router.push(`/chain/${chainId}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2" style={{ borderColor: '#06b6d4' }}></div>
+      </div>
+    );
+  }
+
+  if (!userRole || userRole !== 'chainAdmin' || userChainId !== chainId || !homeBelongsToChain) {
+    return null;
+  }
+
+  // Get Firebase ID for the dashboard component
+  const firebaseId = getFirebaseId(homeId);
+  
+  // Get display name for the title
+  const displayName = getDisplayName(homeId);
+  
+  // Format title
+  const title = displayName && displayName !== homeId
+    ? `${displayName} Behaviours Dashboard`
+    : `${homeId.charAt(0).toUpperCase() + homeId.slice(1).replace(/_/g, ' ')} Behaviours Dashboard`;
+  
+  // Default goal value
+  const goal = 15;
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Back to Chain Overview Link */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="max-w-7xl mx-auto">
+          <button
+            onClick={handleBackToChain}
+            className="text-cyan-600 hover:text-cyan-700 font-medium text-sm flex items-center gap-1"
+          >
+            <span>←</span>
+            <span>Back to Chain Overview</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Home Dashboard */}
+      <BehavioursDashboard
+        name={displayName}
+        firebaseId={firebaseId}
+        title={title}
+        goal={goal}
+      />
+    </div>
+  );
+}
