@@ -696,6 +696,8 @@ export default function UserManagement() {
                 title="User Role"
                 content="• Admin: Full access to admin dashboard (home management, user management, file uploads)
 
+• Chain Admin: Access to chain dashboard to view and compare all homes in their assigned chain
+
 • Home User: Access only to their assigned home's dashboard to view behavioural data"
               />
             </div>
@@ -709,60 +711,28 @@ export default function UserManagement() {
                   role: newRole,
                   // Reset chain/home when switching to admin
                   chainId: newRole === 'admin' ? '' : formData.chainId,
-                  homeId: newRole === 'admin' ? '' : formData.homeId
+                  homeId: (newRole === 'admin' || newRole === 'chainAdmin') ? '' : formData.homeId
                 });
               }}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               required
             >
               <option value="homeUser">homeUser</option>
+              <option value="chainAdmin">chainAdmin</option>
               <option value="admin">admin</option>
             </select>
             <p className="mt-1 text-xs text-gray-500">
-              {formData.role === 'admin' ? 'Admin users have access to the admin dashboard' : 'Home users have access to their home dashboard'}
+              {formData.role === 'admin' 
+                ? 'Admin users have access to the admin dashboard' 
+                : formData.role === 'chainAdmin'
+                ? 'Chain Admin users have access to the chain dashboard for their assigned chain'
+                : 'Home users have access to their home dashboard'}
             </p>
           </div>
 
-          {/* Chain and Home fields - only for homeUser */}
-          {formData.role === 'homeUser' && (
-            <>
-              <div className="border-t border-gray-200 pt-4">
-                <div>
-                  <div className="flex items-center">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Home
-                    </label>
-                    <HelpIcon 
-                      title="Home"
-                      content="Select an existing home. The home is the specific care facility the user will have access to. If you select a home first, the chain will be automatically set. To create a new home, use the Tenant Management section."
-                    />
-                  </div>
-                  <select
-                    value={formData.homeId}
-                    onChange={(e) => {
-                      const selectedHomeId = e.target.value;
-                      const selectedHome = homes.find(h => h.id === selectedHomeId);
-                      setFormData({ 
-                        ...formData, 
-                        homeId: selectedHomeId,
-                        // Auto-populate chain when home is selected
-                        chainId: selectedHome?.chainId || formData.chainId
-                      });
-                    }}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  >
-                    <option value="">Select a home</option>
-                    {/* Show all homes, but filter by chain if one is selected */}
-                    {(formData.chainId ? availableHomesForChain : homes).map((home) => (
-                      <option key={home.id} value={home.id}>
-                        {home.name} {home.chainId ? `(${getChainDisplayName(home.chainId)})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
+          {/* Chain field - for chainAdmin and homeUser */}
+          {(formData.role === 'homeUser' || formData.role === 'chainAdmin') && (
+            <div className="border-t border-gray-200 pt-4">
               <div>
                 <div className="flex items-center">
                   <label className="block text-sm font-medium text-gray-700">
@@ -770,7 +740,9 @@ export default function UserManagement() {
                   </label>
                   <HelpIcon 
                     title="Chain"
-                    content="Select an existing chain. Chains group related care facilities together. To create a new chain, use the Tenant Management section. If you select a home first, the chain will be automatically set."
+                    content={formData.role === 'chainAdmin' 
+                      ? "Select the chain this user will manage. Chain Admins can view and compare all homes in their assigned chain."
+                      : "Select an existing chain. Chains group related care facilities together. To create a new chain, use the Tenant Management section. If you select a home first, the chain will be automatically set."}
                   />
                 </div>
                 <select
@@ -778,8 +750,8 @@ export default function UserManagement() {
                   onChange={(e) => setFormData({
                     ...formData,
                     chainId: e.target.value,
-                    // Clear home if it doesn't belong to the newly selected chain
-                    homeId: formData.homeId && homes.find(h => h.id === formData.homeId)?.chainId === e.target.value ? formData.homeId : ''
+                    // Clear home if it doesn't belong to the newly selected chain (only for homeUser)
+                    homeId: formData.role === 'homeUser' && formData.homeId && homes.find(h => h.id === formData.homeId)?.chainId === e.target.value ? formData.homeId : (formData.role === 'chainAdmin' ? '' : formData.homeId)
                   })}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
@@ -792,8 +764,47 @@ export default function UserManagement() {
                   ))}
                 </select>
               </div>
+            </div>
+          )}
 
-            </>
+          {/* Home field - only for homeUser */}
+          {formData.role === 'homeUser' && (
+            <div className="border-t border-gray-200 pt-4">
+              <div>
+                <div className="flex items-center">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Home
+                  </label>
+                  <HelpIcon 
+                    title="Home"
+                    content="Select an existing home. The home is the specific care facility the user will have access to. If you select a home first, the chain will be automatically set. To create a new home, use the Tenant Management section."
+                  />
+                </div>
+                <select
+                  value={formData.homeId}
+                  onChange={(e) => {
+                    const selectedHomeId = e.target.value;
+                    const selectedHome = homes.find(h => h.id === selectedHomeId);
+                    setFormData({ 
+                      ...formData, 
+                      homeId: selectedHomeId,
+                      // Auto-populate chain when home is selected
+                      chainId: selectedHome?.chainId || formData.chainId
+                    });
+                  }}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select a home</option>
+                  {/* Show all homes, but filter by chain if one is selected */}
+                  {(formData.chainId ? availableHomesForChain : homes).map((home) => (
+                    <option key={home.id} value={home.id}>
+                      {home.name} {home.chainId ? `(${getChainDisplayName(home.chainId)})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           )}
 
           <div className="flex justify-end space-x-3 pt-4">
