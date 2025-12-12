@@ -67,28 +67,39 @@ export function ReviewAndSavePage({
 
     fetchAvailableChains();
     // Pre-select existing chain values if provided
-    if (chainId && !editingConfig) {
+    if (editingConfig && chainId) {
       setSelectedExistingChain(chainId);
       setChainSelectionMode('existing');
       onChainIdChange(chainId);
-    } else if (chainName && !editingConfig) {
+    } else if (editingConfig && chainName) {
       setNewChainName(chainName);
       setChainSelectionMode('new');
       const sanitizedId = sanitizeChainId(chainName);
       onChainIdChange(sanitizedId);
       onChainNameChange(chainName);
-    } else if (editingConfig && chainId) {
-      setSelectedExistingChain(chainId);
-      setChainSelectionMode('existing');
-      onChainIdChange(chainId);
-    } else {
-      onChainIdChange(null);
-    }
-    if (chainName) {
-      onChainNameChange(chainName);
-    } else {
-      onChainNameChange(null);
-    }
+    } 
+    // if (chainId && !editingConfig) {
+    //   setSelectedExistingChain(chainId);
+    //   setChainSelectionMode('existing');
+    //   onChainIdChange(chainId);
+    // } else if (chainName && !editingConfig) {
+    //   setNewChainName(chainName);
+    //   setChainSelectionMode('new');
+    //   const sanitizedId = sanitizeChainId(chainName);
+    //   onChainIdChange(sanitizedId);
+    //   onChainNameChange(chainName);
+    // } else if (editingConfig && chainId) {
+    //   setSelectedExistingChain(chainId);
+    //   setChainSelectionMode('existing');
+    //   onChainIdChange(chainId);
+    // } else {
+    //   onChainIdChange(null);
+    // }
+    // if (chainName) {
+    //   onChainNameChange(chainName);
+    // } else {
+    //   onChainNameChange(null);
+    // }
   }, [chainId, chainName, editingConfig, onChainIdChange, onChainNameChange]);
 
   const handleChainSelect = (selectedChainId: string) => {
