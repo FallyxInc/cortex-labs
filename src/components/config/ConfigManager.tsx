@@ -29,6 +29,7 @@ const DEFAULT_PDF_CONFIG: ChainExtractionConfig = {
   extraFollowUpNoteTypes: [],
   excelExtraction: DEFAULT_EXCEL_EXTRACTION,
   matchingWindowHours: 24,
+  junkMarkers: [],
   fieldExtractionMarkers: {},
   hasTimeFrequency: false,
   hasEvaluation: false,
@@ -44,6 +45,7 @@ const normalizeConfig = (config: Partial<ChainExtractionConfig>): ChainExtractio
     extraFollowUpNoteTypes: config.extraFollowUpNoteTypes || [],
     excelExtraction: config.excelExtraction || DEFAULT_EXCEL_EXTRACTION,
     matchingWindowHours: config.matchingWindowHours || 24,
+    junkMarkers: config.junkMarkers || [],
     fieldExtractionMarkers: config.fieldExtractionMarkers || {},
     hasTimeFrequency: config.hasTimeFrequency || false,
     hasEvaluation: config.hasEvaluation || false,
@@ -382,6 +384,7 @@ export default function ConfigManagerWizard() {
       extraFollowUpNoteTypes: pdfExtractionConfig.extraFollowUpNoteTypes || [],
       excelExtraction,
       matchingWindowHours: pdfExtractionConfig.matchingWindowHours || 24,
+      junkMarkers: pdfExtractionConfig.junkMarkers || [],
       fieldExtractionMarkers: pdfExtractionConfig.fieldExtractionMarkers,
       hasTimeFrequency: pdfExtractionConfig.hasTimeFrequency || false,
       hasEvaluation: pdfExtractionConfig.hasEvaluation || false,
@@ -477,13 +480,13 @@ export default function ConfigManagerWizard() {
   };
 
   const handleEditConfig = (savedConfig: ChainExtractionConfig & { chainId: string; chainName: string }) => {
-    // Pre-fill the PDF extraction config with existing values
     setPdfExtractionConfig({
       behaviourNoteTypes: savedConfig.behaviourNoteTypes,
       followUpNoteTypes: savedConfig.followUpNoteTypes,
       extraFollowUpNoteTypes: savedConfig.extraFollowUpNoteTypes || [],
       excelExtraction: savedConfig.excelExtraction || DEFAULT_EXCEL_EXTRACTION,
       matchingWindowHours: savedConfig.matchingWindowHours,
+      junkMarkers: savedConfig.junkMarkers || [],
       fieldExtractionMarkers: savedConfig.fieldExtractionMarkers,
       hasTimeFrequency: savedConfig.hasTimeFrequency,
       hasEvaluation: savedConfig.hasEvaluation,
@@ -493,7 +496,6 @@ export default function ConfigManagerWizard() {
     setEditingConfig(savedConfig);
     setChainId(savedConfig.chainId || '');
     setChainName(savedConfig.chainName || '');
-    // Go to pdf-config step - same flow as create
     setStep('pdf-config');
   };
 

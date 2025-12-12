@@ -163,6 +163,7 @@ export interface ChainExtractionConfig {
   extraFollowUpNoteTypes?: string[]; // Optional extra note types to append to follow-up records
   excelExtraction: ExcelExtractionConfig;
   matchingWindowHours?: number; // Hours window for matching behaviour notes to incidents (default: 24)
+  junkMarkers?: string[]; // Junk markers to remove from the data 
 
   // Default extraction config (used when no specific config exists for a note type)
   fieldExtractionMarkers: Partial<Record<ExtractionType, FieldExtractionConfig>>;

@@ -366,11 +366,15 @@ function collectOtherNotes(
         let data = note.Data;
 
         // Clean data - remove junk markers
-        const junkMarkers = ["Facility #", "Effective Date Range"];
+        const junkMarkers = config.junkMarkers || ["Facility #", "Effective Date Range"];
         for (const marker of junkMarkers) {
           if (data.includes(marker)) {
             const markerIndex = data.indexOf(marker);
-            const headers = ["Data :", "Action :", "Response :", "Note Text :"];
+            // get all field markers from the config and note type config markers
+            const fieldMarkers = Object.values(config.fieldExtractionMarkers).flatMap(marker => marker.fieldName);
+            const noteTypeConfigMarkers = Object.values(config.behaviourNoteConfigs?.[note.Type]?.extractionMarkers || {}).flatMap(marker => marker.fieldName);
+
+            const headers = fieldMarkers.concat(noteTypeConfigMarkers) || ["Data :", "Action :", "Response :", "Note Text :"];
             let nextHeaderIndex = data.length;
 
             for (const header of headers) {

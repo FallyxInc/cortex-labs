@@ -391,6 +391,20 @@ export function ReviewAndSavePage({
             </div>
           )}
 
+          {/* Junk Markers */}
+          {config.junkMarkers && config.junkMarkers.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <h3 className="font-semibold text-gray-900 mb-2">Junk Markers</h3>
+              <div className="flex flex-wrap gap-2">
+                {config.junkMarkers.map((marker, idx) => (
+                  <span key={idx} className="px-2 py-1 bg-gray-200 rounded text-xs text-gray-700">
+                    {marker}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Processing Settings */}
           <div className="bg-gray-50 rounded-lg p-4 border">
             <h3 className="font-semibold text-gray-900 mb-2">Processing Settings</h3>

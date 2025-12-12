@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       suggestions: {
         behaviourNoteTypes: analysis.behaviourNoteTypes,
         followUpNoteTypes: analysis.followUpNoteTypes,
+        junkMarkers: analysis.junkMarkers,
         fieldExtractionMarkers: analysis.fieldExtractionMarkers,
         noteTypeExtraction: analysis.noteTypeExtraction,
         behaviourNoteConfigs: analysis.behaviourNoteConfigs,
@@ -42,10 +43,10 @@ export async function POST(request: NextRequest) {
         hasTimeFrequency,
         hasEvaluation,
       },
-      // Ready-to-use config format for ChainExtractionConfig
       extractionConfig: {
         behaviourNoteTypes: analysis.behaviourNoteTypes.map(n => n.noteType),
         followUpNoteTypes: analysis.followUpNoteTypes.map(n => n.noteType),
+        junkMarkers: analysis.junkMarkers.map(j => j.text),
         fieldExtractionMarkers,
         behaviourNoteConfigs,
         followUpNoteConfigs,

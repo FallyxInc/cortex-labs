@@ -125,6 +125,20 @@ export function ConfigManagementPage({
             </div>
           </div>
 
+          {/* Junk Markers */}
+          {displayConfig.junkMarkers && displayConfig.junkMarkers.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <h4 className="font-semibold text-gray-900 mb-2">Junk Markers</h4>
+              <div className="flex flex-wrap gap-2">
+                {displayConfig.junkMarkers.map((marker, idx) => (
+                  <span key={idx} className="px-2 py-1 bg-gray-200 rounded text-xs text-gray-700">
+                    {marker}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Note Types */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
@@ -301,7 +315,7 @@ export function ConfigManagementPage({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4 mt-4">
+                <div className="grid grid-cols-5 gap-4 mt-4">
                   <div className="bg-yellow-50 rounded p-3">
                     <p className="text-xs text-yellow-700 font-medium mb-1">Behaviour Note Types</p>
                     <p className="text-sm font-semibold text-yellow-900">{savedConfig.behaviourNoteTypes.length}</p>
@@ -320,6 +334,12 @@ export function ConfigManagementPage({
                     <p className="text-xs text-green-700 font-medium mb-1">Excel Mappings</p>
                     <p className="text-sm font-semibold text-green-900">
                       {Object.keys(savedConfig.excelFieldMappings || {}).length}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded p-3">
+                    <p className="text-xs text-gray-700 font-medium mb-1">Junk Markers</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {(savedConfig.junkMarkers || []).length}
                     </p>
                   </div>
                 </div>

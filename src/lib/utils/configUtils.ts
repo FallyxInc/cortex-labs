@@ -227,6 +227,7 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       },
       incidentColumns: DEFAULT_EXCEL_INCIDENT_COLUMNS,
     },
+    junkMarkers: ["Facility #", "Effective Date Range"],
     matchingWindowHours: 24,
     // Default extraction markers (fallback if no specific config)
     fieldExtractionMarkers: {
@@ -426,6 +427,7 @@ export const CHAIN_EXTRACTION_CONFIGS: Record<string, ChainExtractionConfig> = {
       "Family/Resident Involvment",
       "Physician Note",
     ],
+    junkMarkers: ["Facility #", "Effective Date Range"],
     excelExtraction: {
       injuryColumns: {
         start: 13,

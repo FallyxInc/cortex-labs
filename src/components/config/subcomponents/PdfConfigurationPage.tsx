@@ -103,6 +103,11 @@ export function PdfConfigurationPage({
     collectNoteConfigs(config.behaviourNoteConfigs);
     collectNoteConfigs(config.followUpNoteConfigs);
 
+    const junkMarkerSet = new Set<string>();
+    if (config.junkMarkers) {
+      config.junkMarkers.forEach(marker => junkMarkerSet.add(normalize(marker)));
+    }
+
     const dualMarkers = new Set<string>();
     fieldNames.forEach(name => {
       if (endMarkers.has(name)) dualMarkers.add(name);
@@ -120,7 +125,20 @@ export function PdfConfigurationPage({
       });
     };
 
-    // Priority 1: Highlight behaviour note types (highest priority)
+    // Priority 0: Highlight junk markers (highest priority)
+    if (config.junkMarkers) {
+      config.junkMarkers.forEach(junkMarker => {
+        let startIndex = 0;
+        while (true) {
+          const index = pdfText.indexOf(junkMarker, startIndex);
+          if (index === -1) break;
+          addHighlight(junkMarker, index, index + junkMarker.length, 'bg-gray-300', 'Junk Marker');
+          startIndex = index + junkMarker.length;
+        }
+      });
+    }
+
+    // Priority 1: Highlight behaviour note types
     config.behaviourNoteTypes.forEach(noteType => {
       let startIndex = 0;
       while (true) {
@@ -285,6 +303,8 @@ export function PdfConfigurationPage({
           return '#FBCFE8';
         case 'bg-purple-300':
           return '#D8B4FE';
+        case 'bg-gray-300':
+          return '#D1D5DB';
         default:
           return '#E5E7EB';
       }
@@ -332,21 +352,21 @@ export function PdfConfigurationPage({
   };
 
   // Add item to string array
-  const addToArray = (field: 'behaviourNoteTypes' | 'followUpNoteTypes' | 'extraFollowUpNoteTypes', value: string) => {
+  const addToArray = (field: 'behaviourNoteTypes' | 'followUpNoteTypes' | 'extraFollowUpNoteTypes' | 'junkMarkers', value: string) => {
     if (!value.trim()) return;
     setConfig(prev => {
       const currentArray = prev[field] || [];
-      if (currentArray.includes(value.trim())) return prev; // Don't add duplicates
+      if (currentArray.includes(value.trim())) return prev;
       return {
         ...prev,
         [field]: [...currentArray, value.trim()]
       };
     });
-    setSelectedText(''); // Clear selection after use
+    setSelectedText('');
   };
 
   // Remove item from string array
-  const removeFromArray = (field: 'behaviourNoteTypes' | 'followUpNoteTypes' | 'extraFollowUpNoteTypes', index: number) => {
+  const removeFromArray = (field: 'behaviourNoteTypes' | 'followUpNoteTypes' | 'extraFollowUpNoteTypes' | 'junkMarkers', index: number) => {
     setConfig(prev => ({
       ...prev,
       [field]: (prev[field] || []).filter((_, i) => i !== index)
@@ -579,6 +599,7 @@ export function PdfConfigurationPage({
             </p>
             <div className="text-xs mb-3 space-y-1">
               <div className="flex items-center gap-2">
+                <span className="bg-gray-300 px-2 py-0.5 rounded text-xs">Junk Marker</span>
                 <span className="bg-yellow-200 px-2 py-0.5 rounded text-xs">Behaviour Type</span>
                 <span className="bg-green-200 px-2 py-0.5 rounded text-xs">Follow-up Type</span>
                 <span className="bg-blue-200 px-2 py-0.5 rounded text-xs">Field Name</span>
@@ -632,6 +653,18 @@ export function PdfConfigurationPage({
                 placeholder="e.g., Family/Resident Involvement"
                 selectedText={selectedText}
                 onUseSelected={() => addToArray('extraFollowUpNoteTypes', selectedText)}
+              />
+            </ConfigSection>
+
+            {/* Junk Markers */}
+            <ConfigSection title="Junk Markers (Optional)">
+              <StringArrayEditor
+                items={config.junkMarkers || []}
+                onAdd={(value) => addToArray('junkMarkers', value)}
+                onRemove={(index) => removeFromArray('junkMarkers', index)}
+                placeholder="e.g., Page, Footer Text"
+                selectedText={selectedText}
+                onUseSelected={() => addToArray('junkMarkers', selectedText)}
               />
             </ConfigSection>
 

@@ -50,9 +50,16 @@ export interface AISuggestedNoteTypeExtractionConfig {
   hasEvaluation: boolean;
 }
 
+export interface AISuggestedJunkMarker {
+  text: string;
+  confidence: number;
+  reasoning: string;
+}
+
 export interface PdfAnalysisResult {
   behaviourNoteTypes: AISuggestedNoteType[];
   followUpNoteTypes: AISuggestedNoteType[];
+  junkMarkers: AISuggestedJunkMarker[];
   fieldExtractionMarkers: Partial<Record<ExtractionType, AISuggestedField>>;
   noteTypeExtraction: AISuggestedNoteTypeExtractionConfig[];
   behaviourNoteConfigs: Record<string, AISuggestedNoteTypeExtractionConfig>;
@@ -65,8 +72,9 @@ const SYSTEM_PROMPT = `You are an expert at analyzing healthcare documentation a
 
 Your task is to analyze a PDF document containing behavior incident notes and identify:
 1. Note types - Labels that identify different types of notes (behaviour notes vs follow-up notes)
-2. Field extraction markers - Text labels that mark the start of data fields
-3. End markers - Text that indicates where each field ends
+2. Junk markers - Repetitive text that should be filtered out (headers, footers, page numbers, etc.)
+3. Field extraction markers - Text labels that mark the start of data fields
+4. End markers - Text that indicates where each field ends
 
 CRITICAL RULES:
 - Be precise and provide EXACT text matches from the document including colons, spaces, and capitalization or other symbols.
@@ -94,7 +102,44 @@ function buildUserPrompt(pdfText: string): string {
 === TARGET FIELDS TO EXTRACT ===
 ${PDF_EXTRACTION_FIELDS.map((f) => `- ${f}: ${fieldDescriptions[f]}`).join('\n')}
 
-=== TASK 1: IDENTIFY NOTE TYPES ===
+=== TASK 1: IDENTIFY JUNK MARKERS ===
+Identify repetitive text that appears throughout the document and should be filtered out during processing. Common patterns include:
+
+Headers and footers:
+- "Page 1 of 5"
+- "Confidential - Do Not Distribute"
+- "Printed on: 2024-01-15"
+- Company/facility names that repeat
+- Document titles that appear on every page
+
+Page markers:
+- "Page"
+- "Pg."
+- Page numbers and ranges
+
+System metadata:
+- "Effective Date Range:"
+- "Facility #"
+- "Report Generated:"
+- Timestamps that don't relate to incidents
+
+Layout markers:
+- Horizontal lines or separators (e.g., "___________", "----------")
+- Section dividers
+- Repeated instructions or boilerplate text
+
+Junk markets get removed from their first instance, to the next instance of a field marker or note type marker. 
+It is VERY IMPORTANT that the data between the junk markers and the field markers or note type markers is not important data.
+Junk markers should be removed only for explicitly unnecessary data. for incidents
+
+For each junk marker found, provide:
+- text: EXACT text as it appears (including spaces, punctuation)
+- confidence: 0.0 to 1.0
+- reasoning: Brief explanation of why this is junk (e.g., "repeats on every page", "footer text", "page numbering")
+
+IMPORTANT: Only identify text that is truly repetitive/structural and NOT part of the actual incident data.
+
+=== TASK 2: IDENTIFY NOTE TYPES ===
 Find all note type labels in the PDF. Common patterns:
 
 Behaviour notes (incident notes):
@@ -110,12 +155,12 @@ Follow-up notes:
 - "Physician Note"
 
 For each note type found, provide:
-- noteType: EXACT text as it appears (including spaces, punctuation)
+- noteType: EXACT text as it appears (including spaces, punctuation, spelling (behaviour vs behavior))
 - isFollowUp: true if it's a follow-up note, false if it's a behaviour/incident note
 - confidence: 0.0 to 1.0
 - reasoning: Brief explanation of why you identified this
 
-=== TASK 2: IDENTIFY DEFAULT FIELD MARKERS ===
+=== TASK 3: IDENTIFY DEFAULT FIELD MARKERS ===
 For each target field, identify the EXACT label text that precedes the field content across all notes.
 
 Common field patterns (examples - use ACTUAL text from PDF):
@@ -140,7 +185,7 @@ For each field found, provide:
 
 ONLY include fields you can confidently identify. If a field is not found in the PDF, omit it completely.
 
-=== TASK 3: IDENTIFY NOTE-TYPE-SPECIFIC FIELD MARKERS ===
+=== TASK 4: IDENTIFY NOTE-TYPE-SPECIFIC FIELD MARKERS ===
 Some note types may use DIFFERENT field labels than others. For EACH note type you found in Task 1, analyze if it has its own unique field labels.
 
 For example:
@@ -163,6 +208,18 @@ ${pdfText}
 Respond with ONLY this JSON structure (no markdown, no code blocks, just raw JSON):
 
 {
+  "junkMarkers": [
+    {
+      "text": "Facility #",
+      "confidence": 0.95,
+      "reasoning": "Page marker that appears throughout the document"
+    },
+    {
+      "text": "Effective Date Range :",
+      "confidence": 0.9,
+      "reasoning": "System metadata field that repeats on every page"
+    }
+  ],
   "behaviourNoteTypes": [
     {
       "noteType": "Behaviour - Responsive Behaviour",
@@ -215,13 +272,14 @@ Respond with ONLY this JSON structure (no markdown, no code blocks, just raw JSO
 
 === CRITICAL REQUIREMENTS ===
 1. Use EXACT text from the PDF (including colons, spaces, capitalization, symbols)
-2. If multiple format variations exist for a field, provide array: ["Format 1:", "Format 2:"]
-3. For endMarkers, identify text that appears AFTER the field content (next label, page markers, etc.)
-4. Only include fields you can confidently identify - omit fields not found in the PDF
-5. Set hasTimeFrequency/hasEvaluation to true ONLY if those specific fields exist
-6. The noteTypeExtraction array should contain entries ONLY for note types with unique field labels
-7. Ensure all text matches are EXACT to avoid false positives with similar text in the document
-8. Return valid JSON only - no markdown code blocks, no explanations outside JSON`;
+2. For junkMarkers, only identify text that is truly repetitive/structural (headers, footers, page numbers, metadata)
+3. If multiple format variations exist for a field, provide array: ["Format 1:", "Format 2:"]
+4. For endMarkers, identify text that appears AFTER the field content (next label, page markers, etc.)
+5. Only include fields you can confidently identify - omit fields not found in the PDF
+6. Set hasTimeFrequency/hasEvaluation to true ONLY if those specific fields exist
+7. The noteTypeExtraction array should contain entries ONLY for note types with unique field labels
+8. Ensure all text matches are EXACT to avoid false positives with similar text in the document
+9. Return valid JSON only - no markdown code blocks, no explanations outside JSON`;
 }
 
 function normalizeFieldSuggestions(
@@ -308,9 +366,23 @@ function parseAIResponse(responseText: string): PdfAnalysisResult {
   const hasEvaluation =
     parsed.hasEvaluation ?? noteTypeExtraction.some((c) => c.hasEvaluation);
 
+  const junkMarkers: AISuggestedJunkMarker[] = [];
+  if (Array.isArray(parsed.junkMarkers)) {
+    for (const entry of parsed.junkMarkers) {
+      if (entry && entry.text) {
+        junkMarkers.push({
+          text: entry.text,
+          confidence: entry.confidence ?? 0.5,
+          reasoning: entry.reasoning || '',
+        });
+      }
+    }
+  }
+
   return {
     behaviourNoteTypes: parsed.behaviourNoteTypes || [],
     followUpNoteTypes: parsed.followUpNoteTypes || [],
+    junkMarkers,
     fieldExtractionMarkers,
     noteTypeExtraction,
     behaviourNoteConfigs,
