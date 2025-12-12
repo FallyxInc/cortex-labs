@@ -138,6 +138,34 @@ export default function ChainAdminDashboard({ chainId }: ChainAdminDashboardProp
     }
   };
 
+  // Get the bar color for a specific home based on its index in filteredHomes
+  const getBarColorForHome = (homeId: string): { bg: string; border: string; tailwind: string } => {
+    const index = filteredHomes.findIndex(h => h.homeId === homeId);
+    if (index === -1) {
+      // Default to blue if not found
+      return {
+        bg: 'rgba(6, 182, 212, 0.7)',
+        border: 'rgb(6, 182, 212)',
+        tailwind: 'border-l-cyan-500'
+      };
+    }
+    
+    // Alternate between blue and green
+    if (index % 2 === 0) {
+      return {
+        bg: 'rgba(6, 182, 212, 0.7)',   // Cyan/Blue
+        border: 'rgb(6, 182, 212)',
+        tailwind: 'border-l-cyan-500'
+      };
+    } else {
+      return {
+        bg: 'rgba(34, 197, 94, 0.7)',   // Green
+        border: 'rgb(34, 197, 94)',
+        tailwind: 'border-l-green-500'
+      };
+    }
+  };
+
   const getChartData = () => {
     const labels = filteredHomes.map(home => home.homeName);
     const data = filteredHomes.map(home => {
@@ -158,17 +186,8 @@ export default function ChainAdminDashboard({ chainId }: ChainAdminDashboardProp
       datasets: [{
         label: getMetricLabel(selectedMetric),
         data,
-        backgroundColor: filteredHomes.map((_, index) => {
-          // Use only blue and green colors, alternating
-          return index % 2 === 0 
-            ? 'rgba(6, 182, 212, 0.7)'   // Cyan/Blue
-            : 'rgba(34, 197, 94, 0.7)';   // Green
-        }),
-        borderColor: filteredHomes.map((_, index) => {
-          return index % 2 === 0 
-            ? 'rgb(6, 182, 212)'   // Cyan/Blue
-            : 'rgb(34, 197, 94)';   // Green
-        }),
+        backgroundColor: filteredHomes.map((home) => getBarColorForHome(home.homeId).bg),
+        borderColor: filteredHomes.map((home) => getBarColorForHome(home.homeId).border),
         borderWidth: 1.5,
       }],
     };
@@ -425,7 +444,7 @@ export default function ChainAdminDashboard({ chainId }: ChainAdminDashboardProp
                 onClick={() => setSelectedMetric('criticalBehaviours')}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   selectedMetric === 'criticalBehaviours'
-                    ? 'bg-green-500 text-white shadow-sm'
+                    ? 'bg-cyan-500 text-white shadow-sm'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -435,7 +454,7 @@ export default function ChainAdminDashboard({ chainId }: ChainAdminDashboardProp
                 onClick={() => setSelectedMetric('followUpCompletionRate')}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   selectedMetric === 'followUpCompletionRate'
-                    ? 'bg-blue-500 text-white shadow-sm'
+                    ? 'bg-cyan-500 text-white shadow-sm'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -488,19 +507,15 @@ export default function ChainAdminDashboard({ chainId }: ChainAdminDashboardProp
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-x-auto pb-4">
             {filteredHomes.map((home, index) => {
-              // Color coding based on performance
-              const getCardColor = () => {
-                const avgIncidents = homes.reduce((sum, h) => sum + h.totalIncidents, 0) / homes.length;
-                if (home.totalIncidents > avgIncidents * 1.5) return 'border-l-4 border-l-red-500';
-                if (home.totalIncidents > avgIncidents) return 'border-l-4 border-l-yellow-500';
-                return 'border-l-4 border-l-green-500';
-              };
+              // Get the bar color for this home and use it for the side highlight
+              const homeColor = getBarColorForHome(home.homeId);
+              const cardBorderColor = `border-l-4 ${homeColor.tailwind}`;
 
               return (
                 <div
                   key={home.homeId}
                   onClick={() => handleHomeClick(home.homeId)}
-                  className={`bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all ${getCardColor()}`}
+                  className={`bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all ${cardBorderColor}`}
                 >
                   <h3 className="font-semibold text-gray-900 text-sm mb-3">{home.homeName}</h3>
                   <div className="text-3xl font-bold text-gray-900 mb-1">
