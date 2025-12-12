@@ -5,3 +5,11 @@ next-env.d.ts
 *.log
 __pycache__/
 *.pyc
+
+/files/chains
+
+*.env
+.env.prod
+!.env.example
+!**/.env.example
+!.env.local.example
