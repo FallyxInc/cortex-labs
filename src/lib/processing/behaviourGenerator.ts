@@ -732,7 +732,7 @@ export async function saveFollowupNotesCsv(
 
       // Clean data similar to collectOtherNotes
       let dataText = String(note.Data || "").trim();
-      const junkMarkers = ["Facility #", "Effective Date Range"];
+      const junkMarkers = config.junkMarkers || ["Facility #", "Effective Date Range"];
 
       for (const marker of junkMarkers) {
         if (dataText.includes(marker)) {
@@ -806,19 +806,21 @@ export async function saveFollowupNotesCsv(
 
         // Clean data similar to above
         let famText = String(famNote.Data || "").trim();
-        const junkMarkers = ["Facility #", "Effective Date Range"];
+        const junkMarkers = config.junkMarkers || ["Facility #", "Effective Date Range"];
 
         for (const marker of junkMarkers) {
           if (famText.includes(marker)) {
             const markerIndex = famText.indexOf(marker);
             let nextHeaderIndex = famText.length;
+            
+            // get all field markers from the config and note type config markers
+            const fieldMarkers = Object.values(config.fieldExtractionMarkers).flatMap(marker => marker.fieldName);
+            const noteTypeConfigMarkers = Object.values(config.behaviourNoteConfigs?.[famNote.Type]?.extractionMarkers || {}).flatMap(marker => marker.fieldName);
 
-            for (const header of [
-              "Data :",
-              "Action :",
-              "Response :",
-              "Note Text :",
-            ]) {
+
+            const headers = fieldMarkers.concat(noteTypeConfigMarkers) || ["Data :", "Action :", "Response :", "Note Text :"];
+
+            for (const header of headers) {
               const headerIndex = famText.indexOf(header, markerIndex);
               if (headerIndex !== -1 && headerIndex < nextHeaderIndex) {
                 nextHeaderIndex = headerIndex;
