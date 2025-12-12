@@ -75,6 +75,23 @@ export default function Login() {
           role: role,
         });
       }
+    } else if (role === 'chainAdmin') {
+      if ('chainId' in userData) {
+        const chainId = userData.chainId as string;
+        router.push(`/chain/${chainId}`);
+        return;
+      }
+      else {
+        // If chainAdmin doesn't have a chainId, show error
+        setErrorMessage('Your account is not assigned to a chain. Please contact an administrator.');
+        trackLogin({
+          method: 'email',
+          success: false,
+          error: 'no_chain_assigned',
+          userId,
+          role: role,
+        });
+      }
     } else {  
       // Legacy role mappings
       const roleMapping: { [key: string]: string } = {
