@@ -14,6 +14,10 @@ export default function FileUpload() {
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [excelFiles, setExcelFiles] = useState<File[]>([]);
   const [selectedHome, setSelectedHome] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
   const [homes, setHomes] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [loadingHomes, setLoadingHomes] = useState(true);
@@ -241,11 +245,27 @@ export default function FileUpload() {
       const formData = new FormData();
 
       pdfFiles.forEach((file, index) => {
-        formData.append(`pdf_${index}`, file);
+        if (selectedDate) {
+          // Rename file to selected date
+          const extension = file.name.split('.').pop();
+          const newFileName = `${selectedDate}.${extension}`;
+          const renamedFile = new File([file], newFileName, { type: file.type });
+          formData.append(`pdf_${index}`, renamedFile);
+        } else {
+          formData.append(`pdf_${index}`, file);
+        }
       });
 
       excelFiles.forEach((file, index) => {
-        formData.append(`excel_${index}`, file);
+        if (selectedDate) {
+          // Rename file to selected date
+          const extension = file.name.split('.').pop();
+          const newFileName = `${selectedDate}.${extension}`;
+          const renamedFile = new File([file], newFileName, { type: file.type });
+          formData.append(`excel_${index}`, renamedFile);
+        } else {
+          formData.append(`excel_${index}`, file);
+        }
       });
 
       formData.append("home", selectedHome);
@@ -326,6 +346,7 @@ export default function FileUpload() {
         setPdfFiles([]);
         setExcelFiles([]);
         setSelectedHome("");
+        setSelectedDate("");
         setAntipsychoticsPercentage("");
         setAntipsychoticsChange("");
         setAntipsychoticsResidents("");
@@ -865,6 +886,44 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
                 No homes found. Please create homes first.
               </p>
             )}
+          </div>
+
+          <div>
+            <div className="flex items-center">
+              <label
+                htmlFor="fileDate"
+                className="block text-sm font-medium text-gray-700"
+              >
+                File Date
+              </label>
+              <HelpIcon
+                title="File Date"
+                content="Select a date to rename all uploaded files. Files will be renamed to this date format (YYYY-MM-DD) when sent to the backend."
+              />
+            </div>
+            <input
+              type="date"
+              id="fileDate"
+              name="fileDate"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="mt-1 block w-full px-4 py-3 text-gray-900 border border-gray-300 rounded-md shadow-sm text-base bg-white"
+              style={
+                {
+                  "--tw-ring-color": "#0cc7ed",
+                  "--tw-border-color": "#0cc7ed",
+                } as React.CSSProperties
+              }
+              onFocus={(e) => {
+                (e.target as HTMLInputElement).style.borderColor = "#0cc7ed";
+                (e.target as HTMLInputElement).style.boxShadow =
+                  "0 0 0 3px rgba(12, 199, 237, 0.1)";
+              }}
+              onBlur={(e) => {
+                (e.target as HTMLInputElement).style.borderColor = "#d1d5db";
+                (e.target as HTMLInputElement).style.boxShadow = "none";
+              }}
+            />
           </div>
 
           <div className="flex justify-end">
