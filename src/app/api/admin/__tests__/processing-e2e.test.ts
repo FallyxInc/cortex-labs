@@ -43,7 +43,7 @@ jest.mock('@/lib/firebase/firebaseAdmin', () => ({
 // Mock Claude client (skip AI calls during test)
 jest.mock('@/lib/claude-client', () => ({
   getAIModelConfig: () => ({ apiKey: 'test-key', model: 'test' }),
-  callClaude: jest.fn(() => Promise.resolve('{}'))
+  callClaudeAPI: jest.fn(() => Promise.resolve('{}'))
 }));
 
 // Mock Firebase upload/update (skip actual Firebase writes)

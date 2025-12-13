@@ -205,7 +205,7 @@ describe('User Creation API', () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toContain('must be either "admin" or "homeUser"');
+      expect(data.error).toContain('must be either "admin", "homeUser", or "chainAdmin"');
     });
 
     it('should reject weak password', async () => {

@@ -7,8 +7,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase/firebase';
 import BehavioursDashboard from '@/components/dashboard/BehavioursDashboard';
-import { getDisplayName, getFirebaseId } from '@/lib/homeMappings';
-import { HOME_MAPPINGS } from '@/lib/homeMappings';
+import { getDisplayName, getFirebaseId, HOME_MAPPINGS, type HomeMapping } from '@/lib/homeMappings';
 
 interface PageProps {
   params: Promise<{ chainId: string; homeId: string }>;
@@ -140,10 +139,37 @@ export default function ChainAdminHomePage({ params }: PageProps) {
   }
 
   // Get Firebase ID for the dashboard component (use decoded homeId)
-  const firebaseId = getFirebaseId(homeId);
+  // Start with fallback, then load from Firebase to ensure consistency with API
+  const [firebaseId, setFirebaseId] = useState<string>(getFirebaseId(homeId));
+  const [displayName, setDisplayName] = useState<string>(getDisplayName(homeId));
   
-  // Get display name for the title
-  const displayName = getDisplayName(homeId);
+  // Load Firebase mappings on client side to get correct firebaseId
+  // This ensures we use the same firebaseId that the API uses when saving metrics
+  useEffect(() => {
+    const loadFirebaseMappings = async () => {
+      try {
+        const mappingsRef = ref(db, '/homeMappings');
+        const snapshot = await get(mappingsRef);
+        
+        if (snapshot.exists()) {
+          const firebaseMappings = snapshot.val() as Record<string, HomeMapping>;
+          const allMappings = { ...HOME_MAPPINGS, ...firebaseMappings };
+          
+          // Find the mapping for this homeId
+          const mapping = allMappings[homeId];
+          if (mapping) {
+            setFirebaseId(mapping.firebaseId);
+            setDisplayName(mapping.displayName || homeId);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load Firebase mappings, using fallback:', error);
+        // Keep the fallback values from getFirebaseId/getDisplayName
+      }
+    };
+    
+    loadFirebaseMappings();
+  }, [homeId]);
   
   // Format title
   const title = displayName && displayName !== homeId
