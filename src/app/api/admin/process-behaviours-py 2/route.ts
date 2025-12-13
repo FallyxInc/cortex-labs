@@ -239,8 +239,7 @@ export async function POST(request: NextRequest) {
         "Saving overview metrics to Firebase...",
         "saving_metrics",
       );
-      const altName = await getFirebaseIdAsync(home);
-      const metricsRef = adminDb.ref(`/${altName}/overviewMetrics`);
+      const metricsRef = adminDb.ref(`/${home}/overviewMetrics`);
 
       const metricsData: Record<
         string,

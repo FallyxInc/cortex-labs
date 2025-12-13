@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, readdir, unlink, rm } from "fs/promises";
 import { join } from "path";
 import { adminDb } from "@/lib/firebase/firebaseAdmin";
-import { getFirebaseIdAsync, getHomeNameAsync } from "@/lib/homeMappings";
+import { getHomeNameAsync } from "@/lib/homeMappings";
 import { progressStore } from "../process-progress/route";
 import { processExcelFiles } from "@/lib/processing/excelProcessor";
 import { processPdfFiles } from "@/lib/processing/pdfProcessor";
@@ -130,8 +130,7 @@ export async function POST(request: NextRequest) {
         "Saving overview metrics to Firebase...",
         "saving_metrics",
       );
-      const altName = await getFirebaseIdAsync(home);
-      const metricsRef = adminDb.ref(`/${altName}/overviewMetrics`);
+      const metricsRef = adminDb.ref(`/${home}/overviewMetrics`);
 
       const metricsData: Record<
         string,
