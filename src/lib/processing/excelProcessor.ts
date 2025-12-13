@@ -165,26 +165,30 @@ export async function processExcelFiles(
       console.log(`Starting Excel processing for: ${xlsPath}`);
 
       try {
-        const date = extractDateFromFilename(xlsFile);
-        if (date) {
-          const dateDir = join(
-            analyzedDir,
-            `${date.month}-${date.day}-${date.year}`,
-          );
-
-          const { mkdir } = await import("fs/promises");
-          await mkdir(dateDir, { recursive: true });
-
-          const baseName = xlsFile.replace(/\.(xls|xlsx)$/i, "");
-          let outputCsv = join(dateDir, `${baseName}_processed_incidents.csv`);
-          if (date) {
-            outputCsv = join(dateDir, `${date.month}-${date.day}-${date.year}_processed_incidents.csv`);
-          }
-
-          await processExcelFile(xlsPath, outputCsv, chainConfig);
-        } else {
-          console.log(`Date information not found in file name: ${xlsFile}`);
+        let date = extractDateFromFilename(xlsFile);
+        
+        // Fallback to current date if no date found in filename
+        if (!date) {
+          console.warn(`⚠️ Date information not found in file name: ${xlsFile}. Using current date as fallback.`);
+          const now = new Date();
+          date = {
+            month: String(now.getMonth() + 1).padStart(2, '0'),
+            day: String(now.getDate()).padStart(2, '0'),
+            year: String(now.getFullYear())
+          };
         }
+        
+        const dateDir = join(
+          analyzedDir,
+          `${date.month}-${date.day}-${date.year}`,
+        );
+
+        const { mkdir } = await import("fs/promises");
+        await mkdir(dateDir, { recursive: true });
+
+        const outputCsv = join(dateDir, `${date.month}-${date.day}-${date.year}_processed_incidents.csv`);
+
+        await processExcelFile(xlsPath, outputCsv, chainConfig);
       } catch (error) {
         console.error(`Error processing ${xlsPath}: ${error}`);
       }

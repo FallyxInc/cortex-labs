@@ -101,12 +101,29 @@ export async function processCsvFiles(
         continue;
       }
 
-      // Extract date from the first file to get year and month
-      const firstFile = homeFiles[0];
-      const date = extractDateFromFilename(firstFile);
+      // Extract date from folder name (format: MM-DD-YYYY) or from filename
+      let date = extractDateFromFilename(dateFolder.name);
+      
+      // If folder name doesn't have date, try extracting from first file
+      if (!date) {
+        const firstFile = homeFiles[0];
+        date = extractDateFromFilename(firstFile);
+      }
+      
+      // If still no date, try to parse from folder name format MM-DD-YYYY
+      if (!date) {
+        const folderDateMatch = dateFolder.name.match(/(\d{2})-(\d{2})-(\d{4})/);
+        if (folderDateMatch) {
+          date = {
+            month: folderDateMatch[1],
+            day: folderDateMatch[2],
+            year: folderDateMatch[3]
+          };
+        }
+      }
 
       if (!date) {
-        console.warn(`  ⚠️ Could not extract date from filename: ${firstFile}`);
+        console.warn(`  ⚠️ Could not extract date from folder name or filename: ${dateFolder.name}`);
         continue;
       }
 

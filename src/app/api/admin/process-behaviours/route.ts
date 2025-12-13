@@ -250,8 +250,16 @@ export async function POST(request: NextRequest) {
           `📅 [API] Extracted date from filename: year=${year}, month=${month}, day=${day}`,
         );
       } else {
+        // Fallback to current date if no date found in filename
         console.warn(
-          `⚠️ [API] Could not extract date from filename: ${firstFile.name}`,
+          `⚠️ [API] Could not extract date from filename: ${firstFile.name}. Using current date as fallback.`,
+        );
+        const now = new Date();
+        month = String(now.getMonth() + 1).padStart(2, '0');
+        day = String(now.getDate()).padStart(2, '0');
+        year = String(now.getFullYear());
+        console.log(
+          `📅 [API] Using fallback date: year=${year}, month=${month}, day=${day}`,
         );
       }
     }
