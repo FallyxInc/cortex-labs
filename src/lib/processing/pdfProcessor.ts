@@ -407,32 +407,27 @@ export async function processPdfFiles(
     );
     console.log(`Fall Notes Info Length: ${entries.length}`);
 
-    let date = extractDateFromFilename(pdfFile);
-    
-    // Fallback to current date if no date found in filename
-    if (!date) {
-      console.warn(`⚠️ Date information not found in PDF file: ${pdfFile}. Using current date as fallback.`);
-      const now = new Date();
-      date = {
-        month: String(now.getMonth() + 1).padStart(2, '0'),
-        day: String(now.getDate()).padStart(2, '0'),
-        year: String(now.getFullYear())
-      };
+    const date = extractDateFromFilename(pdfFile);
+    if (date) {
+      const dateDir = join(
+        analyzedDir,
+        `${date.month}-${date.day}-${date.year}`,
+      );
+
+      // Create directory (Next.js fs/promises doesn't have mkdir with recursive option in some versions)
+      const { mkdir: mkdirNode } = await import("fs/promises");
+      await mkdirNode(dateDir, { recursive: true });
+
+      const baseName = pdfFile.replace(/\.pdf$/i, "");
+      let outputCsv = join(dateDir, `${baseName}_behaviour_incidents.csv`);
+      if (date) {
+        outputCsv = join(dateDir, `${date.month}-${date.day}-${date.year}_behaviour_incidents.csv`);
+      }
+
+      await saveToCsv(entries, outputCsv);
+    } else {
+      console.error(`Date information not found in PDF file: ${pdfFile}`);
     }
-    
-    const dateDir = join(
-      analyzedDir,
-      `${date.month}-${date.day}-${date.year}`,
-    );
-
-    // Create directory (Next.js fs/promises doesn't have mkdir with recursive option in some versions)
-    const { mkdir: mkdirNode } = await import("fs/promises");
-    await mkdirNode(dateDir, { recursive: true });
-
-    const baseName = pdfFile.replace(/\.pdf$/i, "");
-    const outputCsv = join(dateDir, `${date.month}-${date.day}-${date.year}_behaviour_incidents.csv`);
-
-    await saveToCsv(entries, outputCsv);
   }
 
   console.log("PDF processing completed");
