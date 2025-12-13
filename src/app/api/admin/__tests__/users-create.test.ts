@@ -18,7 +18,7 @@ const mockGetUser = jest.fn();
 
 const pathToData = new Map<string, any>();
 
-jest.mock('@/lib/firebase-admin', () => {
+jest.mock('@/lib/firebase/firebaseAdmin', () => {
   const mockRef = jest.fn((refPath: string) => {
     // Capture path in closure
     const path = refPath;
@@ -72,6 +72,7 @@ describe('User Creation API', () => {
         method: 'POST',
         body: JSON.stringify({
           username: 'admin_user',
+          email: 'admin@test.com',
           password: 'password123',
           role: 'admin'
         })
@@ -98,6 +99,7 @@ describe('User Creation API', () => {
         method: 'POST',
         body: JSON.stringify({
           username: 'home_user',
+          email: 'homeuser@test.com',
           password: 'password123',
           role: 'homeUser',
           chainId: 'existing_chain',
@@ -117,18 +119,19 @@ describe('User Creation API', () => {
       expect(data.user.chainId).toBe('existing_chain');
     });
 
-    it('should create homeUser with new chain', async () => {
-      // Chain doesn't exist initially, home doesn't exist
-      // The set() calls will populate pathToData automatically
+    it('should create homeUser with new home in new chain', async () => {
+      // Pre-populate the chain (chain must exist to create home in it)
+      pathToData.set('/chains/new_chain', { name: 'New Chain', homes: [] });
 
       const request = new NextRequest('http://localhost/api/admin/users/create', {
         method: 'POST',
         body: JSON.stringify({
           username: 'new_chain_user',
+          email: 'newchain@test.com',
           password: 'password123',
           role: 'homeUser',
-          createNewChain: true,
-          newChainName: 'New Chain',
+          chainId: 'new_chain',
+          createNewHome: true,
           newHomeName: 'New Home'
         })
       });
@@ -151,6 +154,7 @@ describe('User Creation API', () => {
         method: 'POST',
         body: JSON.stringify({
           username: 'new_home_user',
+          email: 'newhome@test.com',
           password: 'password123',
           role: 'homeUser',
           chainId: 'existing_chain',
@@ -173,6 +177,7 @@ describe('User Creation API', () => {
         method: 'POST',
         body: JSON.stringify({
           username: 'invalid_user',
+          email: 'invalid@test.com',
           password: 'password123',
           role: 'homeUser'
         })
@@ -190,6 +195,7 @@ describe('User Creation API', () => {
         method: 'POST',
         body: JSON.stringify({
           username: 'test_user',
+          email: 'test@test.com',
           password: 'password123',
           role: 'test'
         })
@@ -199,7 +205,7 @@ describe('User Creation API', () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toContain('must be either "admin" or "homeUser"');
+      expect(data.error).toContain('must be either "admin", "homeUser", or "chainAdmin"');
     });
 
     it('should reject weak password', async () => {
@@ -207,6 +213,7 @@ describe('User Creation API', () => {
         method: 'POST',
         body: JSON.stringify({
           username: 'test_user',
+          email: 'weak@test.com',
           password: '12345',
           role: 'admin'
         })

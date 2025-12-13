@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
-import { db, auth } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase/firebase';
 import '@/styles/Login.css';
 import { trackLogin, trackFormInteraction, trackFeatureUsage } from '@/lib/mixpanel';
 export default function Login() {
@@ -71,6 +71,23 @@ export default function Login() {
           method: 'email',
           success: false,
           error: 'no_home_assigned',
+          userId,
+          role: role,
+        });
+      }
+    } else if (role === 'chainAdmin') {
+      if ('chainId' in userData) {
+        const chainId = userData.chainId as string;
+        router.push(`/chain/${chainId}`);
+        return;
+      }
+      else {
+        // If chainAdmin doesn't have a chainId, show error
+        setErrorMessage('Your account is not assigned to a chain. Please contact an administrator.');
+        trackLogin({
+          method: 'email',
+          success: false,
+          error: 'no_chain_assigned',
           userId,
           role: role,
         });

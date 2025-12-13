@@ -3,7 +3,7 @@
 
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
-import { callClaudeAPI, getAIModelConfig } from "@/lib/claude-client";
+import { callClaudeAPI } from "@/lib/claude-client";
 import {
   BehaviourEntry,
   DEFAULT_NO_PROGRESS_TEXT,
@@ -11,8 +11,8 @@ import {
   ChainExtractionConfig,
   ExtractedBehaviourFields,
   FieldExtractionConfig,
-} from "./types";
-import { CHAIN_EXTRACTION_CONFIGS } from "./homesDb";
+} from "./types"; 
+import { CHAIN_EXTRACTION_CONFIGS } from "@/lib/utils/configUtils";
 
 function cleanName(name: string | null | undefined): string {
   if (!name) return "";
@@ -254,6 +254,7 @@ async function gptDetermineWhoAffected(
   row: Record<string, unknown>,
   apiKey: string,
 ): Promise<string> {
+  void apiKey;
   const systemPrompt = "You are a healthcare analyst classifying who was affected in a behaviour incident. Answer with a comma-separated list of the four categories, choosing all that apply.";
 
   const prompt = `
@@ -365,11 +366,15 @@ function collectOtherNotes(
         let data = note.Data;
 
         // Clean data - remove junk markers
-        const junkMarkers = ["Facility #", "Effective Date Range"];
+        const junkMarkers = config.junkMarkers || ["Facility #", "Effective Date Range"];
         for (const marker of junkMarkers) {
           if (data.includes(marker)) {
             const markerIndex = data.indexOf(marker);
-            const headers = ["Data :", "Action :", "Response :", "Note Text :"];
+            // get all field markers from the config and note type config markers
+            const fieldMarkers = Object.values(config.fieldExtractionMarkers).flatMap(marker => marker.fieldName);
+            const noteTypeConfigMarkers = Object.values(config.behaviourNoteConfigs?.[note.Type]?.extractionMarkers || {}).flatMap(marker => marker.fieldName);
+
+            const headers = fieldMarkers.concat(noteTypeConfigMarkers) || ["Data :", "Action :", "Response :", "Note Text :"];
             let nextHeaderIndex = data.length;
 
             for (const header of headers) {
@@ -394,7 +399,11 @@ function collectOtherNotes(
     : "No other notes";
 }
 
-async function gptSummarizeIncident(row: Record<string, unknown>, apiKey: string): Promise<string> {
+async function gptSummarizeIncident(
+  row: Record<string, unknown>,
+  apiKey: string,
+): Promise<string> {
+  void apiKey;
   const defaultIndicators = [
     "No Progress Note Found Within 24hrs of RIM",
     DEFAULT_NO_PROGRESS_TEXT_SHORT,
@@ -441,6 +450,7 @@ async function gptDetermineIntent(
   summary: string,
   apiKey: string,
 ): Promise<string> {
+  void apiKey;
   const systemPrompt = "You are a healthcare analyst determining intent in a resident's actions. Answer only with 'yes' or 'no'.";
 
   const prompt = `
@@ -722,7 +732,7 @@ export async function saveFollowupNotesCsv(
 
       // Clean data similar to collectOtherNotes
       let dataText = String(note.Data || "").trim();
-      const junkMarkers = ["Facility #", "Effective Date Range"];
+      const junkMarkers = config.junkMarkers || ["Facility #", "Effective Date Range"];
 
       for (const marker of junkMarkers) {
         if (dataText.includes(marker)) {
@@ -796,19 +806,21 @@ export async function saveFollowupNotesCsv(
 
         // Clean data similar to above
         let famText = String(famNote.Data || "").trim();
-        const junkMarkers = ["Facility #", "Effective Date Range"];
+        const junkMarkers = config.junkMarkers || ["Facility #", "Effective Date Range"];
 
         for (const marker of junkMarkers) {
           if (famText.includes(marker)) {
             const markerIndex = famText.indexOf(marker);
             let nextHeaderIndex = famText.length;
+            
+            // get all field markers from the config and note type config markers
+            const fieldMarkers = Object.values(config.fieldExtractionMarkers).flatMap(marker => marker.fieldName);
+            const noteTypeConfigMarkers = Object.values(config.behaviourNoteConfigs?.[famNote.Type]?.extractionMarkers || {}).flatMap(marker => marker.fieldName);
 
-            for (const header of [
-              "Data :",
-              "Action :",
-              "Response :",
-              "Note Text :",
-            ]) {
+
+            const headers = fieldMarkers.concat(noteTypeConfigMarkers) || ["Data :", "Action :", "Response :", "Note Text :"];
+
+            for (const header of headers) {
               const headerIndex = famText.indexOf(header, markerIndex);
               if (headerIndex !== -1 && headerIndex < nextHeaderIndex) {
                 nextHeaderIndex = headerIndex;
@@ -864,19 +876,16 @@ export async function processAllMergedFiles(
   apiKey: string,
   homeId: string,
   chainId: string,
+  chainConfig?: ChainExtractionConfig | null,
 ): Promise<void> {
-  // Determine chain configuration - try dynamic loading first
-  let config: ChainExtractionConfig | null = null;
-  
-  try {
-    const { getChainExtractionConfig } = await import("./homesDb");
-    config = await getChainExtractionConfig(chainId);
-  } catch (error) {
-    console.error(`Error loading chain config for ${chainId}:`, error);
-  }
+  const config =
+    chainConfig ||
+    CHAIN_EXTRACTION_CONFIGS[chainId] ||
+    CHAIN_EXTRACTION_CONFIGS["responsive"];
 
   if (!config) {
-    config = CHAIN_EXTRACTION_CONFIGS["responsive"];
+    throw new Error(`No chain extraction config available for ${chainId}`);
+  } else if (!chainConfig && !CHAIN_EXTRACTION_CONFIGS[chainId]) {
     console.log("FALLING BACK TO RESPONSIVE CHAIN EXTRACTION CONFIG");
   }
 

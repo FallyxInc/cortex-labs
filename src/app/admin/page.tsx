@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
-import { db, auth } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase/firebase';
 import HomeManagement from '@/components/admin/HomeManagement';
 import UserManagement from '@/components/admin/UserManagement';
 import FileUpload from '@/components/admin/FileUpload';
+import Link from 'next/link';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'homes' | 'users' | 'upload'>('homes');
@@ -182,8 +183,8 @@ export default function AdminPage() {
             >
               File Upload
             </button>
-            <a
-              href="/admin/onboarding"
+            <Link
+              href="/admin/config"
               className="py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 border-transparent text-gray-500 hover:text-gray-700 flex items-center space-x-2"
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = '#bae6fd';
@@ -192,11 +193,11 @@ export default function AdminPage() {
                 e.currentTarget.style.borderColor = 'transparent';
               }}
             >
-              <span>Onboarding</span>
+              <span>Config Manager</span>
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">
                 R&D
               </span>
-            </a>
+            </Link>
           </div>
         </div>
       </nav>

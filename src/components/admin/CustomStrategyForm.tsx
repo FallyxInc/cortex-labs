@@ -1,5 +1,7 @@
 'use client';
 
+// TODO: cleanup and I think this needs to be removed
+
 import { useState, useEffect } from 'react';
 import HelpIcon from './HelpIcon';
 import { ExtractionStrategyConfig, StrategyTemplate, STRATEGY_TEMPLATES } from '@/types/extractionStrategy';

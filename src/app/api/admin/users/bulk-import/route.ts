@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase/firebaseAdmin';
 import * as XLSX from 'xlsx';
 
 // Helper function to convert display name to camelCase for Firebase ID
@@ -21,7 +21,7 @@ interface ImportUser {
   username: string;
   email: string;
   password: string;
-  role: 'admin' | 'homeUser';
+  role: 'admin' | 'homeUser' | 'chainAdmin';
   chainId?: string;
   homeId?: string;
   chainName?: string;
@@ -213,12 +213,46 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      if (!role || (role !== 'admin' && role !== 'homeuser')) {
-        errors.push(`Row ${rowNumber}: Role must be "admin" or "homeUser" (found: ${role})`);
+      if (!role || (role !== 'admin' && role !== 'homeuser' && role !== 'chainadmin')) {
+        errors.push(`Row ${rowNumber}: Role must be "admin", "chainAdmin", or "homeUser" (found: ${role})`);
         continue;
       }
 
-      const finalRole = role === 'admin' ? 'admin' : 'homeUser';
+      const finalRole = role === 'admin' ? 'admin' : role === 'chainadmin' ? 'chainAdmin' : 'homeUser';
+
+      // For chainAdmin, require chain
+      if (finalRole === 'chainAdmin') {
+        if (!chainIdOrName) {
+          errors.push(`Row ${rowNumber}: Chain ID or Chain Name is required for chainAdmin role`);
+          continue;
+        }
+
+        // Resolve chain ID with flexible matching
+        let chainId = chainIdMap.get(chainIdOrName) || 
+                     chainMap.get(chainIdOrName) || 
+                     chainMap.get(chainIdOrName.toLowerCase());
+        
+        if (!chainId) {
+          const availableChains = Array.from(new Set([...chainIdMap.keys(), ...Array.from(chainMap.values())]))
+            .map(id => {
+              const chain = chainsData[id];
+              return chain?.name || id;
+            })
+            .join(', ');
+          errors.push(`Row ${rowNumber}: Chain not found: "${chainIdOrName}". Available chains: ${availableChains}`);
+          continue;
+        }
+
+        usersToImport.push({
+          username,
+          email,
+          password,
+          role: finalRole,
+          chainId,
+          rowNumber,
+        });
+        continue;
+      }
 
       // For homeUser, require chain and home
       if (finalRole === 'homeUser') {
@@ -455,6 +489,10 @@ export async function POST(request: NextRequest) {
 
         if (user.role === 'homeUser') {
           userData.homeId = user.homeId;
+          userData.chainId = user.chainId;
+        }
+
+        if (user.role === 'chainAdmin') {
           userData.chainId = user.chainId;
         }
 

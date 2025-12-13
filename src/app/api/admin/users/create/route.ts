@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase/firebaseAdmin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate role
-    if (role !== 'admin' && role !== 'homeUser') {
+    if (role !== 'admin' && role !== 'homeUser' && role !== 'chainAdmin') {
       return NextResponse.json(
-        { error: 'Role must be either "admin" or "homeUser"' },
+        { error: 'Role must be either "admin", "homeUser", or "chainAdmin"' },
         { status: 400 }
       );
     }
@@ -52,6 +52,25 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
+      }
+    }
+
+    // For chainAdmin, require chainId
+    if (role === 'chainAdmin') {
+      if (!chainId || typeof chainId !== 'string') {
+        return NextResponse.json(
+          { error: 'Chain ID is required for chainAdmin' },
+          { status: 400 }
+        );
+      }
+      // Verify chain exists
+      const chainRef = adminDb.ref(`/chains/${chainId}`);
+      const chainSnapshot = await chainRef.once('value');
+      if (!chainSnapshot.exists()) {
+        return NextResponse.json(
+          { error: 'Chain not found' },
+          { status: 404 }
+        );
       }
     }
 
@@ -128,6 +147,11 @@ export async function POST(request: NextRequest) {
     // Add home and chain info for homeUser
     if (role === 'homeUser') {
       userData.homeId = finalHomeId;
+      userData.chainId = finalChainId;
+    }
+
+    // Add chain info for chainAdmin
+    if (role === 'chainAdmin') {
       userData.chainId = finalChainId;
     }
 

@@ -1,10 +1,11 @@
 // TypeScript port of getPdfInfo.py - PDF processing and extraction
 
-import { readFile, writeFile, readdir, stat } from "fs/promises";
+import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
 import { PDFParse } from "pdf-parse";
 import { callClaudeAPI } from "@/lib/claude-client";
 import {
+  ChainExtractionConfig,
   BehaviourEntry,
   INJURY_TYPES_GROUP1,
   INJURY_TYPES_GROUP2,
@@ -12,7 +13,7 @@ import {
 } from "./types";
 
 import { LoadParameters } from "pdf-parse";
-import { CHAIN_EXTRACTION_CONFIGS, extractDateFromFilename } from "./homesDb";
+import { extractDateFromFilename, CHAIN_EXTRACTION_CONFIGS } from "@/lib/utils/configUtils";
 
 export async function extractTextFromPdf(
   pdfPath: string,
@@ -39,13 +40,28 @@ export async function extractTextFromPdf(
 }
 
 export function getResidentNameFromHeader(pageText: string): string {
+  // const nameMatch = pageText.match(/Resident Name\s*:\s*([^\n\r]+)/i);
+
   const nameMatch = pageText.match(/Resident Name\s*:\s*([^0-9]+?)\d/);
-  if (nameMatch) {
-    let name = nameMatch[1].trim();
-    name = name.replace(/\s*\(+\s*$/, "").trim();
-    return name;
-  }
-  return "Unknown";
+  if (!nameMatch) return "Unknown";
+
+  let name = nameMatch[1].trim();
+
+  // Trim off other header fields that may live on the same line
+  name = name.replace(
+    /\s+(Location|Admission|Date Range|Community|Author|Department|Resident Name)\b.*$/i,
+    "",
+  );
+
+  // Remove chain codes that trail the name (e.g. "(SL16-2019)" or partial "(SL")
+  name = name.replace(/\s*\(SL[^)]*\)?$/i, "").trim();
+  name = name
+    .replace(/\s*\([A-Z]{1,4}\d{1,4}(?:-[0-9]{2,4})?\)\s*$/i, "")
+    .trim();
+
+  name = name.replace(/\s*\(+\s*$/, "").trim();
+
+  return name || "Unknown";
 }
 
 export function findPosition(
@@ -85,24 +101,28 @@ export function getAllFallNotesInfo(
   pagesText: string[],
   homeId: string,
   chainId: string,
+  chainExtractionConfig?: ChainExtractionConfig | null,
 ): BehaviourEntry[] {
   const entries: BehaviourEntry[] = [];
   const allText = pagesText.join("\n\n");
   const effectiveDatePositions = findEffectiveDates(allText);
 
-  // Determine which note types to look for
-  let allowedNoteTypes: string[] = [];
+  const config =
+    chainExtractionConfig ||
+    CHAIN_EXTRACTION_CONFIGS[chainId] ||
+    CHAIN_EXTRACTION_CONFIGS["responsive"];
 
-  if (homeId) {
-    const config = CHAIN_EXTRACTION_CONFIGS[chainId];
-    if (config) {
-      allowedNoteTypes = [
-        ...config.behaviourNoteTypes,
-        ...config.followUpNoteTypes,
-        ...(config.extraFollowUpNoteTypes || []),
-      ];
-      console.log(`Using chain-specific note types for home: ${homeId}`);
-    }
+  const allowedNoteTypes: string[] = [
+    ...config.behaviourNoteTypes,
+    ...config.followUpNoteTypes,
+    ...(config.extraFollowUpNoteTypes || []),
+  ];
+
+  if (!allowedNoteTypes.length) {
+    console.warn(
+      `No note types configured for chain ${chainId}; skipping PDF extraction`,
+    );
+    return entries;
   }
 
   // Build regex pattern from allowed note types
@@ -113,7 +133,7 @@ export function getAllFallNotesInfo(
 
   for (let i = 0; i < effectiveDatePositions.length; i++) {
     const pos = effectiveDatePositions[i];
-    const { pageIndex, relPos, pageStart } = findPosition(pagesText, pos);
+  const { pageIndex } = findPosition(pagesText, pos);
     if (pageIndex === -1) continue;
 
     const endOfNote =
@@ -212,8 +232,9 @@ export async function detectInjuries(
   data: string,
   noteType: string,
   previousInjuries: string,
-  apiKey: string,
+  _apiKey: string,
 ): Promise<string> {
+  void _apiKey;
   if (previousInjuries !== "No Previous Injuries") {
     return previousInjuries;
   }
@@ -284,8 +305,9 @@ Note: ${data}
 export async function checkForHeadInjury(
   note: string,
   previousInjuries: string,
-  apiKey: string,
+  _apiKey: string,
 ): Promise<boolean> {
+  void _apiKey;
   if (previousInjuries !== "No Previous Injuries") {
     return false;
   }
@@ -357,6 +379,7 @@ export async function processPdfFiles(
   analyzedDir: string,
   homeId: string,
   chainId: string,
+  chainExtractionConfig?: ChainExtractionConfig | null,
 ): Promise<void> {
   const files = await readdir(downloadsDir);
   const pdfFiles = files.filter((f) => f.toLowerCase().endsWith(".pdf"));
@@ -376,7 +399,12 @@ export async function processPdfFiles(
       continue;
     }
 
-    const entries = getAllFallNotesInfo(pagesText, homeId, chainId);
+    const entries = getAllFallNotesInfo(
+      pagesText,
+      homeId,
+      chainId,
+      chainExtractionConfig,
+    );
     console.log(`Fall Notes Info Length: ${entries.length}`);
 
     const date = extractDateFromFilename(pdfFile);

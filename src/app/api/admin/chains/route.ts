@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase/firebaseAdmin';
+import { ChainExtractionConfig } from '@/lib/processing/types';
+
+export interface ChainWithConfig {
+  id: string;
+  name: string;
+  homes: string[];
+  extractionType?: string;
+  hasConfig: boolean;
+  config?: ChainExtractionConfig;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export async function GET() {
   try {
     const chainsRef = adminDb.ref('/chains');
     const snapshot = await chainsRef.once('value');
-    
+
     if (!snapshot.exists()) {
       return NextResponse.json({
         success: true,
@@ -14,11 +26,29 @@ export async function GET() {
     }
 
     const chainsData = snapshot.val();
-    const chains = Object.keys(chainsData).map(chainId => ({
-      id: chainId,
-      name: chainsData[chainId].name || chainId,
-      homes: chainsData[chainId].homes || []
-    }));
+    const chains: ChainWithConfig[] = Object.keys(chainsData).map(chainId => {
+      const chainData = chainsData[chainId];
+      let config = chainData.config as ChainExtractionConfig | undefined;
+      
+      // Remove chainId/chainName from config if they exist (backward compatibility)
+      if (config && ('chainId' in config || 'chainName' in config)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const configAny = config as any;
+        const { chainId: _unused1, chainName: _unused2, ...configWithoutIds } = configAny;
+        config = configWithoutIds as ChainExtractionConfig;
+      }
+
+      return {
+        id: chainId,
+        name: chainData.name || chainId,
+        homes: chainData.homes || [],
+        extractionType: chainData.extractionType,
+        hasConfig: !!config,
+        config: config,
+        createdAt: chainData.createdAt,
+        updatedAt: chainData.updatedAt || config?.updatedAt,
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -86,7 +116,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create chain structure
-    const chainData: any = {
+    const chainData: {
+      name: string;
+      homes: string[];
+      extractionType: string;
+      createdAt: string;
+      extractionConfig?: unknown;
+    } = {
       name: chainName,
       homes: [],
       extractionType: extractionType,

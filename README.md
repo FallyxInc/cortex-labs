@@ -1,48 +1,18 @@
 # Fallyx Behaviours Dashboard
 
-A Next.js application for tracking and analyzing behaviour incidents in care facilities, with automated file processing using Python and AI-powered injury detection.
-
-## Features
-
-- **Behaviour Tracking**: Monitor and record behaviour incidents
-- **File Upload & Processing**: Automated processing of PDF behaviour notes and Excel incident reports
-- **AI-Powered Analysis**: OpenAI GPT-powered injury detection and classification
-- **Analysis Charts**: Visualize behaviour patterns by time of day, type, location, etc.
-- **Follow-up Management**: Track follow-up actions and notes
-- **API Routes**: Server-side Firebase operations for data fetching and updates
-- **Client-side Authentication**: Firebase authentication with role-based access
-- **Multiple Facilities**: Support for MCB, ONCB, Berkshire, Banwell, and more
-
-## Quick Setup
-
-### Automated Setup (Recommended)
-
-```bash
-./setup.sh
-```
-
-This will install all Node.js and Python dependencies automatically.
-
-### Manual Setup
-
-See [SETUP.md](./SETUP.md) for detailed step-by-step instructions.
+A Next.js application for tracking and analyzing behaviour incidents in care facilities, with AI-powered file processing and injury detection.
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Installing Dependencies
 
 ```bash
-# Node.js dependencies
 npm install
-
-# Python dependencies
-pip3 install -r requirements.txt
 ```
 
 ### 2. Configure Environment Variables
 
-Create a `.env.local` and `.env` file in the root directory based off `.env.local.example` and `.env.example`
-
+Create `.env.local` and `.env` files in the root directory based on `.env.local.example` and `.env.example`.
 
 ### 3. Run Development Server
 
@@ -61,109 +31,79 @@ npm start
 
 ## Project Structure
 
+General Processing Flow
+> Referencing pdfs and csvs in files/tests may be useful
+
+- files are uploaded in components/admin/FileUpload to api/admin/process-beahviours/
+- uploaded files are moved into files/chains/[chain-name]/downloads
+- files in lib/processing are run
+- excelProcessor extracts incidents into _processed_incidents.csv
+- pdfProcessor extracts incidents with while text dump for each incident into _behaviour_incidents.csv
+- behaviourGenerator processes both .csv files, and extracts necessary field markers 
+  - merge incidents from behaviour.csv and processed.csv into merged.csv
+  - find follow up notes that aren't behaviours into follow.csv
+- firebaseUpdate updates info if there is already data uploaded
+- firebaseUpload uploads data
+
 ```
 fallyx-behaviours/
 ├── src/
-│   ├── app/                     # Next.js app router pages
-│   │   ├── api/                # API routes
-│   │   │   ├── admin/          # Admin endpoints
-│   │   │   │   └── process-behaviours/  # File processing endpoint
-│   │   │   └── behaviours/     # Behaviour data endpoints
-│   │   ├── upload/             # File upload page
-│   │   ├── login/              # Login page
-│   │   ├── admin/              # Admin dashboard
-│   │   ├── MCB/                # Mill Creek dashboard
-│   │   ├── ONCB/               # O'Neill Centre dashboard
-│   │   ├── berkshire/          # Berkshire dashboard
-│   │   └── banwell/            # Banwell dashboard
-│   ├── components/             # React components
-│   │   ├── admin/              # Admin components
-│   │   │   ├── FileUpload.tsx  # File upload component
-│   │   │   └── UserManagement.tsx
-│   │   ├── behavioursDashboard/  # Behaviour-specific components
-│   │   └── Modal.js            # Modal component
-│   ├── lib/                    # Utility libraries
-│   │   ├── firebase.ts         # Firebase client SDK
-│   │   ├── firebase-admin.ts   # Firebase admin SDK
-│   │   └── DashboardUtils.ts   # Dashboard utility functions
-│   └── styles/                 # CSS modules
-├── python/                     # Python processing scripts
-│   ├── banwell/
-│   ├── berkshire/
-│   ├── millcreek/
-│   └── oneill/
-│       ├── getPdfInfo.py       # Extract behaviour notes from PDFs
-│       ├── getExcelInfo.py     # Process incident reports
-│       ├── getBe.py            # Generate behaviour analysis
-│       ├── upload_to_dashboard.py  # Upload to Firebase
-│       ├── update.py           # Sync with Firebase
-│       └── downloads/          # Uploaded files stored here
-├── .env                        # Environment variables
-├── requirements.txt            # Python dependencies
-├── setup.sh                    # Automated setup script
-├── SETUP.md                    # Detailed setup guide
-└── package.json                # Node.js dependencies
+│   ├── app/                          # Next.js app router pages
+│   │   ├── api/                      # API routes
+│   │   │   ├── admin/                # Admin endpoints
+│   │   │   │   ├── process-behaviours/   # File processing
+│   │   │   │   ├── analyze-pdf/          # PDF analysis
+│   │   │   │   ├── analyze-excel/        # Excel analysis
+│   │   │   │   ├── chains/               # Chain management
+│   │   │   │   ├── homes/                # Home management
+│   │   │   │   └── users/                # User management
+│   │   │   └── trends/               # Trends and insights
+│   │   ├── [homeId]/                 # Dynamic facility dashboard
+│   │   ├── admin/                    # Admin dashboard
+│   │   │   └── config/               # Configuration management
+│   │   ├── upload/                   # File upload page
+│   │   ├── login/                    # Login page
+│   │   └── reset-password/           # Password reset
+│   ├── components/
+│   │   ├── admin/                    # Admin components
+│   │   ├── config/                   # Configuration components
+│   │   └── dashboard/                # Dashboard components
+│   ├── lib/
+│   │   ├── firebase/                 # Firebase client & admin SDK
+│   │   ├── processing/               # File processing utilities
+│   │   └── utils/                    # Utility functions
+│   ├── hooks/                        # React hooks
+│   └── types/                        # TypeScript types
+├── python/                           # Python processing scripts
+├── .env                              # Environment variables
+├── .env.local                        # Local environment variables
+└── package.json                      # Node.js dependencies
 ```
 
-## Authentication
+## Available Scripts
 
-- Authentication is handled client-side using Firebase Authentication
-- Users log in with username (converted to email format) and password
-- Role-based routing directs users to their appropriate dashboard
-- Protected routes redirect unauthenticated users to the login page
-
-## API Routes
-
-### GET `/api/behaviours/[name]`
-Fetch behaviour data for a specific facility
-- Query params: `month`, `year`
-
-### POST `/api/behaviours/[name]`
-Update behaviour records
-- Body: `{ id, updates }`
-
-### GET `/api/behaviours/follow-up/[name]`
-Fetch follow-up data for a specific facility
-- Query params: `month`, `year`
-
-## Usage
-
-### Upload & Process Behaviour Files
-
-1. Navigate to `/upload` or admin dashboard
-2. Select home from dropdown
-3. Upload files:
-   - **PDF**: Behaviour notes from PointClickCare
-   - **Excel**: Incident reports (.xls or .xlsx)
-4. Click "Process Files"
-5. AI processes and analyzes data automatically
-
-### View Dashboards
-
-- Navigate to specific home dashboards (e.g., `/MCB`, `/berkshire`)
-- View behaviour charts, incident summaries, and follow-ups
-- Filter by date, resident, type, etc.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm test` | Run tests |
+| `npm run test:watch` | Run tests in watch mode |
 
 ## Technologies
 
 ### Frontend
-- **Next.js 15**: React framework with app router
+- **Next.js 16**: React framework with app router
+- **React 19**: UI library
 - **TypeScript**: Type-safe development
-- **Tailwind CSS**: Utility-first CSS framework
+- **Tailwind CSS 4**: Utility-first CSS framework
 - **Chart.js**: Data visualization
-- **jsPDF**: PDF generation
 
 ### Backend
-- **Python 3.8+**: File processing and AI analysis
-- **OpenAI GPT-3.5**: AI-powered injury detection
 - **Firebase**: Authentication, Firestore, and Storage
-- **Node.js**: API routes and server-side rendering
-
-### Python Libraries
-- **pdfplumber**: PDF text extraction
-- **pandas**: Data manipulation
-- **openai**: AI analysis
-- **firebase-admin**: Firebase integration
+- **Claude AI (Anthropic)**: AI-powered analysis
+- **OpenAI**: Additional AI capabilities
 
 ## License
 

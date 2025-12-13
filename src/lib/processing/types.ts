@@ -20,6 +20,23 @@ export interface ProcessedIncident {
   incident_type: string;
 }
 
+export interface ExcelIncidentColumns {
+  incident_number: string;
+  name: string;
+  date_time: string;
+  incident_location: string;
+  room: string;
+  incident_type: string;
+}
+
+export interface ExcelExtractionConfig {
+  injuryColumns: {
+    start: number;
+    end: number;
+  };
+  incidentColumns: ExcelIncidentColumns;
+}
+
 export interface MergedBehaviourData {
   id: number;
   date: string;
@@ -132,15 +149,21 @@ export interface NoteTypeExtractionConfig {
   hasEvaluation?: boolean;
 }
 
+// Excel field mapping for incident data extraction
+export interface ExcelFieldMapping {
+  excelColumn: string;
+  confidence?: number;
+  reasoning?: string;
+  dataSource: 'EXCEL';
+}
+
 export interface ChainExtractionConfig {
   behaviourNoteTypes: string[];
   followUpNoteTypes: string[];
   extraFollowUpNoteTypes?: string[]; // Optional extra note types to append to follow-up records
-  injuryColumns: {
-    start: number;
-    end: number;
-  };
+  excelExtraction: ExcelExtractionConfig;
   matchingWindowHours?: number; // Hours window for matching behaviour notes to incidents (default: 24)
+  junkMarkers?: string[]; // Junk markers to remove from the data 
 
   // Default extraction config (used when no specific config exists for a note type)
   fieldExtractionMarkers: Partial<Record<ExtractionType, FieldExtractionConfig>>;
@@ -150,7 +173,15 @@ export interface ChainExtractionConfig {
   // Note-type-specific extraction configs (overrides default)
   behaviourNoteConfigs?: Record<string, NoteTypeExtractionConfig>;
   followUpNoteConfigs?: Record<string, NoteTypeExtractionConfig>;
+
+  // Excel field mappings for incident data
+  excelFieldMappings?: Record<string, ExcelFieldMapping>;
+
+  // Timestamps for stored configs
+  createdAt?: string;
+  updatedAt?: string;
 }
+
 
 export interface ExtractedBehaviourFields {
   behaviour_type?: string;

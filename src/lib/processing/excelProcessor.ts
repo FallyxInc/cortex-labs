@@ -3,15 +3,22 @@
 import * as XLSX from "xlsx";
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
-import { ProcessedIncident } from "./types";
-import { CHAIN_EXTRACTION_CONFIGS, extractDateFromFilename } from "./homesDb";
+import {
+  ChainExtractionConfig,
+  ProcessedIncident,
+} from "./types";
+import {
+  DEFAULT_EXCEL_EXTRACTION,
+  extractDateFromFilename,
+} from "@/lib/utils/configUtils";
+
 
 function getInjuries(
   row: Record<string, unknown>,
   allColumns: string[],
-  chain: string,
+  injuryColumnsRange: { start: number; end: number },
 ): string {
-  const columns = CHAIN_EXTRACTION_CONFIGS[chain].injuryColumns;
+  const columns = injuryColumnsRange;
   // Get injury columns (columns 13-86, indices N to CO)
   const injuryColumns = allColumns.slice(columns.start, columns.end);
   const injuries = new Set<string>();
@@ -37,11 +44,13 @@ function getInjuries(
 export async function processExcelFile(
   inputFile: string,
   outputFile: string,
-  chain: string,
+  chainConfig?: ChainExtractionConfig | null,
 ): Promise<void> {
   try {
     const fileBuffer = await readFile(inputFile);
     const workbook = XLSX.read(fileBuffer, { type: "buffer", cellDates: true });
+    const excelExtraction = chainConfig?.excelExtraction || DEFAULT_EXCEL_EXTRACTION;
+    const excelColumns = excelExtraction.incidentColumns;
 
     // Read the first sheet
     const sheetName = workbook.SheetNames[0];
@@ -66,7 +75,7 @@ export async function processExcelFile(
     const processedData: ProcessedIncident[] = filteredData
       .map((row) => {
         // Parse date/time
-        const incidentDateTime = row["Incident Date/Time"];
+        const incidentDateTime = row[excelColumns.date_time];
         let date = "";
         let time = "";
 
@@ -92,14 +101,14 @@ export async function processExcelFile(
         }
 
         return {
-          incident_number: String(row["Incident #"] || ""),
-          name: String(row["Resident Name"] || ""),
+          incident_number: String(row[excelColumns.incident_number] || ""),
+          name: String(row[excelColumns.name] || ""),
           date,
           time,
-          incident_location: String(row["Incident Location"] || ""),
-          room: row["Resident Room Number"],
-          injuries: getInjuries(row, allColumns, chain),
-          incident_type: String(row["Incident Type"] || ""),
+          incident_location: String(row[excelColumns.incident_location] || ""),
+          room: row[excelColumns.room],
+          injuries: getInjuries(row, allColumns, excelExtraction.injuryColumns),
+          incident_type: String(row[excelColumns.incident_type] || ""),
         } as ProcessedIncident;
       })
       .filter((row) => row.name || row.date); // Remove rows where name AND date are blank
@@ -137,6 +146,7 @@ export async function processExcelFiles(
   downloadsDir: string,
   analyzedDir: string,
   chain: string,
+  chainConfig?: ChainExtractionConfig | null,
 ): Promise<void> {
   try {
     const files = await readdir(downloadsDir);
@@ -171,7 +181,7 @@ export async function processExcelFiles(
             outputCsv = join(dateDir, `${date.month}-${date.day}-${date.year}_processed_incidents.csv`);
           }
 
-          await processExcelFile(xlsPath, outputCsv, chain);
+          await processExcelFile(xlsPath, outputCsv, chainConfig);
         } else {
           console.log(`Date information not found in file name: ${xlsFile}`);
         }

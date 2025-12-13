@@ -3,10 +3,9 @@
 import { useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { trackPageView } from '@/lib/mixpanel';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
-import { db } from '@/lib/firebase';
 import { identifyUser } from '@/lib/mixpanel';
 
 function MixpanelTracker({ children }: { children: React.ReactNode }) {

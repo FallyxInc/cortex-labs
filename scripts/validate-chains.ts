@@ -3,7 +3,7 @@
  * Run with: npx tsx scripts/validate-chains.ts
  */
 
-import { adminDb } from '../src/lib/firebase-admin';
+import { adminDb } from '../src/lib/firebase/firebaseAdmin';
 
 interface Home {
   id: string;

@@ -2,8 +2,8 @@
 
 import { readFile, writeFile, readdir } from "fs/promises";
 import { join } from "path";
-import { adminDb } from "@/lib/firebase-admin";
-import { extractDateFromFilename } from "./homesDb";
+import { adminDb } from "@/lib/firebase/firebaseAdmin";
+import { extractDateFromFilename } from "@/lib/utils/configUtils";
 
 interface UpdateFieldMapping {
   [key: string]: string;
