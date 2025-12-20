@@ -25,7 +25,7 @@ import BeTrackingTable from './subcomponents/BeTrackingTable.js';
 import FollowUpChart from './subcomponents/BeFollowUpChart.js';
 import BeFollowUpTable from './subcomponents/BeFollowUpTable.js';
 import BehavioursReports from './subcomponents/BehavioursReports.js';
-import TrendsAndAnalysis from './subcomponents/TrendsAndAnalysis.js';
+import TrendsAndAnalysis from './TrendsAndAnalysis.js';
 
 Chart.register(ArcElement, PointElement, LineElement);
 
