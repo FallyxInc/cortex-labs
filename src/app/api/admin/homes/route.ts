@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     const data = snapshot.val();
-    const homes: Array<{ id: string; name: string; chainId?: string }> = [];
+    const homes: Array<{ id: string; name: string; chainId?: string; hydrationId?: string }> = [];
 
     for (const key in data) {
       if (key === 'users' || key === 'reviews' || key === 'chains') {
@@ -28,7 +28,8 @@ export async function GET() {
         homes.push({
           id: key,
           name: displayName,
-          chainId: homeData.chainId || null
+          chainId: homeData.chainId || null,
+          hydrationId: homeData.hydrationId || null
         });
       }
     }
@@ -268,6 +269,55 @@ export async function DELETE(request: NextRequest) {
     console.error('Error deleting home:', error);
     return NextResponse.json(
       { error: 'Failed to delete home', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { homeId, hydrationId } = body;
+
+    if (!homeId || typeof homeId !== 'string') {
+      return NextResponse.json(
+        { error: 'Home ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if home exists
+    const homeRef = adminDb.ref(`/${homeId}`);
+    const homeSnapshot = await homeRef.once('value');
+
+    if (!homeSnapshot.exists()) {
+      return NextResponse.json(
+        { error: 'Home not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update or remove hydrationId
+    if (hydrationId && typeof hydrationId === 'string' && hydrationId.trim()) {
+      await homeRef.update({ hydrationId: hydrationId.trim() });
+      console.log(`✅ Updated hydrationId for home ${homeId}: ${hydrationId.trim()}`);
+    } else {
+      // Remove hydrationId if empty or null
+      await homeRef.child('hydrationId').remove();
+      console.log(`✅ Removed hydrationId for home ${homeId}`);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Hydration ID updated successfully',
+      homeId,
+      hydrationId: hydrationId?.trim() || null
+    });
+
+  } catch (error) {
+    console.error('Error updating hydration ID:', error);
+    return NextResponse.json(
+      { error: 'Failed to update hydration ID', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

@@ -10,6 +10,7 @@ interface Home {
   id: string;
   name: string;
   chainId?: string | null;
+  hydrationId?: string | null;
 }
 
 interface Chain {
@@ -37,6 +38,9 @@ export default function TenantManagement() {
   const [customStrategyConfig, setCustomStrategyConfig] = useState<ExtractionStrategyConfig | null>(null);
   const [filterChain, setFilterChain] = useState<string>('');
   const [filterHome, setFilterHome] = useState<string>('');
+  const [editingHydrationId, setEditingHydrationId] = useState<string | null>(null);
+  const [hydrationIdValue, setHydrationIdValue] = useState<string>('');
+  const [savingHydrationId, setSavingHydrationId] = useState(false);
 
   useEffect(() => {
     fetchHomes();
@@ -272,6 +276,50 @@ export default function TenantManagement() {
     if (!chainId) return 'N/A';
     const chain = chains.find(c => c.id === chainId);
     return chain ? chain.name : chainId;
+  };
+
+  const handleEditHydrationId = (home: Home) => {
+    setEditingHydrationId(home.id);
+    setHydrationIdValue(home.hydrationId || '');
+  };
+
+  const handleCancelHydrationEdit = () => {
+    setEditingHydrationId(null);
+    setHydrationIdValue('');
+  };
+
+  const handleSaveHydrationId = async (homeId: string) => {
+    try {
+      setSavingHydrationId(true);
+      setError('');
+
+      const response = await fetch('/api/admin/homes', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          homeId,
+          hydrationId: hydrationIdValue.trim() || null
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSuccessMessage(`Hydration ID ${hydrationIdValue.trim() ? 'updated' : 'removed'} successfully!`);
+        setEditingHydrationId(null);
+        setHydrationIdValue('');
+        fetchHomes();
+      } else {
+        setError(data.error || 'Failed to update hydration ID');
+      }
+    } catch (err) {
+      console.error('Error updating hydration ID:', err);
+      setError('Failed to update hydration ID');
+    } finally {
+      setSavingHydrationId(false);
+    }
   };
 
   // Filter homes based on selected filters
@@ -755,6 +803,9 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                     Home Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Hydration ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -762,7 +813,7 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredHomes.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
                       {homes.length === 0 ? 'No behaviour-enabled homes found' : 'No homes match the selected filters'}
                     </td>
                   </tr>
@@ -777,6 +828,41 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {home.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {editingHydrationId === home.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={hydrationIdValue}
+                              onChange={(e) => setHydrationIdValue(e.target.value)}
+                              placeholder="Enter hydration ID..."
+                              className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-40"
+                              disabled={savingHydrationId}
+                            />
+                            <button
+                              onClick={() => handleSaveHydrationId(home.id)}
+                              disabled={savingHydrationId}
+                              className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors disabled:opacity-50"
+                            >
+                              {savingHydrationId ? '...' : 'Save'}
+                            </button>
+                            <button
+                              onClick={handleCancelHydrationEdit}
+                              disabled={savingHydrationId}
+                              className="px-2 py-1 text-xs bg-gray-300 hover:bg-gray-400 text-gray-700 rounded transition-colors disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleEditHydrationId(home)}
+                            className={`px-2 py-1 rounded hover:bg-gray-100 transition-colors cursor-pointer ${home.hydrationId ? 'text-gray-900' : 'text-gray-400 italic'}`}
+                          >
+                            {home.hydrationId || 'Not set'}
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
