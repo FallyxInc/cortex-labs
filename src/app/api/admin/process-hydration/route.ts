@@ -5,6 +5,10 @@ import {
   type FileInput,
 } from '@/lib/processing/hydration';
 
+// Configure runtime and body size limit for large file uploads
+export const runtime = 'nodejs';
+// export const maxDuration = 300; // 5 minutes for processing large files
+
 /**
  * Convert date from MM/DD/YYYY to YYYY-MM-DD format
  */

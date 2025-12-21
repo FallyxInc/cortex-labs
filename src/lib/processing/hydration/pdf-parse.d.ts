@@ -16,6 +16,24 @@ declare module 'pdf-parse' {
     text: string;
   }
 
+  export interface LoadParameters {
+    data: Buffer;
+    max?: number;
+    version?: string;
+    pagerender?: (pageData: {
+      getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
+    }) => Promise<string>;
+  }
+
+  export class PDFParse {
+    constructor(parameters: LoadParameters);
+    getText(): Promise<{
+      text: string;
+      pages: Array<{ text: string }>;
+    }>;
+    destroy(): Promise<void>;
+  }
+
   function pdfParse(
     dataBuffer: Buffer,
     options?: PdfParseOptions

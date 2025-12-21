@@ -3,7 +3,9 @@
  * Uses pdf-parse library to extract text from PDF buffers.
  */
 
-import pdfParse from 'pdf-parse';
+// Use the same import pattern as pdfProcessor.ts which works
+import { PDFParse } from 'pdf-parse';
+import type { LoadParameters } from 'pdf-parse';
 
 /**
  * Options for PDF parsing.
@@ -37,18 +39,24 @@ export async function extractPdfText(
   options: PdfParseOptions = {}
 ): Promise<PdfParseResult> {
   try {
-    const data = await pdfParse(buffer, {
+    // Use the same pattern as pdfProcessor.ts
+    const parameters: LoadParameters = {
+      data: buffer,
       max: options.maxPages || 0,
-    });
+    };
+
+    const parser = new PDFParse(parameters);
+    const result = await parser.getText();
+    await parser.destroy();
 
     // pdf-parse returns all text as a single string
     // We'll try to split by form feed characters if present
-    const pages = splitIntoPages(data.text);
+    const pages = splitIntoPages(result.text);
 
     return {
-      text: data.text,
-      numPages: data.numpages,
-      pages: pages.length > 0 ? pages : [data.text],
+      text: result.text,
+      numPages: result.pages.length,
+      pages: pages.length > 0 ? pages : [result.text],
     };
   } catch (error) {
     throw new Error(
@@ -66,31 +74,17 @@ export async function extractPdfText(
  */
 export async function extractPdfPages(buffer: Buffer): Promise<string[]> {
   try {
-    // pdf-parse with custom page render function to capture per-page text
-    const pages: string[] = [];
-
-    // Custom render function that captures page text
-    const renderPage = (pageData: { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }) => {
-      return pageData.getTextContent().then((textContent) => {
-        const pageText = textContent.items
-          .map((item) => item.str)
-          .join(' ');
-        pages.push(pageText);
-        return pageText;
-      });
+    // Use the same pattern as pdfProcessor.ts
+    const parameters: LoadParameters = {
+      data: buffer,
     };
 
-    await pdfParse(buffer, {
-      pagerender: renderPage,
-    });
+    const parser = new PDFParse(parameters);
+    const result = await parser.getText();
+    await parser.destroy();
 
-    // If custom render didn't work, fall back to splitting by form feed
-    if (pages.length === 0) {
-      const result = await extractPdfText(buffer);
-      return result.pages;
-    }
-
-    return pages;
+    // Extract pages from the result
+    return result.pages.map((page: { text: string }) => page.text);
   } catch {
     // Fall back to basic extraction if custom render fails
     const result = await extractPdfText(buffer);
