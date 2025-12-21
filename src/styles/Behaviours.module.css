@@ -807,3 +807,545 @@
   display: flex;
   gap: 10px;
 }
+
+/* ============================================================================
+   Hydration Dashboard Styles
+   ============================================================================ */
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: box-shadow 0.2s ease;
+}
+
+.statCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.statCardLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 60px;
+}
+
+.loadingPulse {
+  width: 100%;
+  height: 40px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: pulse 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes pulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.statIconWrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.statIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.statContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.statValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Hydration Table Styles */
+.hydrationTableContainer {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hydrationTableHeader {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.hydrationTableTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.hydrationTableSubtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 4px 0 0 0;
+}
+
+.hydrationControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hydrationSearchInput {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  min-width: 200px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.hydrationSearchInput:focus {
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+}
+
+.hydrationSelect {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 8px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.hydrationSelect:focus {
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+}
+
+.hydrationTableWrapper {
+  overflow-x: auto;
+}
+
+.hydrationTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.hydrationTable th,
+.hydrationTable td {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.hydrationTable th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.hydrationTable th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.hydrationTable th.sortable:hover {
+  background: #f3f4f6;
+}
+
+.hydrationTable td {
+  color: #374151;
+}
+
+.hydrationTable tbody tr:hover {
+  background: #f9fafb;
+}
+
+.hydrationTable tbody tr.missed3Days {
+  background: #fef2f2;
+}
+
+.hydrationTable tbody tr.missed3Days:hover {
+  background: #fee2e2;
+}
+
+.residentNameCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.residentName {
+  font-weight: 500;
+  color: #111827;
+}
+
+.residentUnit {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.ipcBadge {
+  width: 24px;
+  height: 24px;
+  cursor: help;
+}
+
+.feedingTubeBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #fef3c7;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: help;
+}
+
+.statusBadge {
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.statusBadge.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusBadge.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.progressBarWrapper {
+  width: 100%;
+  max-width: 120px;
+}
+
+.progressBar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  background: linear-gradient(to right, #67e8f9, #06b6d4);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.hydrationEmptyState {
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.hydrationEmptyIcon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  color: #9ca3af;
+}
+
+.hydrationEmptyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 8px 0;
+}
+
+.hydrationEmptyText {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.hydrationLoadingState {
+  padding: 48px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hydrationSpinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #06b6d4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hydrationDateValue {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.hydrationDateHeader {
+  color: #06b6d4;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Analytics Styles */
+.analyticsNotice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.analyticsNoticeIcon {
+  width: 20px;
+  height: 20px;
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.analyticsNotice span {
+  font-size: 14px;
+  color: #92400e;
+}
+
+.analyticsHeader {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 24px;
+}
+
+.analyticsHeaderContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.analyticsTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.analyticsBadge {
+  padding: 4px 12px;
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 9999px;
+}
+
+.analyticsSubtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.analyticsSection {
+  margin-bottom: 32px;
+}
+
+.analyticsSectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 16px 0;
+}
+
+.analyticsSectionSubtitle {
+  font-size: 12px;
+  color: #6b7280;
+  margin: -8px 0 16px 0;
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.analyticsCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.analyticsCard:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.analyticsCardDanger {
+  border-left: 4px solid #ef4444;
+}
+
+.analyticsCardWarning {
+  border-left: 4px solid #f59e0b;
+}
+
+.analyticsCardSuccess {
+  border-left: 4px solid #10b981;
+}
+
+.analyticsCardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.analyticsCardCount {
+  font-size: 36px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+}
+
+.analyticsCardInfo {
+  flex: 1;
+}
+
+.analyticsCardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+.analyticsCardDesc {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.analyticsCardExpanded {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.analyticsResidentRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.analyticsResidentRow:last-child {
+  border-bottom: none;
+}
+
+.analyticsResidentName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.analyticsResidentGoal {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.analyticsMoreText {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 8px 0 0 0;
+  text-align: center;
+}
+
+.loadingSpinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #06b6d4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}

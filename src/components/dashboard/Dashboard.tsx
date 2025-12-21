@@ -11,14 +11,17 @@ import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
 import BehavioursPage from "../behaviours/BehavioursPage";
 import FollowUpPage from "../behaviours/FollowUpPage";
+import { HydrationPage, HydrationAnalytics } from "../hydration";
 import { useBehavioursData } from "@/hooks/useBehavioursData";
 import { useDateRange } from "@/hooks/useDateRange";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import BehavioursReports from "../behaviours/BehavioursReports";
 import TrendsAndAnalysis from "../behaviours/TrendsAndAnalysis";
 import {
   DashboardProps,
   DashboardSection,
-  OverviewTab,
+  BehavioursTab,
+  HydrationTab,
   BehavioursFilters,
   FollowUpFilters,
   BehaviourIncident,
@@ -38,9 +41,11 @@ export default function Dashboard({
 
   // Navigation state
   const [activeSection, setActiveSection] =
-    useState<DashboardSection>("overview");
-  const [activeOverviewTab, setActiveOverviewTab] =
-    useState<OverviewTab>("behaviours");
+    useState<DashboardSection>("behaviours");
+  const [activeBehavioursTab, setActiveBehavioursTab] =
+    useState<BehavioursTab>("dashboard");
+  const [activeHydrationTab, setActiveHydrationTab] =
+    useState<HydrationTab>("dashboard");
 
   // Date range
   const {
@@ -51,6 +56,9 @@ export default function Dashboard({
     handleStartDateChange,
     handleEndDateChange,
   } = useDateRange();
+
+  // Feature flags
+  const { features } = useFeatureFlags({ homeId: firebaseId });
 
   // Fetch data
   const {
@@ -82,7 +90,7 @@ export default function Dashboard({
   // Tracking refs
   const pageVisitCountRef = useRef(0);
   const lastVisitTimeRef = useRef<number | null>(null);
-  const pageStartTimeRef = useRef(Date.now());
+  const pageStartTimeRef = useRef(new Date().getTime());
 
   // Helper function
   const getTimeOfDay = useCallback((time?: string): string => {
@@ -196,81 +204,112 @@ export default function Dashboard({
     setActiveSection(section);
   };
 
-  const handleOverviewTabChange = (tab: OverviewTab): void => {
-    setActiveOverviewTab(tab);
+  const handleBehavioursTabChange = (tab: BehavioursTab): void => {
+    setActiveBehavioursTab(tab);
+  };
+
+  const handleHydrationTabChange = (tab: HydrationTab): void => {
+    setActiveHydrationTab(tab);
   };
 
   const renderMainContent = () => {
-    if (activeSection === "trends") {
+    // Hydration section
+    if (activeSection === "hydration") {
+      if (activeHydrationTab === "analytics") {
+        return (
+          <HydrationAnalytics
+            firebaseId={firebaseId}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        );
+      }
       return (
-        <TrendsAndAnalysis
-          name={name}
-          altName={firebaseId}
-          data={data}
-          getTimeOfDay={getTimeOfDay}
-          startDate={startDate}
-          endDate={endDate}
-        />
-      );
-    }
-
-    if (activeSection === "reports") {
-      return (
-        <BehavioursReports
-          name={name}
-          altName={firebaseId}
-          data={data}
-          getTimeOfDay={getTimeOfDay}
-          startDate={startDate}
-          endDate={endDate}
-        />
-      );
-    }
-
-    // Overview section
-    if (activeOverviewTab === "followups") {
-      return (
-        <FollowUpPage
+        <HydrationPage
           name={name}
           firebaseId={firebaseId}
-          followUpData={followUpData}
-          filteredFollowUpData={filteredFollowUpData}
-          followUpLoading={followUpLoading}
-          desiredYear={desiredYear}
-          desiredMonth={desiredMonth}
-          filters={followUpFilters}
-          onFilterChange={setFollowUpFilters}
+          startDate={startDate}
+          endDate={endDate}
         />
       );
     }
 
-    return (
-      <BehavioursPage
-        name={name}
-        firebaseId={firebaseId}
-        data={data}
-        filteredData={filteredData}
-        threeMonthData={threeMonthData}
-        overviewMetrics={overviewMetrics}
-        desiredYear={desiredYear}
-        desiredMonth={desiredMonth}
-        filters={behavioursFilters}
-        onFilterChange={setBehavioursFilters}
-        getTimeOfDay={getTimeOfDay}
-      />
-    );
-  };
+    if (activeSection === "behaviours") {
+      // Behaviours section
+      if (activeBehavioursTab === "trends") {
+        return (
+          <TrendsAndAnalysis
+            name={name}
+            altName={firebaseId}
+            data={data}
+            getTimeOfDay={getTimeOfDay}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        );
+      }
+
+      if (activeBehavioursTab === "reports") {
+        return (
+          <BehavioursReports
+            name={name}
+            altName={firebaseId}
+            data={data}
+            getTimeOfDay={getTimeOfDay}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        );
+      }
+
+      if (activeBehavioursTab === "followups") {
+        return (
+          <FollowUpPage
+            name={name}
+            firebaseId={firebaseId}
+            followUpData={followUpData}
+            filteredFollowUpData={filteredFollowUpData}
+            followUpLoading={followUpLoading}
+            desiredYear={desiredYear}
+            desiredMonth={desiredMonth}
+            filters={followUpFilters}
+            onFilterChange={setFollowUpFilters}
+          />
+        );
+      }
+
+      // Default: Dashboard tab
+      return (
+        <BehavioursPage
+          name={name}
+          firebaseId={firebaseId}
+          data={data}
+          filteredData={filteredData}
+          threeMonthData={threeMonthData}
+          overviewMetrics={overviewMetrics}
+          desiredYear={desiredYear}
+          desiredMonth={desiredMonth}
+          filters={behavioursFilters}
+          onFilterChange={setBehavioursFilters}
+          getTimeOfDay={getTimeOfDay}
+        />
+      );
+    };
+  }
 
   return (
     <div className={styles.dashboard}>
       <div className={styles.dashboardLayout}>
         <DashboardSidebar
           activeSection={activeSection}
-          activeOverviewTab={activeOverviewTab}
+          activeBehavioursTab={activeBehavioursTab}
+          activeHydrationTab={activeHydrationTab}
           onSectionChange={handleSectionChange}
-          onOverviewTabChange={handleOverviewTabChange}
+          onBehavioursTabChange={handleBehavioursTabChange}
+          onHydrationTabChange={handleHydrationTabChange}
           onLogout={handleLogout}
           homeId={firebaseId}
+          features={features}
         />
 
         <div className={styles.mainContent}>

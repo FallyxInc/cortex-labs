@@ -249,7 +249,7 @@ export default function Login() {
   return (
     <div className="login-page-wrapper">
       <div className="login-container">
-        <h2 className="login-title">Behaviours Dashboard Login</h2>
+        <h2 className="login-title">Cortex Pilot Platform Login</h2>
 
       <div className="login-input-group">
         <label htmlFor="login-email">Email</label>

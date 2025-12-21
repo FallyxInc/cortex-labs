@@ -100,12 +100,14 @@ export interface DashboardPageProps {
 // Navigation Types
 // ============================================================================
 
-export type DashboardSection = 'overview' | 'reports' | 'trends';
-export type OverviewTab = 'behaviours' | 'followups';
+export type DashboardSection = 'behaviours' | 'hydration';
+export type BehavioursTab = 'dashboard' | 'followups' | 'reports' | 'trends';
+export type HydrationTab = 'dashboard' | 'analytics';
 
 export interface NavigationState {
   activeSection: DashboardSection;
-  activeOverviewTab: OverviewTab;
+  activeBehavioursTab: BehavioursTab;
+  activeHydrationTab: HydrationTab;
 }
 
 export interface SidebarNavItem {
@@ -120,7 +122,7 @@ export interface SidebarSubNavItem {
   id: string;
   label: string;
   icon: React.ReactNode;
-  tab: OverviewTab;
+  tab: BehavioursTab | HydrationTab;
 }
 
 // ============================================================================
@@ -221,9 +223,11 @@ export interface TrendsAndAnalysisProps {
 
 export interface DashboardSidebarProps {
   activeSection: DashboardSection;
-  activeOverviewTab: OverviewTab;
+  activeBehavioursTab: BehavioursTab;
+  activeHydrationTab: HydrationTab;
   onSectionChange: (section: DashboardSection) => void;
-  onOverviewTabChange: (tab: OverviewTab) => void;
+  onBehavioursTabChange: (tab: BehavioursTab) => void;
+  onHydrationTabChange: (tab: HydrationTab) => void;
   onLogout: () => void;
   homeId: string;
 }
