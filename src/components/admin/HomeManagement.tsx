@@ -5,12 +5,14 @@ import { HiOutlineCheckCircle } from 'react-icons/hi2';
 import HelpIcon from './HelpIcon';
 import CustomStrategyForm from './CustomStrategyForm';
 import { ExtractionStrategyConfig, StrategyTemplate } from '@/types/extractionStrategy';
+import { HomeFeatureFlags } from '@/types/featureTypes';
 
 interface Home {
   id: string;
   name: string;
   chainId?: string | null;
   hydrationId?: string | null;
+  features: HomeFeatureFlags;
 }
 
 interface Chain {
@@ -41,6 +43,7 @@ export default function TenantManagement() {
   const [editingHydrationId, setEditingHydrationId] = useState<string | null>(null);
   const [hydrationIdValue, setHydrationIdValue] = useState<string>('');
   const [savingHydrationId, setSavingHydrationId] = useState(false);
+  const [savingFeatures, setSavingFeatures] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHomes();
@@ -322,6 +325,38 @@ export default function TenantManagement() {
     }
   };
 
+  // Handle toggling a feature flag
+  const handleToggleFeature = async (homeId: string, feature: 'behaviours' | 'hydration', currentValue: boolean) => {
+    try {
+      setSavingFeatures(homeId);
+      setError('');
+
+      const response = await fetch(`/api/admin/homes/${homeId}/features`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          [feature]: !currentValue
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSuccessMessage(`${feature.charAt(0).toUpperCase() + feature.slice(1)} feature ${!currentValue ? 'enabled' : 'disabled'} successfully!`);
+        fetchHomes();
+      } else {
+        setError(data.error || 'Failed to update feature flag');
+      }
+    } catch (err) {
+      console.error('Error updating feature flag:', err);
+      setError('Failed to update feature flag');
+    } finally {
+      setSavingFeatures(null);
+    }
+  };
+
   // Filter homes based on selected filters
   const getFilteredHomes = () => {
     return homes.filter(home => {
@@ -375,7 +410,7 @@ export default function TenantManagement() {
           />
         </div>
         <p className="mt-2 text-sm text-gray-600">
-          View and manage behaviour-enabled homes. Use "Seed Existing Homes" to populate Berkshire Care, Mill Creek Care, and other existing homes with their chain associations.
+          View and manage behaviour-enabled homes. Use &quot;Seed Existing Homes&quot; to populate Berkshire Care, Mill Creek Care, and other existing homes with their chain associations.
         </p>
         <div className="mt-4 flex gap-3">
           <button
@@ -667,7 +702,7 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                 disabled={creating}
               />
               <p className="mt-1 text-xs text-gray-500">
-                This will create a Firebase structure for the home. The home will use the chain's Python processing logic.
+                This will create a Firebase structure for the home. The home will use the chain&apos;s Python processing logic.
               </p>
             </div>
             <div>
@@ -696,7 +731,7 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                 ))}
               </select>
               <p className="mt-1 text-xs text-gray-500">
-                Select the chain this home belongs to. The home will automatically use the chain's Python processing scripts.
+                Select the chain this home belongs to. The home will automatically use the chain&apos;s Python processing scripts.
               </p>
             </div>
             <div className="flex justify-end gap-3">
@@ -729,6 +764,15 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">All Homes</h3>
+            {savingFeatures && (
+              <span className="text-sm text-cyan-600 flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving features...
+              </span>
+            )}
           </div>
           
           {/* Filter Section */}
@@ -806,6 +850,9 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                     Hydration ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Features
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -813,7 +860,7 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredHomes.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
                       {homes.length === 0 ? 'No behaviour-enabled homes found' : 'No homes match the selected filters'}
                     </td>
                   </tr>
@@ -863,6 +910,46 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                             {home.hydrationId || 'Not set'}
                           </button>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex items-center gap-4">
+                          {/* Behaviours Toggle */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">Behaviours</span>
+                            <button
+                              onClick={() => handleToggleFeature(home.id, 'behaviours', home.features.behaviours)}
+                              disabled={savingFeatures === home.id}
+                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 disabled:opacity-50 ${
+                                home.features.behaviours ? 'bg-cyan-500' : 'bg-gray-300'
+                              }`}
+                              title={home.features.behaviours ? 'Behaviours enabled - click to disable' : 'Behaviours disabled - click to enable'}
+                            >
+                              <span
+                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
+                                  home.features.behaviours ? 'translate-x-4.5' : 'translate-x-0.5'
+                                }`}
+                                style={{ transform: home.features.behaviours ? 'translateX(18px)' : 'translateX(2px)' }}
+                              />
+                            </button>
+                          </div>
+                          {/* Hydration Toggle */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">Hydration</span>
+                            <button
+                              onClick={() => handleToggleFeature(home.id, 'hydration', home.features.hydration)}
+                              disabled={savingFeatures === home.id}
+                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 disabled:opacity-50 ${
+                                home.features.hydration ? 'bg-cyan-500' : 'bg-gray-300'
+                              }`}
+                              title={home.features.hydration ? 'Hydration enabled - click to disable' : 'Hydration disabled - click to enable'}
+                            >
+                              <span
+                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform`}
+                                style={{ transform: home.features.hydration ? 'translateX(18px)' : 'translateX(2px)' }}
+                              />
+                            </button>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
