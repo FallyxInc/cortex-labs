@@ -36,6 +36,7 @@ export default function UserDashboard({
   firebaseId,
   title,
   goal,
+  chainId,
 }: DashboardProps) {
   const router = useRouter();
 
@@ -310,6 +311,7 @@ export default function UserDashboard({
           onLogout={handleLogout}
           homeId={firebaseId}
           features={features}
+          chainId={chainId}
         />
 
         <div className={styles.mainContent}>

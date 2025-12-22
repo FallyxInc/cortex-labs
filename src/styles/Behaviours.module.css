@@ -36,6 +36,27 @@
   color: #111827;
 }
 
+.backToChainButton {
+  display: flex;
+  align-items: center;
+  width: calc(100% - 24px);
+  margin: 0 12px 12px 12px;
+  padding: 10px 12px;
+  background-color: #f0f9ff;
+  border: 1px solid #0ea5e9;
+  border-radius: 8px;
+  color: #0284c7;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.backToChainButton:hover {
+  background-color: #e0f2fe;
+  border-color: #0284c7;
+}
+
 .sidebarNav {
   flex: 1;
   padding: 12px 0;

@@ -81,6 +81,7 @@ export interface DashboardProps {
   firebaseId: string;
   title: string;
   goal: number;
+  chainId?: string; // When provided, shows back button to chain admin page
 }
 
 export interface DashboardPageProps {

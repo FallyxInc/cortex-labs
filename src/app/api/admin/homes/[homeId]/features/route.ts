@@ -42,6 +42,7 @@ export async function GET(
       hydration: homeData.features?.hydration ?? DEFAULT_FEATURE_FLAGS.hydration,
     };
 
+    console.log(`✅ Fetched features for home ${homeId}:`, features);
     return NextResponse.json({
       success: true,
       homeId,

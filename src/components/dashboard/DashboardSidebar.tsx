@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import styles from "@/styles/Behaviours.module.css";
 import { trackDashboardInteraction } from "@/lib/mixpanel";
 import { DashboardSection, BehavioursTab, HydrationTab } from "@/types/behaviourTypes";
@@ -16,6 +17,7 @@ interface DashboardSidebarProps {
   onLogout: () => void;
   homeId: string;
   features: HomeFeatureFlags;
+  chainId?: string; // When provided, shows back button to chain admin page
 }
 
 export default function DashboardSidebar({
@@ -28,7 +30,9 @@ export default function DashboardSidebar({
   onLogout,
   homeId,
   features,
+  chainId,
 }: DashboardSidebarProps) {
+  const router = useRouter();
   const handleSectionClick = (
     section: DashboardSection,
     dashboardType: "behaviours" | "follow_up" | "trends" | "reports" | "hydration",
@@ -47,11 +51,43 @@ export default function DashboardSidebar({
     });
   };
 
+  const handleBackToChain = () => {
+    if (chainId) {
+      router.push(`/chain/${chainId}`);
+    }
+  };
+
   return (
     <div className={styles.sidebar}>
       <div className={styles.sidebarHeader}>
         <div className={styles.sidebarTitle}>Cortex Pilot</div>
       </div>
+
+      {/* Back to Chain button - shown when viewing as chain admin */}
+      {chainId && (
+        <button
+          onClick={handleBackToChain}
+          className={styles.backToChainButton}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ marginRight: "8px" }}
+          >
+            <path
+              d="M10 12L6 8L10 4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Back to Chain
+        </button>
+      )}
 
       <nav className={styles.sidebarNav}>
         {/* Behaviours Section with Sub-items */}
