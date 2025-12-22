@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
-import { ChainExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig } from '@/types/behaviourProcessingTypes';
 import { HomeFeatureFlags, DEFAULT_FEATURE_FLAGS } from '@/types/featureTypes';
 
 export interface ChainWithConfig {
