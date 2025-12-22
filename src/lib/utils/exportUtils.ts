@@ -1,9 +1,9 @@
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import { trackExportButtonClick } from '@/lib/mixpanel';
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { trackExportButtonClick } from "@/lib/mixpanel";
 
 interface ExportPdfParams {
-  tableRef: React.RefObject<HTMLElement>;
+  tableRef: React.RefObject<HTMLElement | null>;
   name: string;
   altName: string;
   showFollowUpTable: boolean;
@@ -32,15 +32,17 @@ export const handleSavePDF = async ({
   dummyFollowUpData = [],
 }: ExportPdfParams) => {
   exportClickCountRef.current += 1;
-  
+
   trackExportButtonClick({
-    exportType: 'pdf',
+    exportType: "pdf",
     pageName: `dashboard_${name}`,
-    section: showFollowUpTable ? 'follow_up' : 'overview',
+    section: showFollowUpTable ? "follow_up" : "overview",
     homeId: altName,
-    dataType: showFollowUpTable ? 'follow_up' : 'behaviours',
-    recordCount: showFollowUpTable 
-      ? (followUpData.length > 0 ? filteredFollowUpData.length : dummyFollowUpData.length) 
+    dataType: showFollowUpTable ? "follow_up" : "behaviours",
+    recordCount: showFollowUpTable
+      ? followUpData.length > 0
+        ? filteredFollowUpData.length
+        : dummyFollowUpData.length
       : data.length,
     clickCount: exportClickCountRef.current,
   });
@@ -54,21 +56,21 @@ export const handleSavePDF = async ({
     }
     const originalStyles: OriginalStyles = {};
     const originalScrollTop = tableRef.current.scrollTop;
-    
+
     const element = tableRef.current;
     originalStyles.overflowX = element.style.overflowX;
     originalStyles.overflowY = element.style.overflowY;
     originalStyles.maxHeight = element.style.maxHeight;
-    
-    const expandButtons = element.querySelectorAll('button');
-    expandButtons.forEach(button => {
+
+    const expandButtons = element.querySelectorAll("button");
+    expandButtons.forEach((button) => {
       const buttonText = button.textContent?.trim();
-      if (buttonText === 'Show more') {
+      if (buttonText === "Show more") {
         button.click();
       }
     });
-    
-    const tableCells = element.querySelectorAll('td');
+
+    const tableCells = element.querySelectorAll("td");
     const originalCellStyles: Array<{
       whiteSpace: string;
       overflow: string;
@@ -77,52 +79,52 @@ export const handleSavePDF = async ({
     }> = [];
     tableCells.forEach((cell, index) => {
       originalCellStyles[index] = {
-        whiteSpace: cell.style.whiteSpace || '',
-        overflow: cell.style.overflow || '',
-        textOverflow: cell.style.textOverflow || '',
-        maxHeight: cell.style.maxHeight || ''
+        whiteSpace: cell.style.whiteSpace || "",
+        overflow: cell.style.overflow || "",
+        textOverflow: cell.style.textOverflow || "",
+        maxHeight: cell.style.maxHeight || "",
       };
-      cell.style.whiteSpace = 'normal';
-      cell.style.overflow = 'visible';
-      cell.style.textOverflow = 'clip';
-      cell.style.maxHeight = 'none';
+      cell.style.whiteSpace = "normal";
+      cell.style.overflow = "visible";
+      cell.style.textOverflow = "clip";
+      cell.style.maxHeight = "none";
     });
-    
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
     element.scrollTop = 0;
-    
-    element.style.overflowX = 'visible';
-    element.style.overflowY = 'visible';
-    element.style.maxHeight = 'none';
-    
-    element.querySelectorAll('table').forEach(table => {
+
+    element.style.overflowX = "visible";
+    element.style.overflowY = "visible";
+    element.style.maxHeight = "none";
+
+    element.querySelectorAll("table").forEach((table) => {
       let container = table.parentElement;
       while (container && container !== element) {
         const computedStyle = window.getComputedStyle(container);
         const maxHeight = computedStyle.maxHeight;
-        if (maxHeight && maxHeight !== 'none' && maxHeight !== '100%') {
+        if (maxHeight && maxHeight !== "none" && maxHeight !== "100%") {
           const key = `table-container-${container.offsetTop}-${container.offsetLeft}`;
           if (!originalStyles[key]) {
             originalStyles[key] = {
               element: container,
-              maxHeight: container.style.maxHeight || '',
-              overflowY: container.style.overflowY || '',
-              overflowX: container.style.overflowX || ''
+              maxHeight: container.style.maxHeight || "",
+              overflowY: container.style.overflowY || "",
+              overflowX: container.style.overflowX || "",
             };
-            container.style.maxHeight = 'none';
-            container.style.overflowY = 'visible';
-            container.style.overflowX = 'visible';
+            container.style.maxHeight = "none";
+            container.style.overflowY = "visible";
+            container.style.overflowX = "visible";
           }
         }
         container = container.parentElement;
       }
     });
-    
-    const styleId = 'pdf-export-font-reduction';
+
+    const styleId = "pdf-export-font-reduction";
     let styleElement = document.getElementById(styleId);
     if (!styleElement) {
-      styleElement = document.createElement('style');
+      styleElement = document.createElement("style");
       styleElement.id = styleId;
       document.head.appendChild(styleElement);
     }
@@ -135,11 +137,11 @@ export const handleSavePDF = async ({
         padding: 8px 12px !important;
       }
     `;
-    
+
     const originalId = element.id;
-    element.id = 'pdf-export-active';
-    
-    const selectElements = element.querySelectorAll('select');
+    element.id = "pdf-export-active";
+
+    const selectElements = element.querySelectorAll("select");
     const originalSelectStyles: Array<{
       element: HTMLSelectElement;
       textAlign: string;
@@ -150,53 +152,55 @@ export const handleSavePDF = async ({
       const computedStyle = window.getComputedStyle(select);
       originalSelectStyles.push({
         element: select,
-        textAlign: select.style.textAlign || '',
-        textAlignLast: select.style.textAlignLast || '',
-        paddingTop: select.style.paddingTop || ''
+        textAlign: select.style.textAlign || "",
+        textAlignLast: select.style.textAlignLast || "",
+        paddingTop: select.style.paddingTop || "",
       });
-      select.style.textAlign = 'center';
-      select.style.textAlignLast = 'center';
+      select.style.textAlign = "center";
+      select.style.textAlignLast = "center";
       const currentPaddingTop = parseFloat(computedStyle.paddingTop) || 0;
       select.style.paddingTop = `${currentPaddingTop - 2}px`;
     });
-    
-    const textElements = element.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, td, th');
+
+    const textElements = element.querySelectorAll(
+      "h1, h2, h3, h4, h5, h6, p, span, div, td, th",
+    );
     const originalTextStyles: Array<{
       element: HTMLElement;
       paddingTop: string;
     }> = [];
     textElements.forEach((el) => {
-      if (el.tagName === 'BUTTON' || el.tagName === 'SELECT') return;
-      
+      if (el.tagName === "BUTTON" || el.tagName === "SELECT") return;
+
       const htmlEl = el as HTMLElement;
       const computedStyle = window.getComputedStyle(htmlEl);
       const paddingTop = computedStyle.paddingTop;
       if (paddingTop && parseFloat(paddingTop) > 0) {
         originalTextStyles.push({
           element: htmlEl,
-          paddingTop: htmlEl.style.paddingTop || ''
+          paddingTop: htmlEl.style.paddingTop || "",
         });
         const currentPaddingTop = parseFloat(paddingTop);
         htmlEl.style.paddingTop = `${Math.max(0, currentPaddingTop - 1)}px`;
       }
     });
-    
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'px',
-      format: 'a4',
+      orientation: "portrait",
+      unit: "px",
+      format: "a4",
     });
-    
+
     const pageHeight = pdf.internal.pageSize.height;
     const pageWidth = pdf.internal.pageSize.width;
     const totalHeight = element.scrollHeight;
     const totalWidth = element.scrollWidth;
-    
+
     const widthScale = totalWidth > pageWidth ? pageWidth / totalWidth : 1;
     const scale = Math.min(2, widthScale * 2);
-    
+
     const canvas = await html2canvas(element, {
       scale: scale,
       width: totalWidth,
@@ -206,14 +210,14 @@ export const handleSavePDF = async ({
       useCORS: true,
       logging: false,
     });
-    
-    const imgData = canvas.toDataURL('image/png');
+
+    const imgData = canvas.toDataURL("image/png");
     const imgWidth = pageWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     let position = 0;
 
     while (position < imgHeight) {
-      pdf.addImage(imgData, 'PNG', 0, -position, imgWidth, imgHeight);
+      pdf.addImage(imgData, "PNG", 0, -position, imgWidth, imgHeight);
 
       position += pageHeight;
 
@@ -221,15 +225,15 @@ export const handleSavePDF = async ({
         pdf.addPage();
       }
     }
-    
-    element.style.overflowX = (originalStyles.overflowX as string) || 'auto';
-    element.style.overflowY = (originalStyles.overflowY as string) || 'auto';
-    element.style.maxHeight = (originalStyles.maxHeight as string) || '';
+
+    element.style.overflowX = (originalStyles.overflowX as string) || "auto";
+    element.style.overflowY = (originalStyles.overflowY as string) || "auto";
+    element.style.maxHeight = (originalStyles.maxHeight as string) || "";
     element.scrollTop = originalScrollTop;
-    element.id = originalId || '';
-    
-    Object.keys(originalStyles).forEach(key => {
-      if (key.startsWith('table-container-')) {
+    element.id = originalId || "";
+
+    Object.keys(originalStyles).forEach((key) => {
+      if (key.startsWith("table-container-")) {
         const styleData = originalStyles[key] as {
           element?: HTMLElement;
           maxHeight?: string;
@@ -237,14 +241,14 @@ export const handleSavePDF = async ({
           overflowX?: string;
         };
         if (styleData.element) {
-          styleData.element.style.maxHeight = styleData.maxHeight || '';
-          styleData.element.style.overflowY = styleData.overflowY || '';
-          styleData.element.style.overflowX = styleData.overflowX || '';
+          styleData.element.style.maxHeight = styleData.maxHeight || "";
+          styleData.element.style.overflowY = styleData.overflowY || "";
+          styleData.element.style.overflowX = styleData.overflowX || "";
         }
       }
     });
-    
-    const restoredTableCells = element.querySelectorAll('td');
+
+    const restoredTableCells = element.querySelectorAll("td");
     restoredTableCells.forEach((cell, index) => {
       if (originalCellStyles[index]) {
         cell.style.whiteSpace = originalCellStyles[index].whiteSpace;
@@ -253,7 +257,7 @@ export const handleSavePDF = async ({
         cell.style.maxHeight = originalCellStyles[index].maxHeight;
       }
     });
-    
+
     originalSelectStyles.forEach((selectStyle) => {
       if (selectStyle.element) {
         selectStyle.element.style.textAlign = selectStyle.textAlign;
@@ -261,23 +265,22 @@ export const handleSavePDF = async ({
         selectStyle.element.style.paddingTop = selectStyle.paddingTop;
       }
     });
-    
+
     originalTextStyles.forEach((textStyle) => {
       if (textStyle.element) {
         textStyle.element.style.paddingTop = textStyle.paddingTop;
       }
     });
-    
+
     if (styleElement) {
       styleElement.remove();
     }
-    
+
     const monthNum = months_backword[desiredMonth];
-    const filename = showFollowUpTable 
+    const filename = showFollowUpTable
       ? `${name}_${desiredYear}_${monthNum}_follow_ups.pdf`
       : `${name}_${desiredYear}_${monthNum}_behaviours_data.pdf`;
-    
+
     pdf.save(filename);
   }
 };
-

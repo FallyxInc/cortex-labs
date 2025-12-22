@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
+import { HomeFeatureFlags, DEFAULT_FEATURE_FLAGS } from '@/types/featureTypes';
 
 export async function GET() {
   try {
@@ -14,10 +15,16 @@ export async function GET() {
     }
 
     const data = snapshot.val();
-    const homes: Array<{ id: string; name: string; chainId?: string }> = [];
+    const homes: Array<{
+      id: string;
+      name: string;
+      chainId?: string;
+      hydrationId?: string;
+      features: HomeFeatureFlags;
+    }> = [];
 
     for (const key in data) {
-      if (key === 'users' || key === 'reviews' || key === 'chains') {
+      if (key === 'users' || key === 'reviews' || key === 'chains' || key === 'homeMappings') {
         continue;
       }
 
@@ -25,10 +32,19 @@ export async function GET() {
       if (homeData && typeof homeData === 'object' && 'behaviours' in homeData) {
         // Use displayName from mapping if available, otherwise use the key
         const displayName = homeData.mapping?.displayName || key;
+
+        // Get feature flags with defaults
+        const features: HomeFeatureFlags = {
+          behaviours: homeData.features?.behaviours ?? DEFAULT_FEATURE_FLAGS.behaviours,
+          hydration: homeData.features?.hydration ?? DEFAULT_FEATURE_FLAGS.hydration,
+        };
+
         homes.push({
           id: key,
           name: displayName,
-          chainId: homeData.chainId || null
+          chainId: homeData.chainId || null,
+          hydrationId: homeData.hydrationId || null,
+          features,
         });
       }
     }
@@ -67,7 +83,7 @@ function generatePythonDir(homeName: string, pythonDirOverride?: string): string
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { homeName, chainId } = body;
+    const { homeName, chainId, features } = body;
 
     if (!homeName || typeof homeName !== 'string') {
       return NextResponse.json(
@@ -109,6 +125,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Merge provided features with defaults
+    const homeFeatures: HomeFeatureFlags = {
+      behaviours: features?.behaviours ?? DEFAULT_FEATURE_FLAGS.behaviours,
+      hydration: features?.hydration ?? DEFAULT_FEATURE_FLAGS.hydration,
+    };
+
     // Create Firebase structure with mappings
     await homeRef.set({
       behaviours: {
@@ -121,7 +143,9 @@ export async function POST(request: NextRequest) {
         firebaseId: firebaseId,
         homeName: sanitizedName,
         displayName: displayName
-      }
+      },
+      // Feature flags for the home
+      features: homeFeatures,
     });
 
     // Store mapping in a centralized location for easy lookup
@@ -268,6 +292,91 @@ export async function DELETE(request: NextRequest) {
     console.error('Error deleting home:', error);
     return NextResponse.json(
       { error: 'Failed to delete home', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { homeId, hydrationId, features } = body;
+
+    if (!homeId || typeof homeId !== 'string') {
+      return NextResponse.json(
+        { error: 'Home ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if home exists
+    const homeRef = adminDb.ref(`/${homeId}`);
+    const homeSnapshot = await homeRef.once('value');
+
+    if (!homeSnapshot.exists()) {
+      return NextResponse.json(
+        { error: 'Home not found' },
+        { status: 404 }
+      );
+    }
+
+    const updates: { hydrationId?: string | null; features?: HomeFeatureFlags } = {};
+    const homeData = homeSnapshot.val();
+
+    // Handle hydrationId update
+    if (hydrationId !== undefined) {
+      if (hydrationId && typeof hydrationId === 'string' && hydrationId.trim()) {
+        updates.hydrationId = hydrationId.trim();
+        console.log(`✅ Updating hydrationId for home ${homeId}: ${hydrationId.trim()}`);
+      } else {
+        // Remove hydrationId if empty or null
+        await homeRef.child('hydrationId').remove();
+        console.log(`✅ Removed hydrationId for home ${homeId}`);
+      }
+    }
+
+    // Handle feature flags update
+    if (features !== undefined) {
+      // Get existing features or use defaults
+      const existingFeatures: HomeFeatureFlags = {
+        behaviours: homeData.features?.behaviours ?? DEFAULT_FEATURE_FLAGS.behaviours,
+        hydration: homeData.features?.hydration ?? DEFAULT_FEATURE_FLAGS.hydration,
+      };
+
+      // Merge with provided features
+      const updatedFeatures: HomeFeatureFlags = {
+        behaviours: features.behaviours !== undefined ? features.behaviours : existingFeatures.behaviours,
+        hydration: features.hydration !== undefined ? features.hydration : existingFeatures.hydration,
+      };
+
+      updates.features = updatedFeatures;
+      console.log(`✅ Updating features for home ${homeId}:`, updatedFeatures);
+    }
+
+    // Apply updates
+    if (Object.keys(updates).length > 0) {
+      await homeRef.update(updates);
+    }
+
+    // Get final state
+    const finalSnapshot = await homeRef.once('value');
+    const finalData = finalSnapshot.val();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Home updated successfully',
+      homeId,
+      hydrationId: finalData.hydrationId || null,
+      features: {
+        behaviours: finalData.features?.behaviours ?? DEFAULT_FEATURE_FLAGS.behaviours,
+        hydration: finalData.features?.hydration ?? DEFAULT_FEATURE_FLAGS.hydration,
+      },
+    });
+
+  } catch (error) {
+    console.error('Error updating home:', error);
+    return NextResponse.json(
+      { error: 'Failed to update home', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

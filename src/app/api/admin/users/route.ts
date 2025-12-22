@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     const usersData = snapshot.val();
-    const auth = getAuth();
+    const auth = getAuth(adminDb.app);
     
     const usersWithAuth = await Promise.all(
       Object.keys(usersData).map(async (userId) => {

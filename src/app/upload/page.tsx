@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase/firebase';
-import FileUpload from '@/components/admin/FileUpload';
+import FileUpload from '@/components/admin/BehavioursFileUpload';
 
 export default function UploadPage() {
   const router = useRouter();

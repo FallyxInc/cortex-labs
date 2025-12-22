@@ -7,11 +7,15 @@ import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase/firebase';
 import HomeManagement from '@/components/admin/HomeManagement';
 import UserManagement from '@/components/admin/UserManagement';
-import FileUpload from '@/components/admin/FileUpload';
+import FileUpload from '@/components/admin/BehavioursFileUpload';
+import HydrationFileUpload from '@/components/admin/HydrationFileUpload';
 import Link from 'next/link';
 
+
+type AdminTabs = 'homes' | 'users' | 'behavioursUpload' | 'hydrationUpload';
+
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'homes' | 'users' | 'upload'>('homes');
+  const [activeTab, setActiveTab] = useState<AdminTabs>('homes');
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const router = useRouter();
@@ -163,25 +167,46 @@ export default function AdminPage() {
               User Management
             </button>
             <button
-              onClick={() => setActiveTab('upload')}
+              onClick={() => setActiveTab('behavioursUpload')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
-                activeTab === 'upload'
+                activeTab === 'behavioursUpload'
                   ? 'text-gray-900'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
-              style={activeTab === 'upload' ? { borderColor: '#06b6d4', color: '#06b6d4' } : {}}
+              style={activeTab === 'behavioursUpload' ? { borderColor: '#06b6d4', color: '#06b6d4' } : {}}
               onMouseEnter={(e) => {
-                if (activeTab !== 'upload') {
+                if (activeTab !== 'behavioursUpload') {
                   e.currentTarget.style.borderColor = '#bae6fd';
                 }
               }}
               onMouseLeave={(e) => {
-                if (activeTab !== 'upload') {
+                if (activeTab !== 'behavioursUpload') {
                   e.currentTarget.style.borderColor = 'transparent';
                 }
               }}
             >
-              File Upload
+              Behaviours File Upload
+            </button>
+            <button
+              onClick={() => setActiveTab('hydrationUpload')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                activeTab === 'hydrationUpload'
+                  ? 'text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              style={activeTab === 'hydrationUpload' ? { borderColor: '#06b6d4', color: '#06b6d4' } : {}}
+              onMouseEnter={(e) => {
+                if (activeTab !== 'hydrationUpload') {
+                  e.currentTarget.style.borderColor = '#bae6fd';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== 'hydrationUpload') {
+                  e.currentTarget.style.borderColor = 'transparent';
+                }
+              }}
+            >
+              Hydration File Upload
             </button>
             <Link
               href="/admin/config"
@@ -206,7 +231,8 @@ export default function AdminPage() {
         <div className="px-4 sm:px-0">
           {activeTab === 'homes' && <HomeManagement />}
           {activeTab === 'users' && <UserManagement />}
-          {activeTab === 'upload' && <FileUpload />}
+          {activeTab === 'behavioursUpload' && <FileUpload />}
+          {activeTab === 'hydrationUpload' && <HydrationFileUpload />}
         </div>
       </main>
     </div>

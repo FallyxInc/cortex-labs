@@ -62,7 +62,7 @@ export async function GET() {
     }
 
     const usersToMigrate: UserIssue[] = [];
-    const auth = getAuth();
+    const auth = getAuth(adminDb.app);
 
     for (const userId in usersData) {
       const userData = usersData[userId];
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
       skipped: [] as string[]
     };
 
-    const auth = getAuth();
+    const auth = getAuth(adminDb.app);
 
     for (const userId of userIds) {
       try {
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
         }
 
         const userData = userSnapshot.val();
-        const updates: any = {};
+        const updates: Record<string, unknown> = {};
         const currentRole = userData.role;
         const isAdmin = currentRole === 'admin';
         const isHomeUser = currentRole === 'homeUser';

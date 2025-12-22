@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzePdfText, toFieldExtractionConfig, toNoteTypeExtractionConfig } from '@/lib/processing/pdfAnalyzer';
+import { analyzePdfText, toFieldExtractionConfig, toNoteTypeExtractionConfig } from '@/lib/analysis/pdfAnalyzer';
 
 export async function POST(request: NextRequest) {
   try {

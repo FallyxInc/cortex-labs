@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const data = XLSX.utils.sheet_to_json(sheet, {
       defval: '',
       raw: false,
-    }) as Record<string, any>[];
+    }) as Record<string, unknown>[];
 
     console.log('Parsed Excel data rows:', data.length);
     if (data.length > 0) {
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Resolve chain ID with flexible matching
-        let chainId = chainIdMap.get(chainIdOrName) || 
+        const chainId = chainIdMap.get(chainIdOrName) || 
                      chainMap.get(chainIdOrName) || 
                      chainMap.get(chainIdOrName.toLowerCase());
         
@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Resolve chain ID with flexible matching
-        let chainId = chainIdMap.get(chainIdOrName) || 
+        const chainId = chainIdMap.get(chainIdOrName) || 
                      chainMap.get(chainIdOrName) || 
                      chainMap.get(chainIdOrName.toLowerCase());
         
@@ -445,7 +445,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Import users
-    const auth = getAuth();
+    const auth = getAuth(adminDb.app);
     const results: ImportResult[] = [];
     let successCount = 0;
     let failCount = 0;
@@ -464,9 +464,9 @@ export async function POST(request: NextRequest) {
           });
           failCount++;
           continue;
-        } catch (error: any) {
+        } catch (error: unknown) {
           // User doesn't exist, continue
-          if (error.code !== 'auth/user-not-found') {
+          if (error instanceof Error && error.code !== 'auth/user-not-found') {
             throw error;
           }
         }
@@ -480,7 +480,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Create user data in database
-        const userData: any = {
+        const userData: Record<string, unknown> = {
           username: user.username,
           role: user.role,
           loginCount: 0,
@@ -507,13 +507,13 @@ export async function POST(request: NextRequest) {
           userId: userRecord.uid,
         });
         successCount++;
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.push({
           rowNumber: user.rowNumber,
           username: user.username,
           email: user.email,
           success: false,
-          error: error.message || 'Unknown error',
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         failCount++;
       }

@@ -125,8 +125,8 @@ export const trackPasswordReset = (properties: {
 
 // Dashboard Events
 export const trackDashboardInteraction = (properties: {
-  action: 'view_chart' | 'filter_data' | 'export_data' | 'change_date_range' | 'view_table' | 'view_report' | 'view_trends';
-  dashboardType: 'behaviours' | 'follow_up' | 'trends' | 'reports';
+  action: 'view_chart' | 'filter_data' | 'export_data' | 'change_date_range' | 'view_table' | 'view_report' | 'view_trends' | 'view_hydration';
+  dashboardType: 'behaviours' | 'follow_up' | 'trends' | 'reports' | 'hydration';
   homeId?: string;
   chartType?: string;
   filterType?: string;

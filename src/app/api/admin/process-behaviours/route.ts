@@ -7,11 +7,11 @@ import { join } from "path";
 import { adminDb } from "@/lib/firebase/firebaseAdmin";
 import { getHomeNameAsync } from "@/lib/homeMappings";
 import { progressStore } from "../process-progress/route";
-import { processExcelFiles } from "@/lib/processing/excelProcessor";
-import { processPdfFiles } from "@/lib/processing/pdfProcessor";
-import { processAllMergedFiles } from "@/lib/processing/behaviourGenerator";
-import { processMergedCsvFiles } from "@/lib/processing/firebaseUpdate";
-import { processCsvFiles } from "@/lib/processing/firebaseUpload";
+import { processExcelFiles } from "@/lib/processing/behaviours/excelProcessor";
+import { processPdfFiles } from "@/lib/processing/behaviours/pdfProcessor";
+import { processAllMergedFiles } from "@/lib/processing/behaviours/behaviourGenerator";
+import { processMergedCsvFiles } from "@/lib/firebase/behaviourFirebaseUpdate";
+import { processCsvFiles } from "@/lib/firebase/behaviourFirebaseUpload";
 import { getChainExtractionConfig } from "@/lib/utils/configUtils";
 
 // Helper function to update progress

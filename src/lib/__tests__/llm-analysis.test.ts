@@ -101,8 +101,8 @@ jest.mock('../claude-client', () => {
   };
 });
 
-import { analyzePdfText } from '../processing/pdfAnalyzer';
-import { analyzeExcelData } from '../processing/excelAnalyzer';
+import { analyzePdfText } from '../analysis/pdfAnalyzer';
+import { analyzeExcelData } from '../analysis/excelAnalyzer';
 import { callClaudeAPI, callClaudeAPIForJSON } from '../claude-client';
 
 describe('LLM Analysis Tests', () => {
