@@ -60,7 +60,6 @@ export default function UserDashboard({
 
   // Feature flags
   const { features, isLoading: featureFlagsLoading } = useFeatureFlags({ homeId: firebaseId });
-  console.log("Features:", features);
   // Fetch data
   const {
     data,
@@ -338,6 +337,7 @@ export default function UserDashboard({
             onEndDateChange={handleEndDateChange}
             userEmail={auth.currentUser?.email || "User"}
             title={title}
+            activeSection={activeSection}
           />
 
           {renderMainContent()}

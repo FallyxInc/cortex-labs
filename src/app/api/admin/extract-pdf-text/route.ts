@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { extractTextFromPdf } from '@/lib/processing/pdfProcessor';
+import { extractTextFromPdf } from '@/lib/processing/behaviours/pdfProcessor';
 import * as XLSX from 'xlsx';
 
 export async function POST(request: NextRequest) {

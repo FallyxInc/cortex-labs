@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import HydrationStats from "./HydrationStats";
 import HydrationTable from "./HydrationTable";
 import { useHydrationData } from "@/hooks/useHydrationData";
@@ -15,9 +16,30 @@ export default function HydrationPage({
   startDate,
   endDate,
 }: HydrationPageProps) {
+  // Calculate start date as the first day of the month based on end date
+  const calculatedStartDate = useMemo(() => {
+    if (!endDate) return startDate;
+    
+    const endDateObj = new Date(endDate);
+    
+    // Go back 2 months from the end date
+    const newStart = new Date(endDateObj);
+    newStart.setMonth(newStart.getMonth() - 2);
+    
+    // Set to the first day of that month
+    newStart.setDate(1);
+    
+    // Format as YYYY-MM-DD
+    const yearStr = newStart.getFullYear();
+    const monthStr = String(newStart.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(newStart.getDate()).padStart(2, '0');
+    
+    return `${yearStr}-${monthStr}-${dayStr}`;
+  }, [endDate, startDate]);
+
   const { residents, isLoading, error, metrics, dateColumns } = useHydrationData({
     homeId: firebaseId,
-    startDate,
+    startDate: calculatedStartDate,
     endDate,
     enabled: true,
   });

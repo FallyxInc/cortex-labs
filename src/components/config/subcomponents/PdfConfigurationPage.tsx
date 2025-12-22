@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ChainExtractionConfig, ExtractionType, FieldExtractionConfig, NoteTypeExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig, ExtractionType, FieldExtractionConfig, NoteTypeExtractionConfig } from '@/types/behaviourProcessingTypes';
 
 interface PdfConfigurationPageProps {
   pdfFile: File | null;

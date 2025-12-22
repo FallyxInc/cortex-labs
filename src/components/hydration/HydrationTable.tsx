@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { HydrationResident } from "@/types/hydrationTypes";
 
 interface HydrationTableProps {
@@ -11,8 +11,6 @@ interface HydrationTableProps {
 
 type SortField = "name" | "goal" | "average" | "status" | "missed3Days";
 type SortDirection = "asc" | "desc";
-
-const MAX_DAYS = 3;
 /**
  * Parse legacy date format (MM/DD/YYYY) to Date object
  */
@@ -128,28 +126,9 @@ export default function HydrationTable({
 }: HydrationTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
-  // const [dateRange, setDateRange] = useState<number>(7);
+  const [dateRange, setDateRange] = useState<number>(7);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  
-  // Track dateColumns to reset index when it changes
-  const dateColumnsKey = useMemo(() => dateColumns.join(','), [dateColumns]);
-  const [dateStartIndex, setDateStartIndex] = useState(0);
-  const prevDateColumnsKeyRef = useRef<string>(dateColumnsKey);
-
-  // Reset date index when dateColumns change
-  // Note: This useEffect is necessary to reset pagination when new data is loaded.
-  // While React recommends avoiding setState in effects, this is a valid use case
-  // where we need to synchronize internal state (pagination) with external data changes.
-  useEffect(() => {
-    if (prevDateColumnsKeyRef.current !== dateColumnsKey) {
-      prevDateColumnsKeyRef.current = dateColumnsKey;
-      // Use a callback to avoid setState in effect body
-      setTimeout(() => {
-        setDateStartIndex(0);
-      }, 0);
-    }
-  }, [dateColumnsKey]);
 
   // Get unique units
   const units = useMemo(() => {
@@ -176,32 +155,15 @@ export default function HydrationTable({
     return sortedDates;
   }, [dateColumns]);
 
-  // Get visible date columns (7 days at a time)
+  // Get visible date columns filtered by date range (backwards from most recent date)
   const filteredDateColumns = useMemo(() => {
     if (sortedDateColumns.length === 0) return [];
     
-    const endIndex = Math.min(dateStartIndex + MAX_DAYS, sortedDateColumns.length);
-    return sortedDateColumns.slice(dateStartIndex, endIndex);
-  }, [sortedDateColumns, dateStartIndex]);
-
-  // Navigation helpers
-  const canMoveLeft = dateStartIndex > 0;
-  const canMoveRight = dateStartIndex + MAX_DAYS < sortedDateColumns.length;
-
-  const handleMoveLeft = () => {
-    if (canMoveLeft) {
-      setDateStartIndex(Math.max(0, dateStartIndex - MAX_DAYS));
-    }
-  };
-
-  const handleMoveRight = () => {
-    if (canMoveRight) {
-      setDateStartIndex(Math.min(
-        sortedDateColumns.length - MAX_DAYS,
-        dateStartIndex + MAX_DAYS
-      ));
-    }
-  };
+    // get the last N dates where N is the dateRange
+    // get most recent dates regardless of whether they're consecutive
+    const startIndex = Math.max(0, sortedDateColumns.length - dateRange);
+    return sortedDateColumns.slice(startIndex);
+  }, [sortedDateColumns, dateRange]);
 
   // Filter and sort residents
   const filteredResidents = useMemo(() => {
@@ -313,18 +275,18 @@ export default function HydrationTable({
             Showing {filteredResidents.length} of {residents.length} residents
           </p>
         </div>
-        <div className="flex items-center align-middle justify-end gap-3 flex-wrap">
+        <div className="flex items-center justify-center align-middle gap-3 flex-wrap ">
           <input
             type="text"
             placeholder="Search residents..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm min-w-[200px] outline-none transition-colors focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 h-[38px]"
+            className="px-3 py-2 border h-10 border-gray-300 rounded-lg text-sm outline-none transition-colors focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10"
           />
           <select
             value={selectedUnit}
             onChange={(e) => setSelectedUnit(e.target.value)}
-            className="mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white cursor-pointer appearance-none pr-8 outline-none transition-colors focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 h-[38px]"
+            className="px-3 py-2 border h-10  mt-2 border-gray-300 rounded-lg text-sm cursor-pointer appearance-none pr-8 outline-none transition-colors focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 "
           >
             <option value="all">All Units</option>
             {units.map((unit) => (
@@ -333,16 +295,16 @@ export default function HydrationTable({
               </option>
             ))}
           </select>
-          {/* <select
+          <select
             value={dateRange}
             onChange={(e) => setDateRange(parseInt(e.target.value))}
-            className={styles.hydrationSelect}
+            className="px-3 py-2 border h-10 mt-2 border-gray-300 rounded-lg text-sm bg-white cursor-pointer appearance-none pr-8 outline-none transition-colors focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10"
           >
-            <option value={3}>Past 3 Days</option>
-            <option value={5}>Past 5 Days</option>
-            <option value={7}>Past 7 Days</option>
-            <option value={14}>Past 14 Days</option>
-          </select> */}
+            <option value={3}>Last 3 Days</option>
+            <option value={5}>Last 5 Days</option>
+            <option value={7}>Last 7 Days</option>
+            <option value={14}>Last 14 Days</option>
+          </select>
         </div>
       </div>
 
@@ -397,61 +359,11 @@ export default function HydrationTable({
                 >
                   Status{getSortIndicator("status")}
                 </th>
-                {sortedDateColumns.length > MAX_DAYS && (
-                  <th className="px-2 py-3 text-center bg-gray-50">
-                    {canMoveLeft && (
-                      <button
-                        onClick={handleMoveLeft}
-                        className="p-1 rounded hover:bg-gray-200 transition-colors"
-                        aria-label="Previous days"
-                      >
-                        <svg
-                          className="w-5 h-5 text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 19l-7-7 7-7"
-                          />
-                        </svg>
-                      </button>
-                    )}
-                  </th>
-                )}
                 {filteredDateColumns.map((date) => (
                   <th key={date} className="px-4 py-3 text-center text-sm font-semibold text-cyan-500 whitespace-nowrap">
                     {formatDateWithoutYear(date)}
                   </th>
                 ))}
-                {sortedDateColumns.length > MAX_DAYS && (
-                  <th className="px-2 py-3 text-center bg-gray-50">
-                    {canMoveRight && (
-                      <button
-                        onClick={handleMoveRight}
-                        className="p-1 rounded hover:bg-gray-200 transition-colors"
-                        aria-label="Next days"
-                      >
-                        <svg
-                          className="w-5 h-5 text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </button>
-                    )}
-                  </th>
-                )}
                 <th
                   className="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-gray-100"
                   onClick={() => handleSort("missed3Days")}
@@ -528,17 +440,11 @@ export default function HydrationTable({
                         </div>
                       </div>
                     </td>
-                    {sortedDateColumns.length > MAX_DAYS && (
-                      <td className="px-2 py-3"></td>
-                    )}
                     {filteredDateColumns.map((date) => (
                       <td key={date} className="px-4 py-3 text-sm text-gray-700 text-center tabular-nums">
                         {resident.dateData[date] || 0}
                       </td>
                     ))}
-                    {sortedDateColumns.length > MAX_DAYS && (
-                      <td className="px-2 py-3"></td>
-                    )}
                     <td className="px-4 py-3 text-sm text-center">
                       <span
                         className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
