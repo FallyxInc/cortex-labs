@@ -2,11 +2,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged } from 'firebase/auth';
+import Image from 'next/image';
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
 import { db, auth } from '@/lib/firebase/firebase';
-import '@/styles/Login.css';
 import { trackLogin, trackFormInteraction, trackFeatureUsage } from '@/lib/mixpanel';
+
+const REMEMBER_ME_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+const REMEMBER_ME_STORAGE_KEY = 'rememberMeLoginTimestamp';
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -109,6 +113,22 @@ export default function Login() {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
+          // Check if remember me session has expired
+          const rememberMeTimestamp = localStorage.getItem(REMEMBER_ME_STORAGE_KEY);
+          if (rememberMeTimestamp) {
+            const loginTime = parseInt(rememberMeTimestamp, 10);
+            const now = Date.now();
+            const timeSinceLogin = now - loginTime;
+            
+            if (timeSinceLogin > REMEMBER_ME_DURATION_MS) {
+              // Session expired, sign out
+              localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+              await signOut(auth);
+              setCheckingAuth(false);
+              return;
+            }
+          }
+          
           const userSnapshot = await get(ref(db, `users/${user.uid}`));
           if (userSnapshot.exists()) {
             
@@ -117,6 +137,9 @@ export default function Login() {
         } catch (error) {
           console.error('Error checking user data:', error);
         }
+      } else {
+        // User is not authenticated, clear remember me timestamp
+        localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
       }
       // Only set checkingAuth to false if user is not authenticated
       setCheckingAuth(false);
@@ -174,6 +197,14 @@ export default function Login() {
       
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
       const userId = userCredential.user.uid;
+      
+      // Store timestamp if "Remember Me" is checked, otherwise clear it
+      if (rememberMe) {
+        localStorage.setItem(REMEMBER_ME_STORAGE_KEY, Date.now().toString());
+      } else {
+        localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+      }
+      
       const userSnapshot = await get(ref(db, `users/${userCredential.user.uid}`));
 
       if (userSnapshot.exists()) {
@@ -235,114 +266,137 @@ export default function Login() {
 
   if (checkingAuth) {
     return (
-      <div className="login-page-wrapper">
-        <div className="login-container">
-          <div style={{ textAlign: 'center', padding: '20px' }}>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto"></div>
-            <p style={{ marginTop: '10px', color: '#6b7280' }}>Loading...</p>
-          </div>
+      <div className="min-h-screen flex font-['Inter',Arial,Helvetica,sans-serif]">
+      <div className="flex-[0.55] bg-white flex items-center justify-center p-4">
+        <div className="text-center p-4">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-cyan-500 mx-auto"></div>
+          <p className="mt-2 text-sm text-gray-500">Loading...</p>
+        </div>
+      </div>
+        <div className="flex-[0.45] relative">
+          <Image
+            src="/assets/cortex_login.png"
+            alt="Cortex Login"
+            fill
+            className="object-cover"
+            priority
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="login-page-wrapper">
-      <div className="login-container">
-        <h2 className="login-title">Cortex Pilot Platform Login</h2>
+    <div className="min-h-screen flex ">
+      {/* Left side - Login Form (55%) */}
+      <div className="flex-[0.55] bg-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <h2 className="text-xl font-extrabold text-black mb-4 text-left">
+            Cortex Pilot Platform Login
+          </h2>
 
-      <div className="login-input-group">
-        <label htmlFor="login-email">Email</label>
-        <input
-          id="login-email"
-          // type="email"
-          type="text"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter your email"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              document.getElementById('login-password')?.focus();
-            }
-          }}
-        />
-      </div>
+          <div className="w-full mt-4 flex flex-col">
+            <label htmlFor="login-email" className="text-sm font-semibold text-black mb-2 block">
+              Email
+            </label>
+            <input
+              id="login-email"
+              type="text"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  document.getElementById('login-password')?.focus();
+                }
+              }}
+              className="w-full px-4 py-3 text-sm border border-sky-100 rounded-lg outline-none transition-all duration-300 ease-in-out bg-slate-50 text-slate-900 hover:border-sky-200 hover:bg-white focus:border-cyan-500 focus:bg-white focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-20"
+            />
+          </div>
 
-      <div className="login-input-group">
-        <label htmlFor="login-password">Password</label>
-        <div style={{ position: 'relative' }}>
-          <input
-            id="login-password"
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleLogin();
-              }
-            }}
-            style={{ paddingRight: '45px' }}
-          />
+          <div className="w-full mt-4 flex flex-col">
+            <label htmlFor="login-password" className="text-sm font-semibold text-black mb-2 block">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleLogin();
+                  }
+                }}
+                className="w-full px-4 py-3 pr-10 text-sm border border-sky-100 rounded-lg outline-none transition-all duration-300 ease-in-out bg-slate-50 text-slate-900 hover:border-sky-200 hover:bg-white focus:border-cyan-500 focus:bg-white focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-20"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPassword(!showPassword);
+                  trackFeatureUsage({
+                    featureName: 'password_visibility_toggle',
+                    action: showPassword ? 'closed' : 'opened',
+                  });
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-1 flex items-center justify-center text-gray-500 text-base"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {errorMessage && (
+            <p className="text-red-500 mt-3 text-center text-sm font-medium py-2 px-3 bg-red-50 rounded-lg border border-red-200 w-full">
+              {errorMessage}
+            </p>
+          )}
+
+          <div className="w-full mt-4 py-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 cursor-pointer accent-cyan-500"
+              />
+              <span className="text-sm text-gray-500 font-medium">Remember me for 7 days</span>
+            </label>
+          </div>
+
           <button
-            type="button"
-            onClick={() => {
-              setShowPassword(!showPassword);
-              trackFeatureUsage({
-                featureName: 'password_visibility_toggle',
-                action: showPassword ? 'closed' : 'opened',
-              });
-            }}
-            style={{
-              position: 'absolute',
-              right: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#6b7280',
-              fontSize: '18px'
-            }}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-            title={showPassword ? 'Hide password' : 'Show password'}
+            className="w-full text-sm mt-4 font-semibold text-white bg-gradient-to-br from-cyan-500 to-cyan-400 border-none rounded-lg py-3 cursor-pointer block transition-all duration-300 ease-in-out shadow-md hover:-translate-y-0.5 hover:shadow-lg hover:from-cyan-600 hover:to-cyan-500 active:translate-y-0 active:shadow"
+            onClick={() => handleLogin()}
           >
-            {showPassword ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-                <line x1="1" y1="1" x2="23" y2="23"/>
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            )}
+            Login
           </button>
         </div>
       </div>
 
-      {errorMessage && <p className="login-error-message">{errorMessage}</p>}
-
-      <div className="login-remember-me">
-        <label>
-          <input
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-          />
-          <span style={{ fontSize: '14px', color: '#374151', fontWeight: '500' }}>Remember me</span>
-        </label>
-      </div>
-
-      <button className="login-button" onClick={() => handleLogin()}>
-        Login
-      </button>
+      {/* Right side - Image (45%) */}
+      <div className="flex-[0.45] relative">
+        <Image
+          src="/assets/cortex_login.png"
+          alt="Cortex Login"
+          fill
+          className="object-cover"
+          priority
+        />
       </div>
     </div>
   );
