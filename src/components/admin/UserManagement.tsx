@@ -604,7 +604,7 @@ export default function UserManagement() {
     );
   }
 
-  const availableRoles = ['admin', 'homeUser'];
+  const availableRoles = ['admin', 'homeUser', 'chainAdmin'];
   const availableHomesForChain = formData.chainId ? getHomesForChain(formData.chainId) : [];
 
   function userCreateForm() {
