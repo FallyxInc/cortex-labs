@@ -925,9 +925,7 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                               title={home.features.behaviours ? 'Behaviours enabled - click to disable' : 'Behaviours disabled - click to enable'}
                             >
                               <span
-                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
-                                  home.features.behaviours ? 'translate-x-4.5' : 'translate-x-0.5'
-                                }`}
+                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm`}
                                 style={{ transform: home.features.behaviours ? 'translateX(18px)' : 'translateX(2px)' }}
                               />
                             </button>
