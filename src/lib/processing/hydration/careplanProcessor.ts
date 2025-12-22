@@ -1,12 +1,15 @@
 /**
  * Care Plan PDF processor.
  * Extracts resident names, mL goals, and feeding tube information from care plan PDFs.
- * Ported from Python careplan.py.
  */
 
-import { extractPdfPages } from "./pdf-utils";
-import { cleanName, titleCase } from "./name-utils";
-import type { CarePlanResident, FileInput, ProcessingLogger } from "./types";
+import { extractPdfPages } from "@/lib/utils/pdfUtils";
+import { cleanName, titleCase } from "@/lib/utils/nameUtils";
+import type {
+  CarePlanResident,
+  FileInput,
+  ProcessingLogger,
+} from "@/types/hydrationProcessingTypes";
 
 /**
  * Words to skip when extracting resident names.

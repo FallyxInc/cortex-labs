@@ -1,18 +1,17 @@
 /**
  * Dashboard data generator.
  * Validates, cleans, and generates dashboard data files from processed resident data.
- * Ported from Python generate_dashboard_data.py.
  */
 
 import * as fs from "fs";
 import * as path from "path";
-import { cleanName, normalizeToLastFirst } from "./name-utils";
+import { cleanName, normalizeToLastFirst } from "@/lib/utils/nameUtils";
 import type {
   ResidentWithIPC,
   DashboardResident,
   DashboardData,
   ProcessingLogger,
-} from "./types";
+} from "@/types/hydrationProcessingTypes";
 
 /**
  * Invalid keywords that indicate an entry is not a real resident.

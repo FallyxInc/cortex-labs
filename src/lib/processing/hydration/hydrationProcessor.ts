@@ -1,12 +1,21 @@
 /**
  * Hydration Data PDF processor.
  * Extracts daily hydration totals from hydration data PDFs.
- * Ported from Python process_dat_pdf.py.
  */
 
-import { extractPdfPages } from './pdf-utils';
-import { cleanName, convertToLastFirst, findMatchingResident, createNameToIndexMap } from './name-utils';
-import type { CarePlanResident, HydrationRecord, FileInput, ProcessingLogger } from './types';
+import { extractPdfPages } from "@/lib/utils/pdfUtils";
+import {
+  cleanName,
+  convertToLastFirst,
+  findMatchingResident,
+  createNameToIndexMap,
+} from "@/lib/utils/nameUtils";
+import type {
+  CarePlanResident,
+  HydrationRecord,
+  FileInput,
+  ProcessingLogger,
+} from "@/types/hydrationProcessingTypes";
 
 /**
  * Extract the resident name from hydration PDF text.
@@ -20,9 +29,9 @@ export function extractResidentName(text: string): string | null {
   if (text.includes('Resident Name:')) {
     const parts = text.split('Resident Name:');
     if (parts.length > 1) {
-      let afterName = parts[1];
+      const afterName = parts[1];
       if (afterName.includes('Resident Location:')) {
-        let namePart = afterName.split('Resident Location:')[0];
+        const namePart = afterName.split('Resident Location:')[0];
         let name = namePart.trim().toUpperCase();
         name = cleanName(name);
 

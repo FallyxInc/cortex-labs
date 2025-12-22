@@ -4,7 +4,7 @@
  */
 
 // ============================================================================
-// Care Plan Processing Types (from careplan.py)
+// Care Plan Processing Types
 // ============================================================================
 
 /**
@@ -23,7 +23,7 @@ export interface CarePlanResident {
 }
 
 // ============================================================================
-// Hydration Data Processing Types (from process_dat_pdf.py)
+// Hydration Data Processing Types
 // ============================================================================
 
 /**
@@ -50,7 +50,7 @@ export interface HydrationPageData {
 }
 
 // ============================================================================
-// IPC (Infection Prevention & Control) Processing Types (from process_ipc_csv.py)
+// IPC (Infection Prevention & Control) Processing Types
 // ============================================================================
 
 /**
@@ -79,7 +79,7 @@ export interface ResidentWithIPC extends HydrationRecord {
 }
 
 // ============================================================================
-// Dashboard Generation Types (from generate_dashboard_data.py)
+// Dashboard Generation Types
 // ============================================================================
 
 /**
@@ -174,4 +174,3 @@ export interface DateColumn {
   /** Parsed Date object */
   date: Date;
 }
-

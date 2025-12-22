@@ -10,7 +10,7 @@ import {
   INJURY_TYPES_GROUP1,
   INJURY_TYPES_GROUP2,
   ALL_INJURY_TYPES,
-} from "./types";
+} from "@/types/behaviourProcessingTypes";
 
 import { LoadParameters } from "pdf-parse";
 import { extractDateFromFilename, CHAIN_EXTRACTION_CONFIGS } from "@/lib/utils/configUtils";

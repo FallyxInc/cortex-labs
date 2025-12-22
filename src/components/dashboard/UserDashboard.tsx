@@ -31,7 +31,7 @@ import {
 
 Chart.register(ArcElement, PointElement, LineElement);
 
-export default function Dashboard({
+export default function UserDashboard({
   name,
   firebaseId,
   title,

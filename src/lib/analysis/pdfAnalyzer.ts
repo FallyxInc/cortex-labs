@@ -10,7 +10,7 @@ import {
   ExtractionType,
   FieldExtractionConfig,
   NoteTypeExtractionConfig,
-} from './types';
+} from '../../types/behaviourProcessingTypes';
 
 // PDF fields that can be extracted from behaviour notes
 export const PDF_EXTRACTION_FIELDS: ExtractionType[] = [

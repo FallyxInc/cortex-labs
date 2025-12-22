@@ -3,14 +3,21 @@
  * Uses pdf-parse library to extract text from PDF buffers.
  */
 
-// Use the same import pattern as pdfProcessor.ts which works
-import { PDFParse } from 'pdf-parse';
-import type { LoadParameters } from 'pdf-parse';
+import {PDFParse} from "pdf-parse";
+
+export interface LoadParameters {
+  data: Buffer;
+  max?: number;
+  version?: string;
+  pagerender?: (pageData: {
+    getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
+  }) => Promise<string>;
+}
 
 /**
  * Options for PDF parsing.
  */
-interface PdfParseOptions {
+export interface PdfParseOptions {
   /** Maximum number of pages to parse (0 = all) */
   maxPages?: number;
 }
@@ -18,7 +25,7 @@ interface PdfParseOptions {
 /**
  * Result of parsing a PDF.
  */
-interface PdfParseResult {
+export interface PdfParseResult {
   /** Full text content of the PDF */
   text: string;
   /** Number of pages in the PDF */
@@ -39,18 +46,12 @@ export async function extractPdfText(
   options: PdfParseOptions = {}
 ): Promise<PdfParseResult> {
   try {
-    // Use the same pattern as pdfProcessor.ts
-    const parameters: LoadParameters = {
+    const parser = new PDFParse({
       data: buffer,
-      max: options.maxPages || 0,
-    };
-
-    const parser = new PDFParse(parameters);
+    });
     const result = await parser.getText();
     await parser.destroy();
 
-    // pdf-parse returns all text as a single string
-    // We'll try to split by form feed characters if present
     const pages = splitIntoPages(result.text);
 
     return {
@@ -60,7 +61,7 @@ export async function extractPdfText(
     };
   } catch (error) {
     throw new Error(
-      `Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to parse PDF: ${error instanceof Error ? error.message : "Unknown error"}`
     );
   }
 }
@@ -74,21 +75,27 @@ export async function extractPdfText(
  */
 export async function extractPdfPages(buffer: Buffer): Promise<string[]> {
   try {
-    // Use the same pattern as pdfProcessor.ts
-    const parameters: LoadParameters = {
-      data: buffer,
+    const pages: string[] = [];
+
+    const renderPage = (pageData: { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }) => {
+      return pageData.getTextContent().then((textContent) => {
+        const pageText = textContent.items
+          .map((item) => item.str)
+          .join(' ');
+        pages.push(pageText);
+        return pageText;
+      });
     };
 
-    const parser = new PDFParse(parameters);
+    const parser = new PDFParse({
+      data: buffer,
+    });
     const result = await parser.getText();
     await parser.destroy();
 
-    // Extract pages from the result
-    return result.pages.map((page: { text: string }) => page.text);
+    return result.pages.map((page) => page.text);
   } catch {
-    // Fall back to basic extraction if custom render fails
-    const result = await extractPdfText(buffer);
-    return result.pages;
+    return [];
   }
 }
 
@@ -99,12 +106,13 @@ export async function extractPdfPages(buffer: Buffer): Promise<string[]> {
  * @returns Array of page texts
  */
 function splitIntoPages(text: string): string[] {
-  // Try form feed character first (common PDF page separator)
-  if (text.includes('\f')) {
-    return text.split('\f').map((page) => page.trim()).filter((page) => page.length > 0);
+  if (text.includes("\f")) {
+    return text
+      .split("\f")
+      .map((page) => page.trim())
+      .filter((page) => page.length > 0);
   }
 
-  // Try double newlines with page-like patterns
   const pagePattern = /\n{3,}/g;
   const parts = text.split(pagePattern);
 
@@ -112,7 +120,6 @@ function splitIntoPages(text: string): string[] {
     return parts.map((page) => page.trim()).filter((page) => page.length > 0);
   }
 
-  // Return as single page if no clear separators
   return [text.trim()];
 }
 
@@ -134,10 +141,8 @@ export function hasContent(text: string): boolean {
  * @returns Normalized text
  */
 export function normalizeWhitespace(text: string): string {
-  // Replace various Unicode whitespace with regular spaces
   return text
-    .replace(/[\u00A0\u2000-\u200B\u2028\u2029\u3000]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/[\u00A0\u2000-\u200B\u2028\u2029\u3000]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
-

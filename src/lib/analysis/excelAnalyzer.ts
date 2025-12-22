@@ -10,7 +10,7 @@ import {
   ExcelExtractionConfig,
   ExcelFieldMapping,
   ExcelIncidentColumns,
-} from './types';
+} from '../../types/behaviourProcessingTypes';
 import {
   DEFAULT_EXCEL_INCIDENT_COLUMNS,
 } from '@/lib/utils/configUtils';

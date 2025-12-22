@@ -9,8 +9,7 @@
  * - RFC PDF generation
  */
 
-import jsPDF from 'jspdf';
-import { ChainExtractionConfig, ExcelExtractionConfig, ExcelIncidentColumns, ExtractionType, FieldExtractionConfig, NoteTypeExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig, ExcelExtractionConfig, ExcelIncidentColumns, ExtractionType, FieldExtractionConfig, NoteTypeExtractionConfig } from '@/types/behaviourProcessingTypes';
 import { adminDb } from '../firebase/firebaseAdmin';
 
 // ===============================

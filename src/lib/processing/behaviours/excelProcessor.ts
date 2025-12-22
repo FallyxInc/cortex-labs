@@ -6,7 +6,7 @@ import { join } from "path";
 import {
   ChainExtractionConfig,
   ProcessedIncident,
-} from "./types";
+} from "../../../types/behaviourProcessingTypes";
 import {
   DEFAULT_EXCEL_EXTRACTION,
   extractDateFromFilename,

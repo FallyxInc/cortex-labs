@@ -12,6 +12,7 @@ interface HydrationTableProps {
 type SortField = "name" | "goal" | "average" | "status" | "missed3Days";
 type SortDirection = "asc" | "desc";
 
+const MAX_DAYS = 3;
 /**
  * Parse legacy date format (MM/DD/YYYY) to Date object
  */
@@ -179,26 +180,25 @@ export default function HydrationTable({
   const filteredDateColumns = useMemo(() => {
     if (sortedDateColumns.length === 0) return [];
     
-    const maxDays = 7;
-    const endIndex = Math.min(dateStartIndex + maxDays, sortedDateColumns.length);
+    const endIndex = Math.min(dateStartIndex + MAX_DAYS, sortedDateColumns.length);
     return sortedDateColumns.slice(dateStartIndex, endIndex);
   }, [sortedDateColumns, dateStartIndex]);
 
   // Navigation helpers
   const canMoveLeft = dateStartIndex > 0;
-  const canMoveRight = dateStartIndex + 7 < sortedDateColumns.length;
+  const canMoveRight = dateStartIndex + MAX_DAYS < sortedDateColumns.length;
 
   const handleMoveLeft = () => {
     if (canMoveLeft) {
-      setDateStartIndex(Math.max(0, dateStartIndex - 7));
+      setDateStartIndex(Math.max(0, dateStartIndex - MAX_DAYS));
     }
   };
 
   const handleMoveRight = () => {
     if (canMoveRight) {
       setDateStartIndex(Math.min(
-        sortedDateColumns.length - 7,
-        dateStartIndex + 7
+        sortedDateColumns.length - MAX_DAYS,
+        dateStartIndex + MAX_DAYS
       ));
     }
   };
@@ -397,7 +397,7 @@ export default function HydrationTable({
                 >
                   Status{getSortIndicator("status")}
                 </th>
-                {sortedDateColumns.length > 7 && (
+                {sortedDateColumns.length > MAX_DAYS && (
                   <th className="px-2 py-3 text-center bg-gray-50">
                     {canMoveLeft && (
                       <button
@@ -427,7 +427,7 @@ export default function HydrationTable({
                     {formatDateWithoutYear(date)}
                   </th>
                 ))}
-                {sortedDateColumns.length > 7 && (
+                {sortedDateColumns.length > MAX_DAYS && (
                   <th className="px-2 py-3 text-center bg-gray-50">
                     {canMoveRight && (
                       <button
@@ -528,7 +528,7 @@ export default function HydrationTable({
                         </div>
                       </div>
                     </td>
-                    {sortedDateColumns.length > 7 && (
+                    {sortedDateColumns.length > MAX_DAYS && (
                       <td className="px-2 py-3"></td>
                     )}
                     {filteredDateColumns.map((date) => (
@@ -536,7 +536,7 @@ export default function HydrationTable({
                         {resident.dateData[date] || 0}
                       </td>
                     ))}
-                    {sortedDateColumns.length > 7 && (
+                    {sortedDateColumns.length > MAX_DAYS && (
                       <td className="px-2 py-3"></td>
                     )}
                     <td className="px-4 py-3 text-sm text-center">

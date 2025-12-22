@@ -1,11 +1,16 @@
 /**
  * IPC (Infection Prevention & Control) CSV processor.
  * Matches IPC data to residents and adds infection information.
- * Ported from Python process_ipc_csv.py.
  */
 
-import { namesMatch } from './name-utils';
-import type { HydrationRecord, ResidentWithIPC, IpcRecord, FileInput, ProcessingLogger } from './types';
+import { namesMatch } from "@/lib/utils/nameUtils";
+import type {
+  HydrationRecord,
+  ResidentWithIPC,
+  IpcRecord,
+  FileInput,
+  ProcessingLogger,
+} from "@/types/hydrationProcessingTypes";
 
 /**
  * Parse an IPC CSV file content.

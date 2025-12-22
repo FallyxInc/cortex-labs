@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { ref, get } from "firebase/database";
 import { db } from "@/lib/firebase/firebase";
-import Dashboard from "@/components/dashboard/Dashboard";
+import { UserDashboard } from "@/components/dashboard";
 import {
   getDisplayName,
   HOME_MAPPINGS,
@@ -57,7 +57,7 @@ export default function HomePage({ params }: PageProps) {
   const goal = 15;
 
   return (
-    <Dashboard
+    <UserDashboard
       name={displayName}
       firebaseId={homeId}
       title={title}
