@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { db, auth } from "@/lib/firebase/firebase";
-import { UserDashboard } from "@/components/dashboard";
+import UserDashboard from "@/components/dashboard/UserDashboard";
 import {
   getDisplayName,
   getFirebaseId,

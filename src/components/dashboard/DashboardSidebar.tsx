@@ -18,6 +18,7 @@ interface DashboardSidebarProps {
   homeId: string;
   features: HomeFeatureFlags;
   chainId?: string; // When provided, shows back button to chain admin page
+  featureFlagsLoading: boolean;
 }
 
 export default function DashboardSidebar({
@@ -31,6 +32,7 @@ export default function DashboardSidebar({
   homeId,
   features,
   chainId,
+  featureFlagsLoading,
 }: DashboardSidebarProps) {
   const router = useRouter();
   const handleSectionClick = (
@@ -90,173 +92,180 @@ export default function DashboardSidebar({
       )}
 
       <nav className={styles.sidebarNav}>
+        {featureFlagsLoading && (
+          <div className="flex justify-center items-center ">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+          </div>
+        )}
         {/* Behaviours Section with Sub-items */}
-        <div className={styles.navSection}>
-          <button
-            onClick={() => handleSectionClick("behaviours", "behaviours")}
-            className={`${styles.navMainItem} ${activeSection === "behaviours" ? styles.navMainItemActive : ""}`}
-          >
-            <div className={styles.navItemContent}>
-              <svg
-                className={styles.navIcon}
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-valuetext="range"
-              >
-                <rect
-                  x="3"
-                  y="3"
-                  width="14"
-                  height="14"
-                  rx="1"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
+        {!featureFlagsLoading && features.behaviours && (
+          <div className={styles.navSection}>
+            <button
+              onClick={() => handleSectionClick("behaviours", "behaviours")}
+              className={`${styles.navMainItem} ${activeSection === "behaviours" ? styles.navMainItemActive : ""}`}
+            >
+              <div className={styles.navItemContent}>
+                <svg
+                  className={styles.navIcon}
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
                   fill="none"
-                />
-                <path d="M3 7H17" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M7 3V17" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
-              <span>Behaviours</span>
-            </div>
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-valuetext="range"
+                >
+                  <rect
+                    x="3"
+                    y="3"
+                    width="14"
+                    height="14"
+                    rx="1"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    fill="none"
+                  />
+                  <path d="M3 7H17" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M7 3V17" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+                <span>Behaviours</span>
+              </div>
+              {activeSection === "behaviours" && (
+                <span className={styles.navArrow}>▼</span>
+              )}
+            </button>
             {activeSection === "behaviours" && (
-              <span className={styles.navArrow}>▼</span>
+              <div className={styles.navSubItems}>
+                <button
+                  onClick={() => onBehavioursTabChange("dashboard")}
+                  className={`${styles.navSubItem} ${activeBehavioursTab === "dashboard" ? styles.navSubItemActive : ""}`}
+                >
+                  <div className={styles.navSubItemContent}>
+                    <div className={styles.navSubItemIndicator}></div>
+                    <svg
+                      className={styles.navSubIcon}
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M2 4H14M2 8H14M2 12H10"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                      <circle cx="12" cy="4" r="1.5" fill="currentColor" />
+                      <circle cx="12" cy="8" r="1.5" fill="currentColor" />
+                    </svg>
+                    <span>Dashboard</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onBehavioursTabChange("followups")}
+                  className={`${styles.navSubItem} ${activeBehavioursTab === "followups" ? styles.navSubItemActive : ""}`}
+                >
+                  <div className={styles.navSubItemContent}>
+                    <div className={styles.navSubItemIndicator}></div>
+                    <svg
+                      className={styles.navSubIcon}
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M2 4L8 10L14 4"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                      <circle cx="3" cy="12" r="1.5" fill="currentColor" />
+                      <path
+                        d="M6 12H14"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span>Follow-ups</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onBehavioursTabChange("reports")}
+                  className={`${styles.navSubItem} ${activeBehavioursTab === "reports" ? styles.navSubItemActive : ""}`}
+                >
+                  <div className={styles.navSubItemContent}>
+                    <div className={styles.navSubItemIndicator}></div>
+                    <svg
+                      className={styles.navSubIcon}
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <rect
+                        x="2"
+                        y="2"
+                        width="12"
+                        height="12"
+                        rx="1"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        fill="none"
+                      />
+                      <path
+                        d="M4 10L6 7L9 10L12 6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                    </svg>
+                    <span>Reports</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onBehavioursTabChange("trends")}
+                  className={`${styles.navSubItem} ${activeBehavioursTab === "trends" ? styles.navSubItemActive : ""}`}
+                >
+                  <div className={styles.navSubItemContent}>
+                    <div className={styles.navSubItemIndicator}></div>
+                    <svg
+                      className={styles.navSubIcon}
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M2 12L5 7L8 10L14 3"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                      <circle cx="5" cy="7" r="1.5" fill="currentColor" />
+                      <circle cx="8" cy="10" r="1.5" fill="currentColor" />
+                      <circle cx="14" cy="3" r="1.5" fill="currentColor" />
+                    </svg>
+                    <span>Trends</span>
+                  </div>
+                </button>
+              </div>
             )}
-          </button>
-          {activeSection === "behaviours" && (
-            <div className={styles.navSubItems}>
-              <button
-                onClick={() => onBehavioursTabChange("dashboard")}
-                className={`${styles.navSubItem} ${activeBehavioursTab === "dashboard" ? styles.navSubItemActive : ""}`}
-              >
-                <div className={styles.navSubItemContent}>
-                  <div className={styles.navSubItemIndicator}></div>
-                  <svg
-                    className={styles.navSubIcon}
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M2 4H14M2 8H14M2 12H10"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="12" cy="4" r="1.5" fill="currentColor" />
-                    <circle cx="12" cy="8" r="1.5" fill="currentColor" />
-                  </svg>
-                  <span>Dashboard</span>
-                </div>
-              </button>
-              <button
-                onClick={() => onBehavioursTabChange("followups")}
-                className={`${styles.navSubItem} ${activeBehavioursTab === "followups" ? styles.navSubItemActive : ""}`}
-              >
-                <div className={styles.navSubItemContent}>
-                  <div className={styles.navSubItemIndicator}></div>
-                  <svg
-                    className={styles.navSubIcon}
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M2 4L8 10L14 4"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                    <circle cx="3" cy="12" r="1.5" fill="currentColor" />
-                    <path
-                      d="M6 12H14"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <span>Follow-ups</span>
-                </div>
-              </button>
-              <button
-                onClick={() => onBehavioursTabChange("reports")}
-                className={`${styles.navSubItem} ${activeBehavioursTab === "reports" ? styles.navSubItemActive : ""}`}
-              >
-                <div className={styles.navSubItemContent}>
-                  <div className={styles.navSubItemIndicator}></div>
-                  <svg
-                    className={styles.navSubIcon}
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <rect
-                      x="2"
-                      y="2"
-                      width="12"
-                      height="12"
-                      rx="1"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      fill="none"
-                    />
-                    <path
-                      d="M4 10L6 7L9 10L12 6"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </svg>
-                  <span>Reports</span>
-                </div>
-              </button>
-              <button
-                onClick={() => onBehavioursTabChange("trends")}
-                className={`${styles.navSubItem} ${activeBehavioursTab === "trends" ? styles.navSubItemActive : ""}`}
-              >
-                <div className={styles.navSubItemContent}>
-                  <div className={styles.navSubItemIndicator}></div>
-                  <svg
-                    className={styles.navSubIcon}
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M2 12L5 7L8 10L14 3"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                    <circle cx="5" cy="7" r="1.5" fill="currentColor" />
-                    <circle cx="8" cy="10" r="1.5" fill="currentColor" />
-                    <circle cx="14" cy="3" r="1.5" fill="currentColor" />
-                  </svg>
-                  <span>Trends</span>
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Hydration Section - Only show when feature flag is enabled */}
-        {features.hydration && (
+        {!featureFlagsLoading && features.hydration && (
           <div className={styles.navSection}>
             <button
               onClick={() => handleSectionClick("hydration", "hydration")}

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { HomeFeatureFlags, DEFAULT_FEATURE_FLAGS } from "@/types/featureTypes";
+import { db } from "@/lib/firebase/firebase";
+import { get, ref } from "firebase/database";
 
 interface UseFeatureFlagsParams {
   homeId: string;
@@ -32,18 +34,17 @@ export function useFeatureFlags({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/homes/${homeId}/features`);
-      const data = await response.json();
+      // use firebase ref
+      const homeRef = ref(db, `/${homeId}/features`);
+      const snapshot = await get(homeRef);
+      const data = snapshot.val();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch feature flags");
-      }
+      const flags = {
+        behaviours: data.behaviours ?? DEFAULT_FEATURE_FLAGS.behaviours,
+        hydration: data.hydration ?? DEFAULT_FEATURE_FLAGS.hydration,
+      };
 
-      if (data.success && data.features) {
-        setFeatures(data.features);
-      } else {
-        setFeatures(DEFAULT_FEATURE_FLAGS);
-      }
+      setFeatures(flags);
     } catch (err) {
       console.error("Error fetching feature flags:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch feature flags");

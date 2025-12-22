@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { ref, get } from "firebase/database";
 import { db } from "@/lib/firebase/firebase";
-import { UserDashboard } from "@/components/dashboard";
+import UserDashboard from "@/components/dashboard/UserDashboard";
 import {
   getDisplayName,
   HOME_MAPPINGS,

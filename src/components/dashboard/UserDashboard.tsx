@@ -59,8 +59,8 @@ export default function UserDashboard({
   } = useDateRange();
 
   // Feature flags
-  const { features } = useFeatureFlags({ homeId: firebaseId });
-
+  const { features, isLoading: featureFlagsLoading } = useFeatureFlags({ homeId: firebaseId });
+  console.log("Features:", features);
   // Fetch data
   const {
     data,
@@ -214,88 +214,86 @@ export default function UserDashboard({
   };
 
   const renderMainContent = () => {
-    // Hydration section
-    if (activeSection === "hydration") {
-      if (activeHydrationTab === "analytics") {
-        return (
-          <HydrationAnalytics
-            firebaseId={firebaseId}
-            startDate={startDate}
-            endDate={endDate}
-          />
-        );
-      }
+    if (featureFlagsLoading) {
       return (
-        <HydrationPage
-          name={name}
-          firebaseId={firebaseId}
-          startDate={startDate}
-          endDate={endDate}
-        />
+        <div className="flex justify-center items-center h-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+        </div>
       );
     }
 
-    if (activeSection === "behaviours") {
-      // Behaviours section
-      if (activeBehavioursTab === "trends") {
+    // Hydration section
+    if (features.hydration) {
+      if (activeSection === "hydration") {
+        if (activeHydrationTab === "analytics") {
+          return (
+            <HydrationAnalytics
+              firebaseId={firebaseId}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          );
+        }
         return (
-          <TrendsAndAnalysis
-            name={name}
-            altName={firebaseId}
-            data={data}
-            getTimeOfDay={getTimeOfDay}
-            startDate={startDate}
-            endDate={endDate}
-          />
-        );
-      }
-
-      if (activeBehavioursTab === "reports") {
-        return (
-          <BehavioursReports
-            name={name}
-            altName={firebaseId}
-            data={data}
-            getTimeOfDay={getTimeOfDay}
-            startDate={startDate}
-            endDate={endDate}
-          />
-        );
-      }
-
-      if (activeBehavioursTab === "followups") {
-        return (
-          <FollowUpPage
+          <HydrationPage
             name={name}
             firebaseId={firebaseId}
-            followUpData={followUpData}
-            filteredFollowUpData={filteredFollowUpData}
-            followUpLoading={followUpLoading}
-            desiredYear={desiredYear}
-            desiredMonth={desiredMonth}
-            filters={followUpFilters}
-            onFilterChange={setFollowUpFilters}
+            startDate={startDate}
+            endDate={endDate}
           />
         );
       }
+    }
 
-      // Default: Dashboard tab
-      return (
-        <BehavioursPage
-          name={name}
-          firebaseId={firebaseId}
-          data={data}
-          filteredData={filteredData}
-          threeMonthData={threeMonthData}
-          overviewMetrics={overviewMetrics}
-          desiredYear={desiredYear}
-          desiredMonth={desiredMonth}
-          filters={behavioursFilters}
-          onFilterChange={setBehavioursFilters}
-          getTimeOfDay={getTimeOfDay}
-        />
-      );
-    };
+    if (features.behaviours) {
+      if (activeSection === "behaviours") {
+        // Behaviours section
+        if (activeBehavioursTab === "trends") {
+          return (
+            <TrendsAndAnalysis
+              name={name}
+              altName={firebaseId}
+              data={data}
+              getTimeOfDay={getTimeOfDay}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          );
+        }
+
+        if (activeBehavioursTab === "reports") {
+          return (
+            <BehavioursReports
+              name={name}
+              altName={firebaseId}
+              data={data}
+              getTimeOfDay={getTimeOfDay}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          );
+        }
+
+        if (activeBehavioursTab === "followups") {
+          return (
+            <FollowUpPage
+              name={name}
+              firebaseId={firebaseId}
+              followUpData={followUpData}
+              filteredFollowUpData={filteredFollowUpData}
+              followUpLoading={followUpLoading}
+              desiredYear={desiredYear}
+              desiredMonth={desiredMonth}
+              filters={followUpFilters}
+              onFilterChange={setFollowUpFilters}
+            />
+          );
+        }
+      }
+      // Default: Blank Page
+      return (<></>);
+    
+    }
   }
 
   return (
@@ -311,6 +309,7 @@ export default function UserDashboard({
           onLogout={handleLogout}
           homeId={firebaseId}
           features={features}
+          featureFlagsLoading={featureFlagsLoading}
           chainId={chainId}
         />
 
