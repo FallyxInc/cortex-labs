@@ -247,6 +247,23 @@ export default function UserDashboard({
 
     if (features.behaviours) {
       if (activeSection === "behaviours") {
+        if (activeBehavioursTab === "dashboard") {
+          return (
+            <BehavioursPage
+              name={name}
+              firebaseId={firebaseId}
+              data={data}
+              filteredData={filteredData}
+              threeMonthData={threeMonthData}
+              overviewMetrics={overviewMetrics}
+              desiredYear={desiredYear}
+              desiredMonth={desiredMonth}
+              filters={behavioursFilters}
+              onFilterChange={setBehavioursFilters}
+              getTimeOfDay={getTimeOfDay}
+            />
+          );
+        }
         // Behaviours section
         if (activeBehavioursTab === "trends") {
           return (
