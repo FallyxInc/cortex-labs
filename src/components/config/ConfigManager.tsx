@@ -6,7 +6,7 @@ import { PdfConfigurationPage } from './subcomponents/PdfConfigurationPage';
 import { ExcelConfigurationPage } from './subcomponents/ExcelConfigurationPage';
 import { ReviewAndSavePage } from './subcomponents/ConfigSubmitPage';
 import { ConfigManagementPage } from './subcomponents/ConfigManagementPage';
-import { ChainExtractionConfig, ExcelExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig, ExcelExtractionConfig } from '@/types/behaviourProcessingTypes';
 import { AIOutputFormat, ExcelData } from '@/lib/utils/configUtils';
 
 export type ConfigManagerStep = 'manage' | 'pdf-config' | 'excel-config' | 'review';

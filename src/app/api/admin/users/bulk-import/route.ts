@@ -466,7 +466,7 @@ export async function POST(request: NextRequest) {
           continue;
         } catch (error: unknown) {
           // User doesn't exist, continue
-          if (error instanceof Error && error.code !== 'auth/user-not-found') {
+          if (error instanceof Error && error.message !== 'User not found') {
             throw error;
           }
         }

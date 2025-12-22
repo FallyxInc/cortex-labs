@@ -1,4 +1,4 @@
-import { ChainExtractionConfig, ExtractionType } from '@/lib/processing/types';
+import { ChainExtractionConfig, ExtractionType } from '@/types/behaviourProcessingTypes';
 
 interface ConfigManagementPageProps {
   savedConfigs: Array<ChainExtractionConfig & { chainId: string; chainName: string }>;

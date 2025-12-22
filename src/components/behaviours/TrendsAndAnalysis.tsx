@@ -1439,7 +1439,7 @@ function calculateAnalysis(
         : "stable";
 
   // Day of week
-  const dayOfWeekCounts = {
+  const dayOfWeekCounts: Record<string, number> = {
     Sunday: 0,
     Monday: 0,
     Tuesday: 0,
@@ -1452,14 +1452,14 @@ function calculateAnalysis(
     if (item.date) {
       const date = new Date(item.date);
       const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
-      if (dayOfWeekCounts.hasOwnProperty(dayName)) {
+      if (dayName in dayOfWeekCounts) {
         dayOfWeekCounts[dayName]++;
       }
     }
   });
 
   // Helper function to filter out noise/placeholder text
-  const isNoise = (text) => {
+  const isNoise = (text: string): boolean => {
     if (!text) return true;
     const lowerText = text.toLowerCase().trim();
     const noisePatterns = [
@@ -1645,6 +1645,17 @@ function generateInsights({
   timeOfDayCounts,
   dayOfWeekCounts,
   data,
+}: {
+  totalIncidents: number;
+  residentsAffected: number;
+  overallTrend: string;
+  mostCommonType: string;
+  peakTime: string;
+  topTriggers: Array<{ label: string; count: number }>;
+  topInterventions: Array<{ label: string; count: number }>;
+  timeOfDayCounts: Record<string, number>;
+  dayOfWeekCounts: Record<string, number>;
+  data: BehaviourIncident[];
 }) {
   const insights = [];
 
@@ -1683,7 +1694,7 @@ function generateInsights({
 
   // High frequency residents
   const residentCounts: Record<string, number> = {};
-  data.forEach((item) => {
+  data.forEach((item: BehaviourIncident) => {
     if (item.name) {
       residentCounts[item.name] = (residentCounts[item.name] || 0) + 1;
     }
@@ -1712,10 +1723,10 @@ function generateInsights({
 
   // Intervention effectiveness (if outcomes are available)
   const outcomesWithInterventions = data.filter(
-    (item) => item.interventions && item.outcome,
+    (item: BehaviourIncident) => item.interventions && item.outcome,
   );
   if (outcomesWithInterventions.length > 0) {
-    const positiveOutcomes = outcomesWithInterventions.filter((item) => {
+    const positiveOutcomes = outcomesWithInterventions.filter((item: BehaviourIncident) => {
       const outcome = (item.outcome || "").toLowerCase();
       return (
         outcome.includes("resolved") ||
@@ -1747,12 +1758,19 @@ function generateInsights({
       ];
 }
 
-function generatePersonalizedPatterns(data, getTimeOfDay) {
-  const patterns = [];
+function generatePersonalizedPatterns(
+  data: BehaviourIncident[],
+  getTimeOfDay: (time?: string) => string,
+) {
+  const patterns: Array<{
+    title: string;
+    description: string;
+    details?: string;
+  }> = [];
 
   // Time pattern
   const timeCounts: Record<string, number> = {};
-  data.forEach((item) => {
+  data.forEach((item: BehaviourIncident) => {
     if (item.time) {
       const timeOfDay = getTimeOfDay(item.time);
       timeCounts[timeOfDay] = (timeCounts[timeOfDay] || 0) + 1;
@@ -1760,7 +1778,7 @@ function generatePersonalizedPatterns(data, getTimeOfDay) {
   });
   const dominantTime = Object.entries(timeCounts).sort(
     ([, a], [, b]) => (b as number) - (a as number),
-  )[0];
+  )[0] as [string, number] | undefined;
   if (dominantTime && dominantTime[1] > data.length * 0.4) {
     patterns.push({
       title: `Time Pattern: ${dominantTime[0]}`,
@@ -1770,31 +1788,31 @@ function generatePersonalizedPatterns(data, getTimeOfDay) {
   }
 
   // Behaviour type pattern
-  const typeCounts = {};
-  data.forEach((item) => {
+  const typeCounts: Record<string, number> = {};
+  data.forEach((item: BehaviourIncident) => {
     const type = item.incident_type || item.behaviour_type || "Unknown";
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   });
   const dominantType = Object.entries(typeCounts).sort(
-    ([, a], [, b]) => b - a,
+    ([, a], [, b]) => (b as number) - (a as number),
   )[0];
-  if (dominantType && dominantType[1] > 1) {
+  if (dominantType && (dominantType[1] as number) > 1) {
     patterns.push({
       title: `Primary Behaviour: ${dominantType[0]}`,
-      description: `The most frequent behaviour type is "${dominantType[0]}" (${dominantType[1]} occurrences).`,
+      description: `The most frequent behaviour type is "${dominantType[0]}" (${dominantType[1] as number} occurrences).`,
       details: `Focus interventions on managing this specific behaviour type.`,
     });
   }
 
   // Trigger pattern
-  const triggerCounts = {};
-  data.forEach((item) => {
+  const triggerCounts: Record<string, number> = {};
+  data.forEach((item: BehaviourIncident) => {
     if (item.triggers) {
       const triggers = item.triggers
         .split(/[,\n;]/)
-        .map((t) => t.trim())
+        .map((t: string) => t.trim())
         .filter(Boolean);
-      triggers.forEach((trigger) => {
+      triggers.forEach((trigger: string) => {
         if (trigger.length > 3) {
           triggerCounts[trigger] = (triggerCounts[trigger] || 0) + 1;
         }
@@ -1802,24 +1820,24 @@ function generatePersonalizedPatterns(data, getTimeOfDay) {
     }
   });
   const topTrigger = Object.entries(triggerCounts).sort(
-    ([, a], [, b]) => b - a,
+    ([, a], [, b]) => (b as number) - (a as number),
   )[0];
-  if (topTrigger && topTrigger[1] > 1) {
+  if (topTrigger && (topTrigger[1] as number) > 1) {
     patterns.push({
       title: `Common Trigger: ${topTrigger[0]}`,
-      description: `"${topTrigger[0]}" appears ${topTrigger[1]} times as a trigger.`,
+      description: `"${topTrigger[0]}" appears ${topTrigger[1] as number} times as a trigger.`,
       details: `Develop proactive strategies to address this trigger before incidents occur.`,
     });
   }
 
   // Frequency pattern
   const dates = data
-    .map((item) => new Date(item.date))
-    .filter((d) => !isNaN(d.getTime()));
+    .map((item: BehaviourIncident) => new Date(item.date))
+    .filter((d: Date) => !isNaN(d.getTime()));
   if (dates.length > 1) {
-    const sortedDates = dates.sort((a, b) => a - b);
+    const sortedDates = dates.sort((a: Date, b: Date) => a.getTime() - b.getTime());
     const daysBetween =
-      (sortedDates[sortedDates.length - 1] - sortedDates[0]) /
+      (sortedDates[sortedDates.length - 1].getTime() - sortedDates[0].getTime()) /
       (1000 * 60 * 60 * 24);
     const frequency = data.length / (daysBetween + 1);
 
