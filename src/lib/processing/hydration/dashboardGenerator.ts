@@ -6,6 +6,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { cleanName, normalizeToLastFirst } from "@/lib/utils/nameUtils";
+import { calculateMissed3Days } from "./hydrationProcessor";
 import type {
   ResidentWithIPC,
   DashboardResident,
@@ -142,9 +143,11 @@ export function validateAndCleanData(
 
       // Merge data from other entries
       for (const entry of sorted.slice(1)) {
-        // Use highest goal
-        if (entry.mlGoal && (!best.mlGoal || entry.mlGoal > best.mlGoal)) {
-          best.mlGoal = entry.mlGoal;
+        // Use highest non-zero goal (prefer non-zero over zero)
+        if (entry.mlGoal && entry.mlGoal > 0) {
+          if (!best.mlGoal || best.mlGoal === 0 || entry.mlGoal > best.mlGoal) {
+            best.mlGoal = entry.mlGoal;
+          }
         }
 
         // Use highest data values
@@ -159,16 +162,23 @@ export function validateAndCleanData(
           best.missed3Days = true;
         }
 
-        // Keep IPC data if found
+        // Keep IPC data if found (prefer entries with IPC data)
         if (entry.ipcFound) {
           best.ipcFound = true;
-          if (entry.infection !== "-") {
+          // Prefer non-empty infection values
+          if (entry.infection && entry.infection !== "-" && (!best.infection || best.infection === "-")) {
             best.infection = entry.infection;
           }
-          if (entry.infectionType !== "-") {
+          // Prefer non-empty infection type values
+          if (entry.infectionType && entry.infectionType !== "-" && (!best.infectionType || best.infectionType === "-")) {
             best.infectionType = entry.infectionType;
           }
         }
+      }
+
+      // Recalculate missed3Days after merging all data
+      if (best.mlGoal && best.mlGoal > 0) {
+        best.missed3Days = calculateMissed3Days(best.mlGoal, best.dateData);
       }
 
       mergedResidents.push(best);

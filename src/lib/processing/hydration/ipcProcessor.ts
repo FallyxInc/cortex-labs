@@ -3,7 +3,7 @@
  * Matches IPC data to residents and adds infection information.
  */
 
-import { namesMatch } from "@/lib/utils/nameUtils";
+import { namesMatch, normalizeToLastFirst, cleanName } from "@/lib/utils/nameUtils";
 import type {
   HydrationRecord,
   ResidentWithIPC,
@@ -122,9 +122,12 @@ export function loadIpcData(
       logger?.info(`Processing ${file.fileName}: found ${records.length} records`);
 
       for (const record of records) {
+        // Normalize the name for consistent matching
+        const normalizedName = normalizeToLastFirst(cleanName(record.residentName));
+        
         // If we already have data for this resident, prefer non-empty values
-        if (ipcData.has(record.residentName)) {
-          const existing = ipcData.get(record.residentName)!;
+        if (ipcData.has(normalizedName)) {
+          const existing = ipcData.get(normalizedName)!;
           if (!existing.infectionType && record.infectionType) {
             existing.infectionType = record.infectionType;
           }
@@ -132,7 +135,7 @@ export function loadIpcData(
             existing.infection = record.infection;
           }
         } else {
-          ipcData.set(record.residentName, {
+          ipcData.set(normalizedName, {
             infectionType: record.infectionType,
             infection: record.infection,
           });
@@ -159,6 +162,18 @@ export function findMatchingIpcResident(
   residentName: string,
   ipcData: Map<string, { infectionType: string; infection: string }>
 ): { ipcName: string; infectionType: string; infection: string } | null {
+  // First try exact match with normalized name
+  const normalizedResidentName = normalizeToLastFirst(cleanName(residentName));
+  if (ipcData.has(normalizedResidentName)) {
+    const data = ipcData.get(normalizedResidentName)!;
+    return {
+      ipcName: normalizedResidentName,
+      infectionType: data.infectionType,
+      infection: data.infection,
+    };
+  }
+
+  // Then try fuzzy matching
   for (const [ipcName, data] of ipcData.entries()) {
     if (namesMatch(residentName, ipcName)) {
       return {

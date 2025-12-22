@@ -1,213 +1,126 @@
-Resident Name,mL Goal,Source File,Has Feeding Tube,Missed 3 Days,10/14/2025,10/15/2025,10/16/2025,IPC Found,Infection,Infection Type
-"Abadjian, Hagob",1348,7.pdf - Page 1,No,no,2800,2900,3000,no,-,-
-"Accardo, Gina",1612,8.pdf - Page 1,No,yes,825,1050,600,no,-,-
-"Acebo, Gladys",1460,7.pdf - Page 12,No,no,2600,1950,2300,no,-,-
-"Adam, Iren",1125,2.pdf - Page 1,No,no,1450,1735,2025,no,-,-
-"Alam, Asadollah",1224,1.pdf - Page 1,No,no,825,950,1375,no,-,-
-"Albin, Mark",1500,6.pdf - Page 1,No,no,1245,1950,1750,no,-,-
-"Albin, Natalie",1200,6.pdf - Page 14,No,no,1902,2250,1922,no,-,-
-"Alexander, Percival",1650,7.pdf - Page 25,No,no,2300,2750,2750,no,-,-
-"Anderson, Harry",1533,1.pdf - Page 22,No,no,2595,2270,1860,no,-,-
-"Audant, Lionel",1350,5.pdf - Page 1,No,no,1950,1625,2125,no,-,-
-"Baldassarre, Norma",1435,6.pdf - Page 32,No,yes,875,1075,1000,no,-,-
-"Barba, Giovanni",2000,2.pdf - Page 11,No,no,2075,2275,2500,no,-,-
-"Barclay, Gary",1211,1.pdf - Page 41,No,no,1325,1125,1855,no,-,-
-"Barkley, Charlotte",1481,1.pdf - Page 56,No,no,1725,1725,1040,no,-,-
-"Barreno, Fanny",974,1.pdf - Page 68,No,no,2025,1830,2035,no,-,-
-"Bennett, Sylvan",1400,5.pdf - Page 15,No,no,1775,1875,1875,no,-,-
-"Bernardon, David",1526,7.pdf - Page 36,No,no,2925,3025,2000,no,-,-
-"Bhimani, Khatijabai",983,6.pdf - Page 43,No,no,1450,1550,1200,no,-,-
-"Bodnar, Maria",1000,6.pdf - Page 56,No,no,1360,875,2350,no,-,-
-"Bogutsky, Sergey",2000,7.pdf - Page 45,No,no,2500,2450,2500,no,-,-
-"Boone, Darlene",1537,1.pdf - Page 83,No,no,2485,2275,2330,no,-,-
-"Boone, Kenneth",1532,1.pdf - Page 97,No,no,2600,2380,2480,no,-,-
-"Boonstra, Sherry",1530,8.pdf - Page 19,No,no,2965,3050,2230,no,-,-
-"Boothe, Birdell",1425,4.pdf - Page 1,No,no,2220,2350,1800,no,-,-
-"Bregman, Leslie",1539,6.pdf - Page 77,No,no,2505,3290,1215,no,-,-
-"Briault, Denise",2000,5.pdf - Page 25,No,no,3800,3250,2750,no,-,-
-"Brock, James",1381,5.pdf - Page 39,No,no,1675,1375,1350,no,-,-
-"Burley, Bernice",1200,3.pdf - Page 1,No,no,2475,2550,2675,no,-,-
-"Burns, Scott",2165,1.pdf - Page 112,No,no,1250,1885,2595,no,-,-
-"Butcher, Ronald",1795,2.pdf - Page 24,No,no,2325,2200,1506,no,-,-
-"Carmichael, John",1615,5.pdf - Page 52,No,no,2680,2585,2950,no,-,-
-"Cetin, Ahmet",1500,2.pdf - Page 37,No,no,2200,2600,2825,no,-,-
-"Cetin, Huseyin",1740,5.pdf - Page 69,No,no,2275,1825,1950,no,-,-
-"Chan, Mike",1260,2.pdf - Page 55,No,no,1925,1850,2150,no,-,-
-"Checkett, Vincent James",1384,3.pdf - Page 19,No,no,2435,2350,2575,no,-,-
-"Chen, Shiyong",1090,2.pdf - Page 71,No,no,1275,1125,2650,no,-,-
-"Chen, Xuefan",1425,5.pdf - Page 81,No,no,1880,2120,2150,no,-,-
-"Chiao, Victoria",1312,4.pdf - Page 16,No,no,0,2450,2360,no,-,-
-"Christner, Shirley",1132,7.pdf - Page 55,No,no,2100,725,1805,no,-,-
-"Colavecchia, Antonio",1700,2.pdf - Page 84,No,yes,1415,1575,1640,no,-,-
-"Cross, David",1900,5.pdf - Page 90,No,no,2200,1200,1500,no,-,-
-"Cugliari, Caterina",1000,7.pdf - Page 71,No,no,1755,1630,1225,no,-,-
-"Cuperfain, David",1500,4.pdf - Page 36,No,no,1100,1950,2200,no,-,-
-"Currie, Donald",1692,5.pdf - Page 99,No,no,3125,2800,1575,no,-,-
-"Delisle, Ruth",1380,4.pdf - Page 52,No,no,2450,2150,2650,no,-,-
-"Dicristofaro, Robert",1473,4.pdf - Page 67,No,no,2850,2700,3050,no,-,-
-"Dimas, Consuelo",1125,6.pdf - Page 96,No,no,1540,1625,1475,no,-,-
-"Dinkha, Victoria",1460,4.pdf - Page 82,No,no,2225,1900,2175,no,-,-
-"Donato, Domienico",,6.pdf - Page 112,No,no,0,825,1750,no,-,-
-"Dougall, Douglas",1370,7.pdf - Page 81,No,no,2475,2450,1550,no,-,-
-"Downer, John",1402,8.pdf - Page 35,No,no,2350,1450,2200,no,-,-
-"Duzguner, Hadira",1500,5.pdf - Page 114,No,no,1330,1630,950,no,-,-
-"Earle, Darrell Bert",2000,7.pdf - Page 96,No,no,2100,1900,2300,no,-,-
-"Elkins, Florence",1494,8.pdf - Page 51,No,no,2650,2750,3150,no,-,-
-"Espejo, Mirtha",1530,6.pdf - Page 128,No,no,1275,1875,625,no,-,-
-"Evans, Emlyn",1500,6.pdf - Page 139,No,no,1550,1855,1500,no,-,-
-"Fairbairn, Everett",1235,3.pdf - Page 31,No,no,1880,1650,1775,no,-,-
-"Falcone, Grazia",1465,2.pdf - Page 98,No,no,2190,1950,1950,no,-,-
-"Fantauzzi, Attilio",1228,8.pdf - Page 70,No,yes,860,800,1030,no,-,-
-"Farnum, Nina",1037,3.pdf - Page 48,No,no,1985,2500,2360,no,-,-
-"Faulds, Donald Joseph",1650,7.pdf - Page 111,No,yes,0,0,0,no,-,-
-"Ferencei, Szidonia",1046,6.pdf - Page 150,No,no,920,1090,500,no,-,-
-"Ficher, Maria",1269,8.pdf - Page 88,No,no,2000,1935,2075,no,-,-
-"Ford, Margaret",1350,5.pdf - Page 129,No,no,2510,1865,2885,no,-,-
-"Gabiane, Nieves",1300,4.pdf - Page 101,No,no,1650,500,1700,no,-,-
-"Gabriel, George",1914,3.pdf - Page 57,No,no,1500,2340,2670,no,-,-
-"Gawat, Norma",1123,3.pdf - Page 76,No,no,1600,2185,1630,no,-,-
-"George, Jean Marie",797,1.pdf - Page 126,No,no,975,1025,950,no,-,-
-"Gilbert, Richer",1880,7.pdf - Page 126,No,no,2650,2712,1800,no,-,-
-"Gnanapragasam, Benedittamma",1645,5.pdf - Page 141,No,no,1275,2000,2250,no,-,-
-"Gonzaga, Lucia",1432,8.pdf - Page 102,No,no,2180,1980,2575,no,-,-
-"Gooch, Michael",2006,6.pdf - Page 168,No,no,2250,2150,2550,no,-,-
-"Grushyna, Lyudmyla",1255,6.pdf - Page 182,No,no,1550,2000,1875,no,-,-
-"Gurdat, Gurdat",1218,8.pdf - Page 112,No,no,1650,1650,1475,no,-,-
-"Gurdat, Lilawatee",1600,6.pdf - Page 193,No,no,2075,1876,2125,no,-,-
-"Ha, Quan",1008,5.pdf - Page 155,No,no,1275,1450,1600,no,-,-
-"Hall, Janice",2200,1.pdf - Page 142,No,no,2910,3090,3090,no,-,-
-"Harris, Dolphy",1522,3.pdf - Page 89,No,no,3365,2650,3150,no,-,-
-"Haxton, Robert",1686,4.pdf - Page 113,No,no,1775,2225,2950,no,-,-
-"Hayle, Roy",1677,8.pdf - Page 129,No,no,1687,2062,1835,no,-,-
-"Hernandez, Maria",890,8.pdf - Page 147,No,no,750,1580,375,no,-,-
-"Higgs, Robert",1530,5.pdf - Page 170,No,no,2215,2740,2740,no,-,-
-"Hill, Elizabeth",1099,8.pdf - Page 168,No,no,725,1140,1975,no,-,-
-"Hill, Katherine",1216,6.pdf - Page 209,No,no,2200,1875,2000,no,-,-
-"Hinds, Partialla",1633,3.pdf - Page 108,No,no,1725,2025,1725,no,-,-
-"Inkens, Voldemars",1500,1.pdf - Page 156,No,no,1750,1825,1810,no,-,-
-"Jenkins, Michael",1088,1.pdf - Page 170,No,no,1510,1560,1310,no,-,-
-"Jennings, John",1445,7.pdf - Page 137,No,no,2525,1275,2125,no,-,-
-"Johnson, Gary",1168,4.pdf - Page 129,No,no,2100,2050,2100,no,-,-
-"Jordan, Alvin",1383,8.pdf - Page 182,No,no,1825,1225,2000,no,-,-
-"Joseph, Lisa",,3.pdf - Page 122,No,no,1775,1475,1260,no,-,-
-"Joyes, Sandra",1321,3.pdf - Page 128,No,no,1540,2550,2500,no,-,-
-"Julian, Teresita",1500,6.pdf - Page 230,No,yes,625,625,700,no,-,-
-"Karachankin, Vladimir",1400,4.pdf - Page 142,No,no,2600,2600,1880,no,-,-
-"Kaul, Kanta",1040,4.pdf - Page 159,No,no,1350,1295,1175,no,-,-
-"Kay-adler, Elyce",1420,4.pdf - Page 176,No,no,3000,3050,2490,no,-,-
-"Keslick, George",1705,7.pdf - Page 154,No,no,2700,2600,3100,no,-,-
-"Kha, Vinh Tri Vinh",1004,3.pdf - Page 145,No,no,2350,2650,1940,no,-,-
-"Kim, Ok",842,6.pdf - Page 242,No,no,1275,1300,1175,no,-,-
-"Konopnicki, Lech",1500,7.pdf - Page 165,No,no,2050,1950,2150,no,-,-
-"Kosanyi, Joan",1192,1.pdf - Page 185,No,no,1350,1330,1275,no,-,-
-"Kourochkina, Nina",1800,2.pdf - Page 123,No,no,2790,2275,2200,no,-,-
-"Laforteza, Herminia",1675,7.pdf - Page 178,No,no,2590,3260,1930,no,-,-
-"Lake, Frank",1173,3.pdf - Page 161,No,no,1815,1105,1735,no,-,-
-"Lambert, Pauline",1543,8.pdf - Page 197,No,no,1950,1950,1925,no,-,-
-"Lassan, Elena",1125,2.pdf - Page 136,No,no,1075,900,1275,no,-,-
-"Le, Sang",1250,6.pdf - Page 254,No,no,1575,1950,2000,no,-,-
-"Le, Tinh",1056,6.pdf - Page 268,No,no,1620,1845,1500,no,-,-
-"Lee, Antonetta",1400,4.pdf - Page 190,No,no,2050,1775,1825,no,-,-
-"Lee, Hui Sik",1276,3.pdf - Page 178,No,no,2850,2450,2350,no,-,-
-"Leithwood, David",1145,3.pdf - Page 193,No,no,2825,2650,960,no,-,-
-"Leo, Lin",1250,4.pdf - Page 206,No,no,1350,1625,2100,no,-,-
-"Li, Kwong",1197,8.pdf - Page 208,No,no,1850,1725,1700,no,-,-
-"Li, Zhang",964,3.pdf - Page 206,No,no,1000,775,875,no,-,-
-"Lilla, Vidyavati",1500,5.pdf - Page 187,No,no,1655,1570,1360,no,-,-
-"Liu, Zhongfan",1415,5.pdf - Page 206,No,no,2370,2740,2990,no,-,-
-"Lusignan, Michel",1560,7.pdf - Page 194,No,no,2575,2000,1425,no,-,-
-"Madzounian, Sonia",1263,8.pdf - Page 218,No,yes,850,675,375,no,-,-
-"Mahi, Kuldeep",1500,8.pdf - Page 236,No,no,2480,2480,2480,no,-,-
-"Maitland, Johnathon",1500,7.pdf - Page 208,No,no,2080,2165,2350,no,-,-
-"Manzon, Lina",1400,6.pdf - Page 277,No,no,1875,1875,1750,no,-,-
-"Martellacci, Cecilia",880,8.pdf - Page 251,No,no,700,650,1065,no,-,-
-"Martino, Antonio",1125,8.pdf - Page 263,No,no,1257,1600,1445,no,-,-
-"Masih, Robert",1715,5.pdf - Page 214,No,no,3485,3385,2985,no,-,-
-"Mattei, Raffaella",1075,3.pdf - Page 219,No,no,2410,1170,1510,no,-,-
-"Maynard, Kevin",1475,1.pdf - Page 201,No,no,1825,1560,1650,no,-,-
-"Mazariego, Rosa",1100,4.pdf - Page 225,No,no,1900,2300,2325,no,-,-
-"Mcfarline, Ann",1740,2.pdf - Page 150,No,no,2120,1915,1855,no,-,-
-"Mckenzie, Heather",1226,6.pdf - Page 290,No,no,1620,2095,2090,no,-,-
-"Mclean, James",1338,4.pdf - Page 235,No,no,2475,2510,2500,no,-,-
-"Mcneill, Charles",1190,1.pdf - Page 219,No,no,2175,2425,2170,no,-,-
-"Mcpherson, Agnes",1015,1.pdf - Page 235,No,no,2105,1935,1515,no,-,-
-"Mcpherson, Elvina",843,1.pdf - Page 251,No,no,1325,1315,1325,no,-,-
-"Melcombe, Robert",1500,7.pdf - Page 223,No,no,1750,1200,1650,no,-,-
-"Merkail, Delyla",1300,7.pdf - Page 237,No,no,2000,2100,1625,no,-,-
-"Miller, Elizabeth",1461,1.pdf - Page 268,No,no,2085,1960,1760,no,-,-
-"Mole, Caroline",1600,2.pdf - Page 164,No,no,1050,1500,1675,no,-,-
-"Moody, Alexandra",1370,5.pdf - Page 226,No,no,1175,1750,1750,no,-,-
-"Morris, Teddy",1286,8.pdf - Page 279,No,no,2050,1500,1730,no,-,-
-"Morton, Mary",1091,1.pdf - Page 286,No,no,1875,1930,1310,no,-,-
-"Moya, Ruth",1425,2.pdf - Page 182,No,no,1500,1495,2000,no,-,-
-"Moynihan, Peter",1460,2.pdf - Page 195,No,no,1290,1680,625,no,-,-
-"Nakar, Mervyn",1512,4.pdf - Page 252,No,no,1950,1875,2250,no,-,-
-"Nguyen, Can",1500,5.pdf - Page 239,No,yes,1275,1325,1000,no,-,-
-"Nguyen, Khuong",1380,2.pdf - Page 210,No,no,2375,1650,1825,no,-,-
-"Ninaka, Marleen",1475,2.pdf - Page 224,No,no,1550,1525,1300,no,-,-
-"O'brien, Loretta",1080,5.pdf - Page 249,No,no,1860,1685,1890,no,-,-
-"Oleary, Michael",1346,8.pdf - Page 295,No,no,3550,3800,3550,no,-,-
-"Orellana, Fidel",1530,2.pdf - Page 240,No,no,2000,1850,1825,no,-,-
-"Orsi, Lisa",1061,1.pdf - Page 299,No,yes,600,1025,850,no,-,-
-"Paget, David",2370,1.pdf - Page 316,No,yes,0,0,0,no,-,-
-"Palo, Edison",1526,1.pdf - Page 339,No,no,2710,3110,2890,no,-,-
-"Paniccia, Maria",1350,2.pdf - Page 252,No,no,1550,1675,1925,no,-,-
-"Paprica, Zorka",1571,3.pdf - Page 236,No,no,2025,2050,2025,no,-,-
-"Parla, Vincenzo",1645,2.pdf - Page 268,No,no,1400,1910,2500,no,-,-
-"Paul, Renton",1600,2.pdf - Page 282,No,no,2250,1750,2100,no,-,-
-"Pauze, Ronald",1563,4.pdf - Page 267,No,no,2195,2600,2750,no,-,-
-"Pignatiello, Armida",1070,5.pdf - Page 261,No,no,450,1630,1045,no,-,-
-"Pigula, Eileen",1663,8.pdf - Page 304,No,no,1950,1770,1425,no,-,-
-"Pitroda, Prabhavati Babulal",1112,1.pdf - Page 356,No,no,1750,1650,1680,no,-,-
-"Plummer, Scott",1316,1.pdf - Page 373,No,no,2220,750,530,no,-,-
-"Poremski, Dominique",1083,6.pdf - Page 305,No,no,2200,1500,1000,no,-,-
-"Pring, Len Ghet",900,3.pdf - Page 251,No,no,2075,2175,1400,no,-,-
-"Purdy, Rosanne",1458,6.pdf - Page 318,No,no,1825,2400,2275,no,-,-
-"Radulescu, Dinu",1378,8.pdf - Page 319,No,no,1875,2300,1975,no,-,-
-"Rajendram, Raveenthiran",1700,2.pdf - Page 298,No,no,2240,1925,2000,no,-,-
-"Rambaran, Nandai",,7.pdf - Page 251,No,no,,,,no,-,-
-"Rampersaud, Corena",852,1.pdf - Page 391,No,no,1625,1625,1500,no,-,-
-"Reistetter, Sandra",1700,2.pdf - Page 314,No,no,1550,1150,1800,no,-,-
-"Rivera, Antonietta",890,1.pdf - Page 403,No,no,1530,1350,1350,no,-,-
-"Roberts, Carl",2000,2.pdf - Page 325,No,no,2255,2200,2225,no,-,-
-"Romero, Eduardo Angel",1376,8.pdf - Page 335,No,no,1850,1730,1825,no,-,-
-"Ross, Mervin",1128,3.pdf - Page 269,No,no,1605,1425,2462,no,-,-
-"Saftulescu, Ion",1473,3.pdf - Page 293,No,no,2275,2375,1775,no,-,-
-"Salituro, Luigina",1122,1.pdf - Page 416,No,no,1750,1425,1560,no,-,-
-"Samanica, David",1400,7.pdf - Page 253,No,no,2120,1950,2000,no,-,-
-"Samuel, Sacha Patricia",1800,6.pdf - Page 333,No,no,2400,1200,1400,no,-,-
-"Santos Lopez, Julio",,3.pdf - Page 307,Yes,no,0,0,0,no,-,-
-"Saunders, Anne",1762,4.pdf - Page 286,No,no,2100,2200,2150,no,-,-
-"Sebastiao, Jaime",1360,7.pdf - Page 271,No,no,2735,2910,1825,no,-,-
-"Sef, Stefanka",1500,5.pdf - Page 272,No,no,2440,1990,1925,no,-,-
-"Shahrebani, Shahram",1360,2.pdf - Page 334,No,no,1685,1560,2084,no,-,-
-"Sherrick, Heather",1126,3.pdf - Page 327,No,no,1705,1350,1830,no,-,-
-"Sherrick, John",1642,7.pdf - Page 281,No,no,2450,2600,1950,no,-,-
-"Smith, Vidaline",1500,4.pdf - Page 300,No,no,1225,2000,2659,no,-,-
-"Sokolowski, Steven",1575,5.pdf - Page 291,No,no,2225,1750,2075,no,-,-
-"Spademan, Frank",1231,3.pdf - Page 342,No,no,1880,1575,1650,no,-,-
-"Spring, Anne",1303,4.pdf - Page 314,No,no,1850,1850,1800,no,-,-
-"Stephenson, Esrick",1755,1.pdf - Page 431,No,no,2650,2600,2360,no,-,-
-"Stewart, James",1060,3.pdf - Page 354,No,no,1815,775,1715,no,-,-
-"Sundarampillai, Pararasasegaram",1270,7.pdf - Page 291,No,no,1900,2100,1300,no,-,-
-"Surujballie, Nankomarie",1230,6.pdf - Page 347,No,no,2000,1875,1550,no,-,-
-"Sutherland, Cynthia",1525,5.pdf - Page 305,No,no,1525,1875,1850,no,-,-
-"Taggart, Kevin",1500,7.pdf - Page 304,No,no,2600,2840,2850,no,-,-
-"Thiruganawan, Basgoran",1430,1.pdf - Page 449,No,no,2560,2355,1995,no,-,-
-"Thompson, Elizabeth",1200,5.pdf - Page 321,No,no,2260,1765,2135,no,-,-
-"Tran, Chan",,8.pdf - Page 348,Yes,no,0,0,0,no,-,-
-"Tran, Thai",986,1.pdf - Page 463,No,no,1885,1675,1790,no,-,-
-"Trudeau, Laura-lee",1620,2.pdf - Page 352,No,no,1650,1075,800,no,-,-
-"Van Vliet, Marian",1840,2.pdf - Page 370,No,no,1180,1900,1580,no,-,-
-"Visitacion, Lucila",958,6.pdf - Page 362,No,no,1235,1255,1850,no,-,-
-"Vo, Phan",1026,4.pdf - Page 333,No,no,1700,1825,2140,no,-,-
-"Walker, Marion",1060,5.pdf - Page 333,No,no,2275,1500,1900,no,-,-
-"Wenzel, David",1425,3.pdf - Page 371,No,no,2250,2000,1500,no,-,-
-"Whamond, Suzanne",1500,4.pdf - Page 349,No,yes,375,1100,775,no,-,-
-"Williams, Bernice",1681,4.pdf - Page 373,No,no,1230,2250,2134,no,-,-
-"Williams, Charles",1743,2.pdf - Page 386,No,no,1620,1750,1500,no,-,-
-"Wilson, Marion",1114,3.pdf - Page 381,No,no,1605,2225,1665,no,-,-
-"Woldu, Ghebremedhin",1153,4.pdf - Page 393,No,no,3150,2625,2850,no,-,-
-"Wootton, Ronald",1682,7.pdf - Page 316,No,no,2575,2250,1625,no,-,-
-"Yarrow, James",1985,7.pdf - Page 330,No,no,2550,1951,1950,no,-,-
-"Zylberstajn, Martin",1522,4.pdf - Page 408,No,no,250,2250,850,no,-,-
+Resident Name,mL Goal,Source File,Has Feeding Tube,Missed 3 Days,11/03/2025,11/04/2025,11/05/2025,11/06/2025,11/07/2025,11/08/2025,11/09/2025,IPC Found,Infection,Infection Type
+"Andrejciw, Margaret",1935,Arbour Creek Care_Queenston House.pdf - Page 1,No,no,2750,2250,3500,2250,3125,2459,2200,no,-,-
+"Annibale, Doris",1328,Arbour Creek Care_Hawthorne House.pdf - Page 1,No,no,2050,1875,1350,975,2150,1505,1975,no,-,-
+"Ayles, John",1800,Arbour Creek Care_Gage House.pdf - Page 1,No,yes,1350,1150,1200,1150,1400,1200,1100,no,-,-
+"Banjac, Aleksandar",1053,Arbour Creek Care_Clayton House.pdf - Page 1,No,no,900,1400,750,1225,1000,1425,750,no,-,-
+"Barber, Carol Lynne",1512,Arbour Creek Care_Hawthorne House.pdf - Page 20,No,no,1484,1319,1600,1525,1676,1374,849,no,-,-
+"Barillas, Luis",1114,Arbour Creek Care_Nash House.pdf - Page 1,No,yes,1050,1050,750,1000,1250,950,1175,no,-,-
+"Barrafato, Giovanna",1610,Arbour Creek Care_Queenston House.pdf - Page 24,No,no,2050,2100,1900,1950,1850,1800,1750,no,-,-
+"Bianco, Carmelo",1460,Arbour Creek Care_Clayton House.pdf - Page 18,No,no,2100,1725,1775,1450,2100,1625,1925,no,-,-
+"Blain, John",1346,Arbour Creek Care_Hawthorne House.pdf - Page 38,No,no,2000,2050,2000,2000,1825,1600,1259,no,-,-
+"Boenisch, Marie",1290,Arbour Creek Care_Gage House.pdf - Page 20,No,no,1300,1750,900,1345,1075,1600,1000,no,-,-
+"Bowley, David Wayne",1440,Arbour Creek Care_Jackson House.pdf - Page 1,No,no,1550,1775,2000,2000,1575,2200,1700,no,-,-
+"Bradley, Deirdre",1371,Arbour Creek Care_Clayton House.pdf - Page 34,No,no,1700,1950,2000,1850,1600,1675,1350,no,-,-
+"Brisson, Donald",1738,Arbour Creek Care_Queenston House.pdf - Page 45,No,no,2025,1470,2750,2050,1775,1800,1300,no,-,-
+"Caterini, Elvira",1246,Arbour Creek Care_Hawthorne House.pdf - Page 65,No,no,1875,1500,2200,2375,2525,1550,1400,no,-,-
+"Cherubini, Santina",1390,Arbour Creek Care_Hawthorne House.pdf - Page 82,No,yes,1590,1730,1150,1150,1295,950,1850,no,-,-
+"Chesson, Marilyn",,Arbour Creek Care_Hawthorne House.pdf - Page 99,No,no,1575,1600,1225,1700,1400,850,710,no,-,-
+"Chiarelli, Carmela",1252,Arbour Creek Care_Hawthorne House.pdf - Page 112,No,no,1380,1500,1500,1550,1435,1405,1000,no,-,-
+"Clarke, Mary Edith",1288,Arbour Creek Care_Hawthorne House.pdf - Page 126,No,yes,950,1300,875,250,750,2050,1100,yes,Urinary Tract Infection,-
+"Cleaver, Harvey",1688,Arbour Creek Care_Nash House.pdf - Page 16,No,no,2300,2000,2200,2350,2400,1850,1800,no,-,-
+"Colwell, Patricia",,Arbour Creek Care_Jackson House.pdf - Page 16,No,no,1500,1125,1200,1375,1325,1600,1300,no,-,-
+"Consoli, Domenico",1800,Arbour Creek Care_Queenston House.pdf - Page 61,No,yes,1550,1650,1250,1500,1500,1700,1500,no,-,-
+"Copps, Carl",1640,Arbour Creek Care_Hawthorne House.pdf - Page 143,No,yes,1625,1000,1246,1500,875,2075,1125,no,-,-
+"Cosby, Maxine",1520,Arbour Creek Care_Clayton House.pdf - Page 52,No,no,1700,1575,1920,1575,1275,2175,1325,no,-,-
+"Cuthbert, John Robert",1323,Arbour Creek Care_Gage House.pdf - Page 44,No,yes,3700,1350,1050,1275.5,1300,1275,1300,no,-,-
+"D'andrea, Teresa",1536,Arbour Creek Care_Hawthorne House.pdf - Page 166,No,no,1875,1575,1654,1875,1850,2750,2150,no,-,-
+"Daly, Marnie Erla",1792,Arbour Creek Care_Hawthorne House.pdf - Page 186,No,no,2750,2050,2250,1290,1900,2600,2500,no,-,-
+"Davies, Jean",1394,Arbour Creek Care_Queenston House.pdf - Page 83,No,yes,1250,1525,850,1600,1200,1100,700,no,-,-
+"Deangelis, Sabatino",1578,Arbour Creek Care_Jackson House.pdf - Page 40,No,no,2000,2250,2585,2250,2050,2025,2100,no,-,-
+"Debreau, Louis",1751,Arbour Creek Care_Queenston House.pdf - Page 102,No,no,1150,1250,2000,700,2300,1650,1500,no,-,-
+"Degrow, Frank",1260,Arbour Creek Care_Hawthorne House.pdf - Page 205,No,yes,2055,2350,2050,1725,650,450,850,no,-,-
+"Delle Monache, Maria",1158,Arbour Creek Care_Clayton House.pdf - Page 70,No,yes,975,925,496,875,825,650,450,no,-,-
+"Dennis, Lynn Margaret",1800,Arbour Creek Care_Nash House.pdf - Page 32,No,no,1925,1800,2200,1775,1825,2000,1775,no,-,-
+"Dias, Manuel",1176,Arbour Creek Care_Hawthorne House.pdf - Page 222,No,no,1700,2200,1750,830,1540,1910,1800,no,-,-
+"Diciccio, Anthony",1504,Arbour Creek Care_Gage House.pdf - Page 67,No,no,2450,2800,2450,3050,1850,1950,1700,no,-,-
+"Diorio, John",1080,Arbour Creek Care_Hawthorne House.pdf - Page 241,No,no,850,806,1450,690,1690,1580,1050,no,-,-
+"Distefano, Rina",1096,Arbour Creek Care_Hawthorne House.pdf - Page 261,No,no,2000,1500,2200,2200,2200,1500,1500,no,-,-
+"Dorey, Darian",1294,Arbour Creek Care_Clayton House.pdf - Page 91,No,no,1750,1300,2125,1850,2100,1900,1000,no,-,-
+"Dusanowsky, Boris",1874,Arbour Creek Care_Hawthorne House.pdf - Page 278,No,yes,875,1125,625,250,500,1050,700,no,-,-
+"Duvnjak, Dragan",1328,Arbour Creek Care_Hawthorne House.pdf - Page 304,No,no,2350,1500,2150,2275,2150,1250,1400,no,-,-
+"Exley, Betty",1128,Arbour Creek Care_Jackson House.pdf - Page 55,No,yes,1150,1575,925,825,1125,975,1625,no,-,-
+"Fillier, Harold Leonard",1476,Arbour Creek Care_Clayton House.pdf - Page 108,No,no,1675,750,2000,1250,1570,1000,1600,no,-,-
+"Fox, Isabella",1558,Arbour Creek Care_Nash House.pdf - Page 51,No,no,1600,2300,1550,1875,1775,1600,1040,no,-,-
+"Galovic, Milka",1314,Arbour Creek Care_Clayton House.pdf - Page 130,No,no,100,1450,1170,1825,1275,1250,1350,yes,Urinary Tract Infection,Bacterial
+"Gasparac, Marijan",,Arbour Creek Care_Clayton House.pdf - Page 169,No,no,1600,1775,1900,1950,1925,1400,1200,yes,Unknown,Unknown
+"Gatecliffe, Heather",1350,Arbour Creek Care_Clayton House.pdf - Page 191,No,no,3675,4450,3446,2800,3625,3350,2900,no,-,-
+"Greco, Filomena",1376,Arbour Creek Care_Queenston House.pdf - Page 114,No,yes,475,550,305,410,455,650,400.5,yes,Candidiasis,-
+"Guest, Robert",1678,Arbour Creek Care_Jackson House.pdf - Page 76,No,yes,2200,1550,1510,1350,1400,2600,1373,no,-,-
+"Guitar, Barry",1224,Arbour Creek Care_Clayton House.pdf - Page 217,Yes,yes,1150,125,1325,200,1200,450,825,no,-,-
+"Hadusek, Marica",1258,Arbour Creek Care_Clayton House.pdf - Page 232,No,yes,1450,900,1225,950,1275,925,800,no,-,-
+"Hastings, Barbara Anne",1240,Arbour Creek Care_Nash House.pdf - Page 74,No,no,1550,1650,1270,1300,1075,1450,1200,no,-,-
+"Helm, Margaret",1474,Arbour Creek Care_Clayton House.pdf - Page 246,No,no,1800,1900,2200,1675,2150,1925,650,no,-,-
+"Hiebert, Marion",1324,Arbour Creek Care_Clayton House.pdf - Page 258,No,no,1028,1275,1450,1400,1400,1050,1295,no,-,-
+"Hinks, Marilyn",1728,Arbour Creek Care_Jackson House.pdf - Page 98,No,yes,2250,1500,1500,1700,1400,2100,1419,no,-,-
+"Hockley, Deborah Margaret",1254,Arbour Creek Care_Gage House.pdf - Page 88,No,no,1975,1450,1225,1650,2050,0,0,yes,Herpes Simplex,Viral
+"Ibazeta, Francisco",1738,Arbour Creek Care_Clayton House.pdf - Page 273,No,no,2200,1975,2125,2600,2175,2050,2050,no,-,-
+"Iovio, Carmine",1538,Arbour Creek Care_Jackson House.pdf - Page 120,No,no,1950,2625,3000,2625,2175,2550,1850,no,-,-
+"Jensen, Aage Overgaard",1542,Arbour Creek Care_Clayton House.pdf - Page 289,No,no,1550,1450,2125,1550,2250,1150,1300,no,-,-
+"Kazmie, Masood",1184,Arbour Creek Care_Hawthorne House.pdf - Page 319,No,yes,1652,1200,1250,750,0,0,0,no,-,-
+"Kirec, Anna",1154,Arbour Creek Care_Gage House.pdf - Page 115,No,no,1500,1150,1075,1350,1825,700,1300,no,-,-
+"Kitchen, Robert",1440,Arbour Creek Care_Clayton House.pdf - Page 310,No,no,1300,1575,1575,1325,1600,1500,1350,no,-,-
+"Lachance, Roger",1666,Arbour Creek Care_Clayton House.pdf - Page 323,No,no,1650,2850,1400,1775,2400,2250,1000,no,-,-
+"Latham, Patricia",1412,Arbour Creek Care_Hawthorne House.pdf - Page 336,No,no,1775,1800,1575,375,1425,2600,2050,no,-,-
+"Leeson, Shirley",1036,Arbour Creek Care_Nash House.pdf - Page 91,No,no,1425,1575,1845,1550,1250,2675,1900,no,-,-
+"Lipski, Irena",1226,Arbour Creek Care_Nash House.pdf - Page 110,No,no,1600,1675,1850,1650,1850,1900,1500,no,-,-
+"Lombardi, Ethel",1120,Arbour Creek Care_Clayton House.pdf - Page 343,No,no,750,1100,1775,1475,775,1125,875,no,-,-
+"Lotocki, John",1426,Arbour Creek Care_Gage House.pdf - Page 140,No,no,2350,2050,1000,2050,2300,1350,2100,yes,Unknown,-
+"Maccan, Maria",1214,Arbour Creek Care_Queenston House.pdf - Page 131,No,no,1850,1750,1275,1475,1575,1200,1650,no,-,-
+"Maki, Dianne",1220,Arbour Creek Care_Jackson House.pdf - Page 135,No,no,1450,2000,2125,2125,1900,1800,1750,yes,Unknown,-
+"Maki, Gordon",1634,Arbour Creek Care_Gage House.pdf - Page 166,No,yes,1700,1800,1150,1600,1300,1300,1000,no,-,-
+"Maric, Marija",1515,Arbour Creek Care_Gage House.pdf - Page 184,No,no,2350,1600,1800,2150,2200,1850,1600,no,-,-
+"Marof, Frank",1908,Arbour Creek Care_Gage House.pdf - Page 202,No,yes,1700,1650,760,1550,1650,1725,1400,no,-,-
+"Martins, Filomena",1825,Arbour Creek Care_Gage House.pdf - Page 221,No,no,2850,2850,2550,2850,2950,3150,1900,no,-,-
+"Matesic, Marica",1039,Arbour Creek Care_Clayton House.pdf - Page 369,No,no,1275,1200,1046,950,1700,850,600,no,-,-
+"Mccabe, Mary",1213,Arbour Creek Care_Queenston House.pdf - Page 155,No,yes,1350,1150,875,950,900,1500,1500,no,-,-
+"Mcdonald, Linda",1618,Arbour Creek Care_Queenston House.pdf - Page 175,No,yes,1400,1500,1550,1275,1400,1450,1500,no,-,-
+"Mentz, Shenaz",1382,Arbour Creek Care_Jackson House.pdf - Page 164,No,no,2050,1550,1325,1850,1600,1875,1950,no,-,-
+"Milina, Ante",1552,Arbour Creek Care_Clayton House.pdf - Page 389,No,no,1350,1625,1670,1575,1125,1825,1400,no,-,-
+"Miller, Betty",1582,Arbour Creek Care_Jackson House.pdf - Page 184,No,no,2650,1400,1450,2000,1850,2075,2075,no,-,-
+"Mowforth, Mary",1558,Arbour Creek Care_Clayton House.pdf - Page 403,No,yes,1625,1100,1346,1450,1675,1350,1325,no,-,-
+"Nailor, Mariella",1600,Arbour Creek Care_Hawthorne House.pdf - Page 356,No,no,1200,2090,1350,2050,1220,1600,1730,no,-,-
+"O'dowd, Mary",1404,Arbour Creek Care_Gage House.pdf - Page 250,No,yes,2100,1250,1300,1400,1700,700,1100,yes,Pneumonia,Viral
+"Oliveira, Carolina",1422,Arbour Creek Care_Clayton House.pdf - Page 420,No,no,1725,1125,1700,1375,1600,1500,1650,no,-,-
+"Oreskovic, Kata",1225,Arbour Creek Care_Queenston House.pdf - Page 196,No,no,1350,850,1350,1050,1660,1200,1225,yes,Urinary Tract Infection,-
+"Ottey, Desmond",1781,Arbour Creek Care_Gage House.pdf - Page 278,No,yes,1350,1450,1050,1200,1225,1950,1000,no,-,-
+"Oulton, Daniel",1458,Arbour Creek Care_Hawthorne House.pdf - Page 376,No,no,604,975,1465,1775,1249,1424,1809,no,-,-
+"Pacific, Kevin Kenneth",1810,Arbour Creek Care_Queenston House.pdf - Page 218,No,yes,1625,1400,2100,1600,1425,1400,800,no,-,-
+"Panni, Edea Maria",1163,Arbour Creek Care_Hawthorne House.pdf - Page 401,No,no,1550,500,1650,500,1300,1900,1250,no,-,-
+"Prohaszka, Jennifer",1570,Arbour Creek Care_Nash House.pdf - Page 129,No,yes,1500,1600,350,1450,1200,1000,575,no,-,-
+"Puri, Om",1306,Arbour Creek Care_Clayton House.pdf - Page 436,No,no,2225,2300,1646,1800,2275,1875,1725,no,-,-
+"Raposo, Manuel",1432,Arbour Creek Care_Nash House.pdf - Page 153,No,no,1200,2250,1500,1650,1400,1900,1900,no,-,-
+"Raposo, Maria",1250,Arbour Creek Care_Clayton House.pdf - Page 452,No,no,1725,1800,1575,1525,1675,1400,1500,no,-,-
+"Rebelo, Maria Luisa Moniz",1594,Arbour Creek Care_Nash House.pdf - Page 172,No,no,1925,1575,1575,1625,1700,1500,1025,no,-,-
+"Restivo, Calogero",1800,Arbour Creek Care_Hawthorne House.pdf - Page 421,No,yes,1250,1225,1375,1725,1575,2250,1650,no,-,-
+"Romano, Giuseppe",1680,Arbour Creek Care_Clayton House.pdf - Page 464,No,yes,1225,1650,1950,1525,1175,1025,1175,yes,Covid 19,-
+"Romero-mercado, Ines",1594,Arbour Creek Care_Jackson House.pdf - Page 208,No,no,2200,2500,1700,2250,2100,2550,1596,no,-,-
+"Roy, Mary Jane",1660,Arbour Creek Care_Hawthorne House.pdf - Page 438,No,yes,1287,1075,1950,875,1400,1400,1850,no,-,-
+"Sagheb, Hossien Abdol",1997,Arbour Creek Care_Clayton House.pdf - Page 484,No,yes,1051,1100,2300,625,750,1100,550,no,-,-
+"Saunders, Sharon",1314,Arbour Creek Care_Nash House.pdf - Page 192,No,no,1450,2250,1850,2125,2000,1400,1100,no,-,-
+"Savatdy, Sinh",1456,Arbour Creek Care_Gage House.pdf - Page 309,No,no,1650,1600,1100,1650,1500,1400,1050,no,-,-
+"Schell, Lorna",1073,Arbour Creek Care_Queenston House.pdf - Page 239,No,no,2000,1050,1550,650,1650,725,1600,no,-,-
+"Seeley, Janet",1410,Arbour Creek Care_Hawthorne House.pdf - Page 458,No,yes,1240,1580,750,1090,830,1410,850,no,-,-
+"Selman, Frederick",1560,Arbour Creek Care_Nash House.pdf - Page 217,No,no,2550,2400,2875,2400,2100,1750,1700,no,-,-
+"Senior, Jean",1362,Arbour Creek Care_Nash House.pdf - Page 232,No,no,1850,1850,1400,1500,1300,1550,1075,no,-,-
+"Sibley, Margaret",1524,Arbour Creek Care_Clayton House.pdf - Page 513,No,yes,1700,775,1250,1300,1470,1025,1100,yes,Unknown,-
+"Simmons, Arthur",1431,Arbour Creek Care_Queenston House.pdf - Page 259,No,yes,1000,900,1300,650,950,1450,200,no,-,-
+"Smukavic, Ann",1500,Arbour Creek Care_Gage House.pdf - Page 328,No,yes,1250,1000,1250,950,1725,1300,1200,no,-,-
+"Spearing, Carolyn",1520,Arbour Creek Care_Hawthorne House.pdf - Page 485,No,yes,2000,1010,1034,1080,1050,2600,2575,no,-,-
+"Stajcer, Zvonko",1697,Arbour Creek Care_Hawthorne House.pdf - Page 504,No,no,1400,1900,1150,2010,1450,1700,1200,no,-,-
+"Stasiuk, Sharon",2008,Arbour Creek Care_Hawthorne House.pdf - Page 529,No,no,2550,2900,2750,3100,3350,2200,2350,no,-,-
+"Stefanovic, Desanka",1034,Arbour Creek Care_Jackson House.pdf - Page 223,No,no,1100,1075,800,1050,1350,1303,1123,no,-,-
+"Svetanic, Stefan",1446,Arbour Creek Care_Nash House.pdf - Page 251,No,no,2300,1875,1200,2270,2170,1775,1250,no,-,-
+"Thomson, Daisy",1295,Arbour Creek Care_Clayton House.pdf - Page 533,No,no,1950,2100,2375,2050,2450,1850,900,no,-,-
+"Tirone, Anna",1588,Arbour Creek Care_Clayton House.pdf - Page 553,No,no,1800,1550,1650,2250,2125,1750,800,yes,Unknown,Unknown
+"Todd, Joan",1552,Arbour Creek Care_Jackson House.pdf - Page 246,No,no,1450,1750,2075,1625,1825,1400,1500,no,-,-
+"Tonkovic, Stefanina",1280,Arbour Creek Care_Queenston House.pdf - Page 274,No,no,1700,1600,1225,1530,1800,1201,1475,no,-,-
+"Toth, Aniko",1148,Arbour Creek Care_Nash House.pdf - Page 276,No,no,1350,900,1125,1150,900,1200,1300,no,-,-
+"Utter, David",1500,Arbour Creek Care_Gage House.pdf - Page 349,No,no,2275,1750,1350,1625,1925,1550,1800,no,-,-
+"Vignanello, Carmelo",1136,Arbour Creek Care_Hawthorne House.pdf - Page 548,No,no,1775,1055,1374,1375,1360,2795,1825,no,-,-
+"Vignanello, Luisa",1065,Arbour Creek Care_Clayton House.pdf - Page 574,No,yes,925,1150,950,925,875,1150,400,no,-,-
+"Volf, Marija",1100,Arbour Creek Care_Hawthorne House.pdf - Page 571,No,no,1900,1000,1650,1650,1250,1050,1300,no,-,-
+"Waltenbery, Joan",1390,Arbour Creek Care_Jackson House.pdf - Page 271,No,yes,575,0,0,1300,1575,1620,2400,yes,Unknown,-
+"Ward, Douglas",1078,Arbour Creek Care_Clayton House.pdf - Page 597,No,yes,1425,1225,800,625,875,750,300,no,-,-
+"Wheaton, Lois",1229,Arbour Creek Care_Nash House.pdf - Page 295,No,no,1000,1450,1000,550,1275,1150,1150,no,-,-
+"Wilkinson, Lynda Margaret",1553,Arbour Creek Care_Jackson House.pdf - Page 302,No,no,2440,1775,1425,1595,1700,2250,1823,no,-,-
+"Wilson, Margaret",1252,Arbour Creek Care_Nash House.pdf - Page 316,No,no,1250,950,1600,950,2100,1700,750,no,-,-
