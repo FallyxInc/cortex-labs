@@ -1,12 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { HydrationResident } from "@/types/hydrationTypes";
+import {
+  loadSavedComments,
+  saveCommentsToStorage,
+  getComment,
+  setComment,
+  deleteComment as deleteCommentUtil,
+} from "@/lib/utils/commentUtils";
 
 interface HydrationTableProps {
   residents: HydrationResident[];
   dateColumns: string[];
   isLoading: boolean;
+  homeId?: string;
+  refetch?: () => Promise<void>;
 }
 
 type SortField = "name" | "goal" | "average" | "status" | "missed3Days";
@@ -123,12 +132,41 @@ export default function HydrationTable({
   residents,
   dateColumns,
   isLoading,
+  homeId,
+  refetch,
 }: HydrationTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [dateRange, setDateRange] = useState<number>(7);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [selectedResidents, setSelectedResidents] = useState<Set<string>>(
+    new Set()
+  );
+  const [deletingResident, setDeletingResident] = useState<string | null>(null);
+  const [deletingUnit, setDeletingUnit] = useState<string | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  // Comments state
+  const [residentComments, setResidentComments] = useState<
+    Record<string, string>
+  >({});
+  const [editingComments, setEditingComments] = useState<
+    Record<string, string>
+  >({});
+  const [savingComments, setSavingComments] = useState<
+    Record<string, boolean>
+  >({});
+
+  // Load comments on mount
+  useEffect(() => {
+    const comments = loadSavedComments();
+    setResidentComments(comments);
+  }, []);
 
   // Get unique units
   const units = useMemo(() => {
@@ -256,6 +294,219 @@ export default function HydrationTable({
     return sortDirection === "asc" ? " ↑" : " ↓";
   };
 
+  // Comments handlers
+  const handleCommentChange = (residentName: string, comment: string) => {
+    setEditingComments((prev) => ({
+      ...prev,
+      [residentName]: comment,
+    }));
+  };
+
+  const handleSaveComment = async (residentName: string) => {
+    setSavingComments((prev) => ({ ...prev, [residentName]: true }));
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const newComments = setComment(
+        residentName,
+        editingComments[residentName] || "",
+        residentComments
+      );
+
+      setResidentComments(newComments);
+      saveCommentsToStorage(newComments);
+
+      setEditingComments((prev) => {
+        const updated = { ...prev };
+        delete updated[residentName];
+        return updated;
+      });
+    } catch (error) {
+      console.error("Error saving comment:", error);
+    } finally {
+      setSavingComments((prev) => ({ ...prev, [residentName]: false }));
+    }
+  };
+
+  const handleEditComment = (residentName: string) => {
+    setEditingComments((prev) => ({
+      ...prev,
+      [residentName]: getComment(residentName, residentComments),
+    }));
+  };
+
+  const handleCancelEdit = (residentName: string) => {
+    setEditingComments((prev) => {
+      const updated = { ...prev };
+      delete updated[residentName];
+      return updated;
+    });
+  };
+
+  const handleDeleteComment = (residentName: string) => {
+    const newComments = deleteCommentUtil(residentName, residentComments);
+    setResidentComments(newComments);
+    saveCommentsToStorage(newComments);
+  };
+
+  // Delete handlers
+  const handleDeleteResident = async (residentName: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete all data for "${residentName}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingResident(residentName);
+    setError("");
+
+    try {
+      const response = await fetch("/api/hydration/delete-resident", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          homeId,
+          residentName,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("✅ [DELETE RESIDENT] Resident deleted successfully");
+        if (refetch) {
+          await refetch();
+        }
+      } else {
+        console.error("❌ [DELETE RESIDENT] Error:", result.error);
+        setError(result.error || "Failed to delete resident");
+      }
+    } catch (error) {
+      console.error("💥 [DELETE RESIDENT] Network error:", error);
+      setError("Failed to delete resident");
+    } finally {
+      setDeletingResident(null);
+    }
+  };
+
+  const handleBulkDeleteResidents = async () => {
+    if (selectedResidents.size === 0) {
+      setError("Please select at least one resident to delete");
+      return;
+    }
+
+    const residentNames = Array.from(selectedResidents);
+    if (
+      !confirm(
+        `Are you sure you want to delete ${residentNames.length} resident(s)? This action cannot be undone.\n\nResidents: ${residentNames.slice(0, 5).join(", ")}${residentNames.length > 5 ? ` and ${residentNames.length - 5} more...` : ""}`
+      )
+    ) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/hydration/delete-residents-bulk", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          homeId,
+          residentNames,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("✅ [BULK DELETE] Residents deleted successfully");
+        setSelectedResidents(new Set());
+        if (refetch) {
+          await refetch();
+        }
+      } else {
+        console.error("❌ [BULK DELETE] Error:", result.error);
+        setError(result.error || "Failed to delete residents");
+      }
+    } catch (error) {
+      console.error("💥 [BULK DELETE] Network error:", error);
+      setError("Failed to delete residents");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteUnit = async (unit: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete all data for "${unit}"? This will remove all residents in this unit. This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingUnit(unit);
+    setError("");
+
+    try {
+      const response = await fetch("/api/hydration/delete-unit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          homeId,
+          unit,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("✅ [DELETE UNIT] Unit deleted successfully");
+        if (refetch) {
+          await refetch();
+        }
+      } else {
+        console.error("❌ [DELETE UNIT] Error:", result.error);
+        setError(result.error || "Failed to delete unit");
+      }
+    } catch (error) {
+      console.error("💥 [DELETE UNIT] Network error:", error);
+      setError("Failed to delete unit");
+    } finally {
+      setDeletingUnit(null);
+    }
+  };
+
+  const handleToggleResidentSelection = (residentName: string) => {
+    setSelectedResidents((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(residentName)) {
+        newSet.delete(residentName);
+      } else {
+        newSet.add(residentName);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllResidents = () => {
+    if (selectedResidents.size === filteredResidents.length) {
+      setSelectedResidents(new Set());
+    } else {
+      setSelectedResidents(new Set(filteredResidents.map((r) => r.name)));
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -268,6 +519,12 @@ export default function HydrationTable({
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      {error && (
+        <div className="bg-red-50 border-b border-red-200 px-6 py-3">
+          <div className="text-red-800 text-sm">{error}</div>
+        </div>
+      )}
+      {/* ----- HEADER ----- */}
       <div className="p-6 border-b border-gray-200 flex justify-between items-center flex-wrap gap-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 m-0">Resident Hydration Data</h3>
@@ -276,6 +533,88 @@ export default function HydrationTable({
           </p>
         </div>
         <div className="flex items-center justify-center align-middle gap-3 flex-wrap ">
+          <button
+            onClick={() => {
+              setEditMode(!editMode);
+              if (editMode) {
+                setSelectedResidents(new Set());
+              }
+            }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 ${
+              editMode
+                ? "bg-red-500 hover:bg-red-600 text-white"
+                : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+            }`}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={
+                  editMode
+                    ? "M6 18L18 6M6 6l12 12"
+                    : "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                }
+              />
+            </svg>
+            <span>{editMode ? "Exit Edit Mode" : "Edit Mode"}</span>
+          </button>
+          {editMode && selectedResidents.size > 0 && (
+                <button
+                  onClick={handleBulkDeleteResidents}
+                  disabled={bulkDeleting}
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bulkDeleting ? (
+                    <>
+                      <svg
+                        className="animate-spin h-4 w-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <span>Deleting {selectedResidents.size}...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                      <span>Delete Selected ({selectedResidents.size})</span>
+                    </>
+                  )}
+                </button>
+              )}
           <input
             type="text"
             placeholder="Search residents..."
@@ -285,7 +624,12 @@ export default function HydrationTable({
           />
           <select
             value={selectedUnit}
-            onChange={(e) => setSelectedUnit(e.target.value)}
+            onChange={(e) => {
+              setSelectedUnit(e.target.value);
+              if (editMode) {
+                setSelectedResidents(new Set());
+              }
+            }}
             className="px-3 py-2 border h-10  mt-2 border-gray-300 rounded-lg text-sm cursor-pointer appearance-none pr-8 outline-none transition-colors focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 "
           >
             <option value="all">All Units</option>
@@ -308,6 +652,74 @@ export default function HydrationTable({
         </div>
       </div>
 
+      {/* ----- UNIT DELETE SECTION ----- */}
+      {editMode && (
+        <div className="px-6 py-4 border-b border-gray-200 bg-red-50">
+          <label className="block text-sm font-medium text-red-700 mb-3">
+            Delete Units
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-60 overflow-y-auto">
+            {units.map((unit) => (
+              <div
+                key={unit}
+                className="flex items-center justify-between bg-white border border-red-200 rounded-lg p-2"
+              >
+                <span className="text-sm text-gray-700">Unit {unit}</span>
+                <button
+                  onClick={() => handleDeleteUnit(unit)}
+                  disabled={deletingUnit === unit}
+                  className="px-2 py-1 text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                >
+                  {deletingUnit === unit ? (
+                    <>
+                      <svg
+                        className="animate-spin h-3 w-3"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                      <span>Delete</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ----- HYDRATION TABLE ----- */}
       {filteredResidents.length === 0 ? (
         <div className="py-12 px-6 text-center">
           <svg
@@ -332,9 +744,24 @@ export default function HydrationTable({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+            <table className="w-full border-collapse">
+            {/* ----- TABLE HEADER ----- */}
             <thead>
               <tr>
+                {editMode && (
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedResidents.size === filteredResidents.length &&
+                        filteredResidents.length > 0
+                      }
+                      onChange={handleSelectAllResidents}
+                      className="w-4 h-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+                      title="Select/Deselect all"
+                    />
+                  </th>
+                )}
                 <th
                   className="px-4 py-3 text-left text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-gray-100"
                   onClick={() => handleSort("name")}
@@ -370,8 +797,18 @@ export default function HydrationTable({
                 >
                   Missed 3 Days{getSortIndicator("missed3Days")}
                 </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap">
+                  Comments
+                </th>
+                {editMode && (
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap">
+                    Actions
+                  </th>
+                )}
               </tr>
-            </thead>
+              </thead>
+
+            {/* ----- TABLE BODY ----- */}
             <tbody>
               {filteredResidents.map((resident, index) => {
                 const unit = extractUnit(resident.source);
@@ -392,11 +829,32 @@ export default function HydrationTable({
                   filteredDateColumns
                 );
 
+                const comment = getComment(resident.name, residentComments);
+                const isEditing = editingComments.hasOwnProperty(resident.name);
+
                 return (
                   <tr
                     key={`${resident.name}-${index}`}
-                    className={`border-b border-gray-200 transition-colors hover:bg-gray-50 ${missed ? "bg-red-50 hover:bg-red-100" : ""}`}
+                    className={`border-b border-gray-200 transition-colors ${
+                      missed
+                        ? "bg-red-50 hover:bg-red-100"
+                        : selectedResidents.has(resident.name)
+                        ? "bg-cyan-50 hover:bg-cyan-100"
+                        : "hover:bg-gray-50"
+                    }`}
                   >
+                    {editMode && (
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedResidents.has(resident.name)}
+                          onChange={() =>
+                            handleToggleResidentSelection(resident.name)
+                          }
+                          className="w-4 h-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-sm text-gray-700">
                       <div className="flex items-center gap-2">
                         <div>
@@ -456,6 +914,135 @@ export default function HydrationTable({
                         {missed ? "Yes" : "No"}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm text-gray-700" style={{ minWidth: "150px", maxWidth: "200px" }}>
+                      <div className="space-y-1">
+                        {!comment && !isEditing ? (
+                          <button
+                            onClick={() => handleEditComment(resident.name)}
+                            className="w-full px-2 py-1 text-xs text-gray-500 hover:text-gray-700 border border-dashed border-gray-300 rounded hover:border-gray-400 transition-colors"
+                            title="Add comment"
+                          >
+                            + Add comment
+                          </button>
+                        ) : comment && !isEditing ? (
+                          <div className="p-2 bg-gray-50 rounded text-xs text-gray-700 min-h-[40px] relative group break-words overflow-hidden">
+                            <div
+                              className="max-h-12 overflow-hidden"
+                              style={{
+                                display: "-webkit-box",
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: "vertical",
+                              }}
+                            >
+                              {comment}
+                            </div>
+                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity">
+                              <button
+                                onClick={() => handleEditComment(resident.name)}
+                                className="text-cyan-600 hover:text-cyan-700 text-xs"
+                                title="Edit comment"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComment(resident.name)}
+                                className="text-red-500 hover:text-red-600 text-xs"
+                                title="Delete comment"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <textarea
+                              value={editingComments[resident.name] || ""}
+                              onChange={(e) =>
+                                handleCommentChange(resident.name, e.target.value)
+                              }
+                              placeholder="Add comment..."
+                              className="w-full px-2 py-1 pr-16 border border-gray-300 rounded text-xs resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 break-words bg-white text-gray-900 placeholder-gray-500"
+                              rows={2}
+                              maxLength={200}
+                            />
+                            <div className="absolute top-1 right-1 flex space-x-1">
+                              {isEditing && (
+                                <button
+                                  onClick={() => handleCancelEdit(resident.name)}
+                                  className="w-5 h-5 bg-gray-300 hover:bg-gray-400 text-white text-xs rounded flex items-center justify-center transition-colors"
+                                  title="Cancel"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleSaveComment(resident.name)}
+                                disabled={
+                                  savingComments[resident.name] ||
+                                  !editingComments[resident.name]?.trim()
+                                }
+                                className="w-5 h-5 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-300 text-white text-xs rounded flex items-center justify-center transition-colors"
+                                title="Save comment"
+                              >
+                                {savingComments[resident.name] ? "⏳" : "✓"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    {editMode && (
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => handleDeleteResident(resident.name)}
+                          disabled={deletingResident === resident.name}
+                          className="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                        >
+                          {deletingResident === resident.name ? (
+                            <>
+                              <svg
+                                className="animate-spin h-3 w-3"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                              <span>Deleting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                              <span>Delete</span>
+                            </>
+                          )}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

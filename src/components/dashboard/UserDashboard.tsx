@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import styles from "@/styles/Behaviours.module.css";
 import { Chart, ArcElement, PointElement, LineElement } from "chart.js";
-import { auth } from "@/lib/firebase/firebase";
+import { auth, db } from "@/lib/firebase/firebase";
+import { ref, get } from "firebase/database";
 import { trackPageVisit, trackTimeOnPage } from "@/lib/mixpanel";
 
 import DashboardSidebar from "./DashboardSidebar";
@@ -28,6 +29,7 @@ import {
   FollowUpRecord,
   MONTHS_FORWARD,
 } from "@/types/behaviourTypes";
+import { onAuthStateChanged } from "firebase/auth";
 
 Chart.register(ArcElement, PointElement, LineElement);
 
@@ -86,6 +88,21 @@ export default function UserDashboard({
   const [followUpFilters, setFollowUpFilters] = useState<FollowUpFilters>({
     resident: "Any Resident",
   });
+
+  // On features load, set active section to the first available feature
+  useEffect(() => {
+    if (features.behaviours) {
+      Promise.resolve().then(() => {
+        setActiveSection("behaviours");
+        setActiveBehavioursTab("dashboard");
+      });
+    } else if (features.hydration) {
+      Promise.resolve().then(() => {
+        setActiveSection("hydration");
+        setActiveHydrationTab("dashboard");
+      });
+    }
+  }, [features]);
 
   // Tracking refs
   const pageVisitCountRef = useRef(0);

@@ -37,7 +37,7 @@ export default function HydrationPage({
     return `${yearStr}-${monthStr}-${dayStr}`;
   }, [endDate, startDate]);
 
-  const { residents, isLoading, error, metrics, dateColumns } = useHydrationData({
+  const { residents, isLoading, error, metrics, dateColumns, refetch } = useHydrationData({
     homeId: firebaseId,
     startDate: calculatedStartDate,
     endDate,
@@ -83,6 +83,8 @@ export default function HydrationPage({
         residents={residents}
         dateColumns={dateColumns}
         isLoading={isLoading}
+        homeId={firebaseId}
+        refetch={refetch}
       />
     </div>
   );
