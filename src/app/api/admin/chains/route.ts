@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
 import { ChainExtractionConfig } from '@/lib/processing/types';
+import { HomeFeatureFlags, DEFAULT_FEATURE_FLAGS } from '@/types/featureTypes';
 
 export interface ChainWithConfig {
   id: string;
@@ -9,6 +10,7 @@ export interface ChainWithConfig {
   extractionType?: string;
   hasConfig: boolean;
   config?: ChainExtractionConfig;
+  features?: HomeFeatureFlags;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -45,6 +47,7 @@ export async function GET() {
         extractionType: chainData.extractionType,
         hasConfig: !!config,
         config: config,
+        features: chainData.features || DEFAULT_FEATURE_FLAGS,
         createdAt: chainData.createdAt,
         updatedAt: chainData.updatedAt || config?.updatedAt,
       };

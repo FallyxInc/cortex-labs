@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { HiOutlineCheckCircle } from 'react-icons/hi2';
 import HelpIcon from './HelpIcon';
 import CustomStrategyForm from './CustomStrategyForm';
 import { ExtractionStrategyConfig, StrategyTemplate } from '@/types/extractionStrategy';
-import { HomeFeatureFlags } from '@/types/featureTypes';
+import { HomeFeatureFlags, DEFAULT_FEATURE_FLAGS } from '@/types/featureTypes';
 
 interface Home {
   id: string;
@@ -19,6 +19,7 @@ interface Chain {
   id: string;
   name: string;
   homes: string[];
+  features?: HomeFeatureFlags;
 }
 
 export default function TenantManagement() {
@@ -44,6 +45,7 @@ export default function TenantManagement() {
   const [hydrationIdValue, setHydrationIdValue] = useState<string>('');
   const [savingHydrationId, setSavingHydrationId] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState<string | null>(null);
+  const [savingChainFeatures, setSavingChainFeatures] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHomes();
@@ -357,6 +359,39 @@ export default function TenantManagement() {
     }
   };
 
+  // Handle toggling a chain feature flag (cascades to all homes)
+  const handleToggleChainFeature = async (chainId: string, feature: 'behaviours' | 'hydration', currentValue: boolean) => {
+    try {
+      setSavingChainFeatures(chainId);
+      setError('');
+
+      const response = await fetch(`/api/admin/chains/${chainId}/features`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          [feature]: !currentValue
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSuccessMessage(`Chain ${feature.charAt(0).toUpperCase() + feature.slice(1)} feature ${!currentValue ? 'enabled' : 'disabled'} for chain and ${data.homesUpdated || 0} home(s)!`);
+        fetchHomes();
+        fetchChains();
+      } else {
+        setError(data.error || 'Failed to update chain feature flag');
+      }
+    } catch (err) {
+      console.error('Error updating chain feature flag:', err);
+      setError('Failed to update chain feature flag');
+    } finally {
+      setSavingChainFeatures(null);
+    }
+  };
+
   // Filter homes based on selected filters
   const getFilteredHomes = () => {
     return homes.filter(home => {
@@ -380,6 +415,39 @@ export default function TenantManagement() {
   };
 
   const filteredHomes = getFilteredHomes();
+
+  // Group homes by chain
+  const getGroupedHomes = () => {
+    const grouped: { chainId: string | null; chainName: string; chainFeatures?: HomeFeatureFlags; homes: Home[] }[] = [];
+    const chainMap = new Map<string | null, Home[]>();
+
+    filteredHomes.forEach(home => {
+      const chainId = home.chainId || null;
+      if (!chainMap.has(chainId)) {
+        chainMap.set(chainId, []);
+      }
+      chainMap.get(chainId)!.push(home);
+    });
+
+    chainMap.forEach((homes, chainId) => {
+      const chainName = chainId ? getChainName(chainId) : 'No Chain';
+      const chain = chainId ? chains.find(c => c.id === chainId) : null;
+      grouped.push({ 
+        chainId, 
+        chainName, 
+        chainFeatures: chain?.features,
+        homes 
+      });
+    });
+
+    return grouped.sort((a, b) => {
+      if (a.chainName === 'No Chain') return 1;
+      if (b.chainName === 'No Chain') return -1;
+      return a.chainName.localeCompare(b.chainName);
+    });
+  };
+
+  const groupedHomes = getGroupedHomes();
 
   if (loading && homes.length === 0) {
     return (
@@ -841,9 +909,6 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                     #
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Chain Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Home Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -860,104 +925,151 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredHomes.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
                       {homes.length === 0 ? 'No behaviour-enabled homes found' : 'No homes match the selected filters'}
                     </td>
                   </tr>
                 ) : (
-                  filteredHomes.map((home, index) => (
-                    <tr key={home.id} className="hover:bg-gray-50 transition-colors duration-200">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {index + 1}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getChainName(home.chainId)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {home.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {editingHydrationId === home.id ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={hydrationIdValue}
-                              onChange={(e) => setHydrationIdValue(e.target.value)}
-                              placeholder="Enter hydration ID..."
-                              className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-40"
-                              disabled={savingHydrationId}
-                            />
+                  groupedHomes.map((group) => (
+                    <Fragment key={group.chainId || 'no-chain'}>
+                      <tr className="bg-gray-100">
+                        <td colSpan={3} className="px-6 py-3">
+                          <h4 className="text-sm font-semibold text-gray-700">
+                            {group.chainName} ({group.homes.length} {group.homes.length === 1 ? 'home' : 'homes'})
+                          </h4>
+                        </td>
+                        <td className="px-6 py-3">
+                          {group.chainId && group.chainFeatures ? (
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-600 font-medium">Behaviours</span>
+                                <button
+                                  onClick={() => handleToggleChainFeature(group.chainId!, 'behaviours', group.chainFeatures!.behaviours)}
+                                  disabled={savingChainFeatures === group.chainId}
+                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 disabled:opacity-50 ${
+                                    group.chainFeatures.behaviours ? 'bg-cyan-500' : 'bg-gray-300'
+                                  }`}
+                                  title={group.chainFeatures.behaviours ? 'Chain behaviours enabled - click to disable for all homes' : 'Chain behaviours disabled - click to enable for all homes'}
+                                >
+                                  <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform`}
+                                    style={{ transform: group.chainFeatures.behaviours ? 'translateX(18px)' : 'translateX(2px)' }}
+                                  />
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-600 font-medium">Hydration</span>
+                                <button
+                                  onClick={() => handleToggleChainFeature(group.chainId!, 'hydration', group.chainFeatures!.hydration)}
+                                  disabled={savingChainFeatures === group.chainId}
+                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 disabled:opacity-50 ${
+                                    group.chainFeatures.hydration ? 'bg-cyan-500' : 'bg-gray-300'
+                                  }`}
+                                  title={group.chainFeatures.hydration ? 'Chain hydration enabled - click to disable for all homes' : 'Chain hydration disabled - click to enable for all homes'}
+                                >
+                                  <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform`}
+                                    style={{ transform: group.chainFeatures.hydration ? 'translateX(18px)' : 'translateX(2px)' }}
+                                  />
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </td>
+                        <td colSpan={2}></td>
+                      </tr>
+                      {group.homes.map((home, index) => (
+                        <tr key={home.id} className="hover:bg-gray-50 transition-colors duration-200">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {index + 1}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {home.name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {editingHydrationId === home.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={hydrationIdValue}
+                                  onChange={(e) => setHydrationIdValue(e.target.value)}
+                                  placeholder="Enter hydration ID..."
+                                  className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-40"
+                                  disabled={savingHydrationId}
+                                />
+                                <button
+                                  onClick={() => handleSaveHydrationId(home.id)}
+                                  disabled={savingHydrationId}
+                                  className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors disabled:opacity-50"
+                                >
+                                  {savingHydrationId ? '...' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={handleCancelHydrationEdit}
+                                  disabled={savingHydrationId}
+                                  className="px-2 py-1 text-xs bg-gray-300 hover:bg-gray-400 text-gray-700 rounded transition-colors disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleEditHydrationId(home)}
+                                className={`px-2 py-1 rounded hover:bg-gray-100 transition-colors cursor-pointer ${home.hydrationId ? 'text-gray-900' : 'text-gray-400 italic'}`}
+                              >
+                                {home.hydrationId || 'Not set'}
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center gap-4">
+                              {/* Behaviours Toggle */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Behaviours</span>
+                                <button
+                                  onClick={() => handleToggleFeature(home.id, 'behaviours', home.features.behaviours)}
+                                  disabled={savingFeatures === home.id}
+                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 disabled:opacity-50 ${
+                                    home.features.behaviours ? 'bg-cyan-500' : 'bg-gray-300'
+                                  }`}
+                                  title={home.features.behaviours ? 'Behaviours enabled - click to disable' : 'Behaviours disabled - click to enable'}
+                                >
+                                  <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm`}
+                                    style={{ transform: home.features.behaviours ? 'translateX(18px)' : 'translateX(2px)' }}
+                                  />
+                                </button>
+                              </div>
+                              {/* Hydration Toggle */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Hydration</span>
+                                <button
+                                  onClick={() => handleToggleFeature(home.id, 'hydration', home.features.hydration)}
+                                  disabled={savingFeatures === home.id}
+                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 disabled:opacity-50 ${
+                                    home.features.hydration ? 'bg-cyan-500' : 'bg-gray-300'
+                                  }`}
+                                  title={home.features.hydration ? 'Hydration enabled - click to disable' : 'Hydration disabled - click to enable'}
+                                >
+                                  <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform`}
+                                    style={{ transform: home.features.hydration ? 'translateX(18px)' : 'translateX(2px)' }}
+                                  />
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
-                              onClick={() => handleSaveHydrationId(home.id)}
-                              disabled={savingHydrationId}
-                              className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors disabled:opacity-50"
+                              onClick={() => handleDelete(home.id, home.name)}
+                              className="text-red-600 hover:text-red-900 transition-colors"
                             >
-                              {savingHydrationId ? '...' : 'Save'}
+                              Delete
                             </button>
-                            <button
-                              onClick={handleCancelHydrationEdit}
-                              disabled={savingHydrationId}
-                              className="px-2 py-1 text-xs bg-gray-300 hover:bg-gray-400 text-gray-700 rounded transition-colors disabled:opacity-50"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleEditHydrationId(home)}
-                            className={`px-2 py-1 rounded hover:bg-gray-100 transition-colors cursor-pointer ${home.hydrationId ? 'text-gray-900' : 'text-gray-400 italic'}`}
-                          >
-                            {home.hydrationId || 'Not set'}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center gap-4">
-                          {/* Behaviours Toggle */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">Behaviours</span>
-                            <button
-                              onClick={() => handleToggleFeature(home.id, 'behaviours', home.features.behaviours)}
-                              disabled={savingFeatures === home.id}
-                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 disabled:opacity-50 ${
-                                home.features.behaviours ? 'bg-cyan-500' : 'bg-gray-300'
-                              }`}
-                              title={home.features.behaviours ? 'Behaviours enabled - click to disable' : 'Behaviours disabled - click to enable'}
-                            >
-                              <span
-                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm`}
-                                style={{ transform: home.features.behaviours ? 'translateX(18px)' : 'translateX(2px)' }}
-                              />
-                            </button>
-                          </div>
-                          {/* Hydration Toggle */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">Hydration</span>
-                            <button
-                              onClick={() => handleToggleFeature(home.id, 'hydration', home.features.hydration)}
-                              disabled={savingFeatures === home.id}
-                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 disabled:opacity-50 ${
-                                home.features.hydration ? 'bg-cyan-500' : 'bg-gray-300'
-                              }`}
-                              title={home.features.hydration ? 'Hydration enabled - click to disable' : 'Hydration disabled - click to enable'}
-                            >
-                              <span
-                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform`}
-                                style={{ transform: home.features.hydration ? 'translateX(18px)' : 'translateX(2px)' }}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleDelete(home.id, home.name)}
-                          className="text-red-600 hover:text-red-900 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))
                 )}
               </tbody>
