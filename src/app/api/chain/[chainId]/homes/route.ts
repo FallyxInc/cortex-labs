@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
-import { getDisplayName } from '@/lib/homeMappings';
+import { getHomeNameAdmin } from '@/lib/homeMappings';
 
 interface HomeMetrics {
   homeId: string;
@@ -194,7 +194,7 @@ export async function GET(
           }
         }
 
-        const displayName = getDisplayName(homeId) || homeId;
+        const displayName = (await getHomeNameAdmin(homeId)) || homeId;
 
         homesMetrics.push({
           homeId,

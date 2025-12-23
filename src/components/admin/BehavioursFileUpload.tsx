@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { HiOutlineXMark } from 'react-icons/hi2';
 import HelpIcon from "./HelpIcon";
+import Modal from "../Modal";
 import {
   trackFileUpload,
   trackBulkFileProcessing,
@@ -10,9 +11,9 @@ import {
   trackError,
 } from "@/lib/mixpanel";
 
-export default function FileUpload() {
-  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
-  const [excelFiles, setExcelFiles] = useState<File[]>([]);
+export default function BehavioursFileUpload() {
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
   const [selectedHome, setSelectedHome] = useState("");
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
@@ -29,7 +30,8 @@ export default function FileUpload() {
     step: "",
   });
   const [jobId, setJobId] = useState<string | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationMessage, setValidationMessage] = useState("");
 
   // Overview metrics state
   const [antipsychoticsPercentage, setAntipsychoticsPercentage] = useState("");
@@ -44,64 +46,6 @@ export default function FileUpload() {
   const [improvedChange, setImprovedChange] = useState("");
   const [improvedResidents, setImprovedResidents] = useState("");
   const formStartTime = useRef<number>(Date.now());
-
-  // Poll for progress updates
-  useEffect(() => {
-    if (!jobId) return;
-
-    const pollProgress = async () => {
-      try {
-        const response = await fetch(
-          `/api/admin/process-progress?jobId=${jobId}`,
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setProgress({
-            percentage: data.percentage || 0,
-            message: data.message || "",
-            step: data.step || "",
-          });
-
-          // Stop polling if complete or error
-          if (
-            data.percentage >= 100 ||
-            data.step === "error" ||
-            data.step === "complete"
-          ) {
-            if (progressIntervalRef.current) {
-              clearInterval(progressIntervalRef.current);
-              progressIntervalRef.current = null;
-            }
-            if (data.step === "complete") {
-              setMessage("Files uploaded successfully!");
-              setShowSuccess(true);
-              // Clear success message after 10 seconds
-              setTimeout(() => {
-                setShowSuccess(false);
-                setMessage("");
-              }, 10000);
-            } else if (data.step === "error") {
-              setMessage(`Error: ${data.message}`);
-              setShowSuccess(false);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error polling progress:", error);
-      }
-    };
-
-    // Poll every 500ms
-    progressIntervalRef.current = setInterval(pollProgress, 500);
-    pollProgress(); // Initial poll
-
-    return () => {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-    };
-  }, [jobId]);
 
   useEffect(() => {
     const fetchHomes = async () => {
@@ -142,57 +86,67 @@ export default function FileUpload() {
     fetchHomes();
   }, []);
 
+  const extractSelectedDateFromFilename = (filename: string) => {
+    const date = filename.match(/(\d{2})-(\d{2})-(\d{4})/);
+    if (date) {
+      const first = parseInt(date[1], 10);
+      const second = parseInt(date[2], 10);
+      const year = date[3];
+      
+      let month: string;
+      let day: string;
+      
+      if (first > 12 || second > 31) {
+        month = second.toString();
+        day = first.toString();
+      } else {
+        month = first.toString();
+        day = second.toString();
+      }
+      
+      setSelectedDate(`${year}-${month}-${day}`);
+    }
+  };
+
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      setPdfFiles(files);
-      // Track file selection
-      files.forEach((file) => {
-        trackFileUpload({
-          homeId: selectedHome || "unknown",
-          fileType: "pdf",
-          fileName: file.name,
-          fileSize: file.size,
-        });
+    const file = e.target.files?.[0];
+    if (file) {
+      extractSelectedDateFromFilename(file.name);
+      setPdfFile(file);
+      trackFileUpload({
+        homeId: selectedHome || "unknown",
+        fileType: "pdf",
+        fileName: file.name,
+        fileSize: file.size,
       });
     }
   };
 
   const handleExcelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      setExcelFiles(files);
-      // Track file selection
-      files.forEach((file) => {
-        const fileType = file.name.endsWith(".xlsx") ? "xlsx" : "xls";
-        trackFileUpload({
-          homeId: selectedHome || "unknown",
-          fileType: fileType as "excel" | "xls" | "xlsx",
-          fileName: file.name,
-          fileSize: file.size,
-        });
+    const file = e.target.files?.[0];
+    if (file) {
+      extractSelectedDateFromFilename(file.name);
+      setExcelFile(file);
+      const fileType = file.name.endsWith(".xlsx") ? "xlsx" : "xls";
+      trackFileUpload({
+        homeId: selectedHome || "unknown",
+        fileType: fileType as "excel" | "xls" | "xlsx",
+        fileName: file.name,
+        fileSize: file.size,
       });
     }
   };
 
-  const handleDeletePdf = (index: number) => {
-    const newFiles = pdfFiles.filter((_, i) => i !== index);
-    setPdfFiles(newFiles);
-    // Reset file input if all files are removed
-    if (newFiles.length === 0) {
-      const pdfInput = document.getElementById("pdf") as HTMLInputElement;
-      if (pdfInput) pdfInput.value = "";
-    }
+  const handleDeletePdf = () => {
+    setPdfFile(null);
+    const pdfInput = document.getElementById("pdf") as HTMLInputElement;
+    if (pdfInput) pdfInput.value = "";
   };
 
-  const handleDeleteExcel = (index: number) => {
-    const newFiles = excelFiles.filter((_, i) => i !== index);
-    setExcelFiles(newFiles);
-    // Reset file input if all files are removed
-    if (newFiles.length === 0) {
-      const excelInput = document.getElementById("excel") as HTMLInputElement;
-      if (excelInput) excelInput.value = "";
-    }
+  const handleDeleteExcel = () => {
+    setExcelFile(null);
+    const excelInput = document.getElementById("excel") as HTMLInputElement;
+    if (excelInput) excelInput.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,7 +155,6 @@ export default function FileUpload() {
     setMessage("");
     setShowSuccess(false);
 
-    const processingStartTime = Date.now();
     formStartTime.current = Date.now();
 
     // Track form submission
@@ -225,8 +178,8 @@ export default function FileUpload() {
 
     // If files are provided, both PDF and Excel are required
     // If no files, metrics are optional (will keep most recent value if nothing provided)
-    if (pdfFiles.length > 0 || excelFiles.length > 0) {
-      if (pdfFiles.length === 0 || excelFiles.length === 0) {
+    if (pdfFile || excelFile) {
+      if (!pdfFile || !excelFile) {
         setMessage(
           "Please select both PDF and Excel files, or provide only overview metrics",
         );
@@ -241,36 +194,51 @@ export default function FileUpload() {
     }
     // If no files and no metrics, that's okay - will just keep existing values
 
+    await continueSubmission();
+  };
+
+  const continueSubmission = async (skipValidation = false) => {
+    setLoading(true);
+    const processingStartTime = Date.now();
+
     try {
       const formData = new FormData();
 
-      pdfFiles.forEach((file, index) => {
-        if (selectedDate) {
-          // Rename file to selected date
-          const extension = file.name.split('.').pop();
-          const newFileName = `${selectedDate}.${extension}`;
-          const renamedFile = new File([file], newFileName, { type: file.type });
-          formData.append(`pdf_${index}`, renamedFile);
-        } else {
-          formData.append(`pdf_${index}`, file);
+      if (pdfFile) {
+        if (!skipValidation) {
+          const verifyFormData = new FormData();
+          verifyFormData.append("pdf", pdfFile);
+          verifyFormData.append("home", selectedHome);
+          
+          const verifyResponse = await fetch("/api/admin/verify-pdf", {
+            method: "POST",
+            body: verifyFormData,
+          });
+          
+          const result = await verifyResponse.json();
+          if (!result.validity) {
+            setValidationMessage(result.message);
+            setShowValidationModal(true);
+            setLoading(false);
+            return;
+          }
         }
-      });
+        const extension = pdfFile.name.split('.').pop();
+        const newFileName = `${selectedDate}.${extension}`;
+        const renamedFile = new File([pdfFile], newFileName, { type: pdfFile.type });
+        formData.append("pdf_0", renamedFile);
+      }
 
-      excelFiles.forEach((file, index) => {
-        if (selectedDate) {
-          // Rename file to selected date
-          const extension = file.name.split('.').pop();
-          const newFileName = `${selectedDate}.${extension}`;
-          const renamedFile = new File([file], newFileName, { type: file.type });
-          formData.append(`excel_${index}`, renamedFile);
-        } else {
-          formData.append(`excel_${index}`, file);
-        }
-      });
+      if (excelFile) {
+        const extension = excelFile.name.split('.').pop();
+        const newFileName = `${selectedDate}.${extension}`;
+        const renamedFile = new File([excelFile], newFileName, { type: excelFile.type });
+        formData.append("excel_0", renamedFile);
+      }
 
       formData.append("home", selectedHome);
-      formData.append("pdfCount", pdfFiles.length.toString());
-      formData.append("excelCount", excelFiles.length.toString());
+      formData.append("pdfCount", pdfFile ? "1" : "0");
+      formData.append("excelCount", excelFile ? "1" : "0");
 
       // Add overview metrics if provided
       if (antipsychoticsPercentage) {
@@ -317,14 +285,9 @@ export default function FileUpload() {
         console.log("Behaviour files processed successfully!");
         setMessage("Files uploaded successfully!");
         setShowSuccess(true);
-        // Clear success message after 10 seconds
-        setTimeout(() => {
-          setShowSuccess(false);
-          setMessage("");
-        }, 10000);
 
         // Track successful bulk processing
-        const totalFiles = pdfFiles.length + excelFiles.length;
+        const totalFiles = (pdfFile ? 1 : 0) + (excelFile ? 1 : 0);
         const recordsExtracted = result.recordsExtracted || 0;
 
         trackBulkFileProcessing({
@@ -343,8 +306,8 @@ export default function FileUpload() {
           homeId: selectedHome,
         });
 
-        setPdfFiles([]);
-        setExcelFiles([]);
+        setPdfFile(null);
+        setExcelFile(null);
         setSelectedHome("");
         setSelectedDate("");
         setAntipsychoticsPercentage("");
@@ -369,11 +332,12 @@ export default function FileUpload() {
         setShowSuccess(false);
 
         // Track processing error
+        const totalFiles = (pdfFile ? 1 : 0) + (excelFile ? 1 : 0);
         trackBulkFileProcessing({
           homeId: selectedHome,
-          totalFiles: pdfFiles.length + excelFiles.length,
+          totalFiles,
           successCount: 0,
-          failureCount: pdfFiles.length + excelFiles.length,
+          failureCount: totalFiles,
           totalProcessingTime: processingTime,
           totalRecordsExtracted: 0,
         });
@@ -384,8 +348,8 @@ export default function FileUpload() {
           page: "upload",
           homeId: selectedHome,
           context: {
-            pdfCount: pdfFiles.length,
-            excelCount: excelFiles.length,
+            pdfCount: pdfFile ? 1 : 0,
+            excelCount: excelFile ? 1 : 0,
           },
         });
       }
@@ -404,8 +368,8 @@ export default function FileUpload() {
         page: "upload",
         homeId: selectedHome,
         context: {
-          pdfCount: pdfFiles.length,
-          excelCount: excelFiles.length,
+          pdfCount: pdfFile ? 1 : 0,
+          excelCount: excelFile ? 1 : 0,
         },
       });
     } finally {
@@ -452,9 +416,9 @@ export default function FileUpload() {
             title="Upload Behaviour Files"
             content="Upload and process behavioural data files for homes.
 
-• PDF Files: Behaviour notes in PDF format. Upload one or more PDF files.
+• PDF Files: Behaviour notes in PDF format. Upload one PDF file.
 
-• Excel Files: Incident reports in Excel format (.xls or .xlsx). Must upload the same number of Excel files as PDF files.
+• Excel Files: Incident reports in Excel format (.xls or .xlsx). Upload one Excel file.
 
 • Overview Metrics: Optional metrics that can be entered manually or will be extracted from files. These include:
   - % of Residents with Potentially Inappropriate Use of Antipsychotics
@@ -464,33 +428,6 @@ export default function FileUpload() {
 You can upload files only, enter metrics only, or do both. If no files are uploaded, only metrics will be saved."
           />
         </div>
-
-        {showSuccess && (
-          <div className="mb-6 rounded-md bg-green-50 p-4 border border-green-200">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-green-400"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-green-800">
-                  {message || "Files uploaded successfully!"}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -503,7 +440,7 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
               </label>
               <HelpIcon
                 title="Behaviour Notes PDF"
-                content="Upload PDF files containing behaviour notes. You can upload multiple PDF files. The system will process these files to extract behavioural data."
+                content="Upload a PDF file containing behaviour notes. The system will process this file to extract behavioural data."
               />
             </div>
             <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
@@ -539,7 +476,6 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
                       name="pdf"
                       type="file"
                       accept=".pdf"
-                      multiple
                       className="sr-only"
                       onChange={handlePdfChange}
                     />
@@ -549,27 +485,25 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
                 <p className="text-xs text-gray-500">PDF files only</p>
               </div>
             </div>
-            {pdfFiles.length > 0 && (
+            {pdfFile && (
               <div className="mt-2">
                 <p className="text-sm font-medium" style={{ color: "#06b6d4" }}>
-                  Selected {pdfFiles.length} file(s):
+                  Selected file:
                 </p>
-                <ul className="mt-1 text-sm text-gray-600 space-y-1">
-                  {pdfFiles.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between gap-2 bg-gray-50 px-2 py-1 rounded">
-                      <span className="truncate flex-1">• {file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePdf(index)}
-                        className="flex-shrink-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1 transition-colors"
-                        title="Remove file"
-                        aria-label={`Remove ${file.name}`}
-                      >
-                        <HiOutlineXMark className="w-4 h-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-1 text-sm text-gray-600">
+                  <div className="flex items-center justify-between gap-2 bg-gray-50 px-2 py-1 rounded">
+                    <span className="truncate flex-1">• {pdfFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={handleDeletePdf}
+                      className="shrink-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1 transition-colors"
+                      title="Remove file"
+                      aria-label={`Remove ${pdfFile.name}`}
+                    >
+                      <HiOutlineXMark className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -584,7 +518,7 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
               </label>
               <HelpIcon
                 title="Incident Report Excel"
-                content="Upload Excel files (.xls or .xlsx) containing incident reports. You must upload the same number of Excel files as PDF files. The system will process these files to extract incident data."
+                content="Upload an Excel file (.xls or .xlsx) containing incident reports. The system will process this file to extract incident data."
               />
             </div>
             <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
@@ -620,7 +554,6 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
                       name="excel"
                       type="file"
                       accept=".xls,.xlsx"
-                      multiple
                       className="sr-only"
                       onChange={handleExcelChange}
                     />
@@ -630,27 +563,25 @@ You can upload files only, enter metrics only, or do both. If no files are uploa
                 <p className="text-xs text-gray-500">Excel files only</p>
               </div>
             </div>
-            {excelFiles.length > 0 && (
+            {excelFile && (
               <div className="mt-2">
                 <p className="text-sm font-medium" style={{ color: "#06b6d4" }}>
-                  Selected {excelFiles.length} file(s):
+                  Selected file:
                 </p>
-                <ul className="mt-1 text-sm text-gray-600 space-y-1">
-                  {excelFiles.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between gap-2 bg-gray-50 px-2 py-1 rounded">
-                      <span className="truncate flex-1">• {file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteExcel(index)}
-                        className="flex-shrink-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1 transition-colors"
-                        title="Remove file"
-                        aria-label={`Remove ${file.name}`}
-                      >
-                        <HiOutlineXMark className="w-4 h-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-1 text-sm text-gray-600">
+                  <div className="flex items-center justify-between gap-2 bg-gray-50 px-2 py-1 rounded">
+                    <span className="truncate flex-1">• {excelFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={handleDeleteExcel}
+                      className="shrink-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1 transition-colors"
+                      title="Remove file"
+                      aria-label={`Remove ${excelFile.name}`}
+                    >
+                      <HiOutlineXMark className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -926,11 +857,38 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
             />
           </div>
 
+          {showSuccess && (
+            <div className="mb-6 rounded-md bg-green-50 p-4 border border-green-200">
+              <div className="flex items-center">
+                <div className="shrink-0">
+                  <svg
+                    className="h-5 w-5 text-green-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-green-800">
+                    {message || "Files uploaded successfully!"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end">
             <button
               type="submit"
               disabled={loading || loadingHomes || !selectedHome}
-              className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
+              className="ml-3 inline-flex items-center justify-center gap-2 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
               style={{ backgroundColor: "#0cc7ed" }}
               onMouseEnter={(e) => {
                 if (!e.currentTarget.disabled) {
@@ -944,6 +902,10 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
               }}
             >
               {loading ? "Processing..." : "Process Files"}
+
+              {loading && (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              )}
             </button>
           </div>
 
@@ -960,6 +922,49 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
             </div>
           )}
         </form>
+
+        <Modal
+          showModal={showValidationModal}
+          handleClose={() => {
+            setShowValidationModal(false);
+            setLoading(false);
+          }}
+          modalContent={
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">PDF Validation Warning</h2>
+              <p className="text-sm text-gray-700 mb-6">{validationMessage}</p>
+              <p className="text-sm text-gray-600 mb-6">Do you want to continue?</p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowValidationModal(false);
+                    setLoading(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  No
+                </button>
+                <button
+                  onClick={() => {
+                    setShowValidationModal(false);
+                    continueSubmission(true);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  style={{ backgroundColor: "#0cc7ed" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#0aa8c7";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#0cc7ed";
+                  }}
+                >
+                  Yes, Continue
+                </button>
+              </div>
+            </div>
+          }
+          title="PDF Validation Warning"
+        />
       </div>
     </div>
   );

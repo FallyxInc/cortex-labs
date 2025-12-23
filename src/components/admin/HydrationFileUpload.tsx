@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Modal from '../Modal';
 
 
 export default function HydrationFileUpload() {
@@ -12,6 +13,9 @@ export default function HydrationFileUpload() {
   const [loading, setLoading] = useState(false);
   const [loadingHomes, setLoadingHomes] = useState(true);
   const [message, setMessage] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationMessage, setValidationMessage] = useState('');
 
   // Fetch homes from the API
   useEffect(() => {
@@ -78,6 +82,7 @@ export default function HydrationFileUpload() {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+    setShowSuccess(false);
 
     console.log('🚀 [HYDRATION UPLOAD] Starting file upload process...');
     console.log('📁 [HYDRATION UPLOAD] Care plan files:', carePlanFiles.map(f => f.name));
@@ -90,7 +95,56 @@ export default function HydrationFileUpload() {
       return;
     }
 
+    await continueSubmission();
+  };
+
+  const continueSubmission = async (skipValidation = false) => {
+    setLoading(true);
+
     try {
+      // Verify PDFs if not skipping validation
+      if (!skipValidation) {
+        // Verify care plan PDFs
+        for (const file of carePlanFiles) {
+          const verifyFormData = new FormData();
+          verifyFormData.append('pdf', file);
+          verifyFormData.append('home', selectedHome);
+          
+          const verifyResponse = await fetch('/api/admin/verify-pdf', {
+            method: 'POST',
+            body: verifyFormData,
+          });
+          
+          const result = await verifyResponse.json();
+          if (!result.validity) {
+            setValidationMessage(result.message);
+            setShowValidationModal(true);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Verify hydration data PDFs
+        for (const file of hydrationDataFiles) {
+          const verifyFormData = new FormData();
+          verifyFormData.append('pdf', file);
+          verifyFormData.append('home', selectedHome);
+          
+          const verifyResponse = await fetch('/api/admin/verify-pdf', {
+            method: 'POST',
+            body: verifyFormData,
+          });
+          
+          const result = await verifyResponse.json();
+          if (!result.validity) {
+            setValidationMessage(result.message);
+            setShowValidationModal(true);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       const formData = new FormData();
       
       // Append all care plan files
@@ -131,6 +185,7 @@ export default function HydrationFileUpload() {
       if (response.ok) {
         console.log('✅ [HYDRATION UPLOAD] Files processed successfully!');
         setMessage(`Files processed successfully! Processed ${result.residentsCount || 0} residents across ${result.datesProcessed || 0} dates.`);
+        setShowSuccess(true);
         setCarePlanFiles([]);
         setHydrationDataFiles([]);
         setIpcDataFiles([]);
@@ -142,13 +197,20 @@ export default function HydrationFileUpload() {
         if (carePlanInput) carePlanInput.value = '';
         if (hydrationDataInput) hydrationDataInput.value = '';
         if (ipcDataInput) ipcDataInput.value = '';
+        // Clear success message after 10 seconds
+        setTimeout(() => {
+          setShowSuccess(false);
+          setMessage('');
+        }, 10000);
       } else {
         console.error('❌ [HYDRATION UPLOAD] Error processing files:', result.error);
         setMessage(`Error: ${result.error || result.details || 'Unknown error'}`);
+        setShowSuccess(false);
       }
     } catch (error) {
       console.error('💥 [HYDRATION UPLOAD] Network or processing error:', error);
       setMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setShowSuccess(false);
     } finally {
       setLoading(false);
       console.log('🏁 [HYDRATION UPLOAD] Upload process completed');
@@ -372,13 +434,42 @@ export default function HydrationFileUpload() {
             )}
           </div>
 
-          {/* Message */}
-          {message && (
-            <div className={`p-4 rounded-lg font-medium ${
-              message.includes('Error')
-                ? 'bg-[#fef2f2] text-[#ef4444] border border-[#fecaca]'
-                : 'bg-[#e0f7fa] text-[#0e7490] border border-[#b2ebf2]'
-            }`}>
+          {showSuccess && (
+            <div className="mb-6 rounded-md bg-green-50 p-4 border border-green-200">
+              <div className="flex items-center">
+                <div className="shrink-0">
+                  <svg
+                    className="h-5 w-5 text-green-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-green-800">
+                    {message || 'Files uploaded successfully!'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {message && !showSuccess && (
+            <div
+              className={`text-sm ${message.includes('Error') ? 'text-red-600' : message.includes('success') ? 'text-green-600' : ''}`}
+              style={
+                !message.includes('Error') && !message.includes('success')
+                  ? { color: '#06b6d4' }
+                  : {}
+              }
+            >
               {message}
             </div>
           )}
@@ -388,34 +479,70 @@ export default function HydrationFileUpload() {
             <button
               type="submit"
               disabled={loading || loadingHomes || carePlanFiles.length === 0 || hydrationDataFiles.length === 0 || !selectedHome}
-              className="inline-flex justify-center py-2 px-4 text-sm font-medium rounded-md text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                background: (loading || loadingHomes || carePlanFiles.length === 0 || hydrationDataFiles.length === 0 || !selectedHome)
-                  ? '#94a3b8'
-                  : 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)',
-                boxShadow: (loading || loadingHomes || carePlanFiles.length === 0 || hydrationDataFiles.length === 0 || !selectedHome)
-                  ? 'none'
-                  : '0 4px 12px rgba(6, 182, 212, 0.3)'
-              }}
+              className="ml-3 inline-flex items-center justify-center gap-2 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
+              style={{ backgroundColor: '#0cc7ed' }}
               onMouseEnter={(e) => {
                 if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.4)';
+                  e.currentTarget.style.backgroundColor = '#0aa8c7';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.3)';
+                  e.currentTarget.style.backgroundColor = '#0cc7ed';
                 }
               }}
             >
               {loading ? 'Processing...' : 'Process Files'}
+
+              {loading && (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              )}
             </button>
           </div>
         </form>
+
+        <Modal
+          showModal={showValidationModal}
+          handleClose={() => {
+            setShowValidationModal(false);
+            setLoading(false);
+          }}
+          modalContent={
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">PDF Validation Warning</h2>
+              <p className="text-sm text-gray-700 mb-6">{validationMessage}</p>
+              <p className="text-sm text-gray-600 mb-6">Do you want to continue?</p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowValidationModal(false);
+                    setLoading(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  No
+                </button>
+                <button
+                  onClick={() => {
+                    setShowValidationModal(false);
+                    continueSubmission(true);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  style={{ backgroundColor: '#0cc7ed' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#0aa8c7';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#0cc7ed';
+                  }}
+                >
+                  Yes, Continue
+                </button>
+              </div>
+            </div>
+          }
+          title="PDF Validation Warning"
+        />
       </div>
     </div>
   );

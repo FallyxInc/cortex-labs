@@ -8,10 +8,7 @@ import { ref, get } from "firebase/database";
 import { db, auth } from "@/lib/firebase/firebase";
 import UserDashboard from "@/components/dashboard/UserDashboard";
 import {
-  getDisplayName,
-  getFirebaseId,
-  HOME_MAPPINGS,
-  type HomeMapping,
+  getHomeName,
 } from "@/lib/homeMappings";
 
 interface PageProps {
@@ -27,7 +24,7 @@ export default function ChainAdminHomePage({ params }: PageProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userChainId, setUserChainId] = useState<string | null>(null);
   const [homeBelongsToChain, setHomeBelongsToChain] = useState(false);
-  const [displayName, setDisplayName] = useState<string>(getDisplayName(homeId));
+  const [displayName, setDisplayName] = useState<string>("");
 
   // Auth check effect
   useEffect(() => {
@@ -91,32 +88,9 @@ export default function ChainAdminHomePage({ params }: PageProps) {
   }, [router, chainId, homeId]);
 
   useEffect(() => {
-    const loadFirebaseMappings = async () => {
-      try {
-        const mappingsRef = ref(db, "/homeMappings");
-        const snapshot = await get(mappingsRef);
-
-        if (snapshot.exists()) {
-          const firebaseMappings = snapshot.val() as Record<
-            string,
-            HomeMapping
-          >;
-          const allMappings = { ...HOME_MAPPINGS, ...firebaseMappings };
-
-          const mapping = allMappings[homeId];
-          if (mapping) {
-            setDisplayName(mapping.displayName || homeId);
-          }
-        }
-      } catch (error) {
-        console.warn(
-          "Failed to load Firebase mappings, using fallback:",
-          error,
-        );
-      }
-    };
-
-    loadFirebaseMappings();
+    getHomeName(homeId).then((name) => {
+      setDisplayName(name);
+    });
   }, [homeId]);
 
   const title =

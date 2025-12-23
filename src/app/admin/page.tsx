@@ -7,7 +7,7 @@ import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase/firebase';
 import HomeManagement from '@/components/admin/HomeManagement';
 import UserManagement from '@/components/admin/UserManagement';
-import FileUpload from '@/components/admin/BehavioursFileUpload';
+import BehavioursFileUpload from '@/components/admin/BehavioursFileUpload';
 import HydrationFileUpload from '@/components/admin/HydrationFileUpload';
 import Link from 'next/link';
 
@@ -231,7 +231,7 @@ export default function AdminPage() {
         <div className="px-4 sm:px-0">
           {activeTab === 'homes' && <HomeManagement />}
           {activeTab === 'users' && <UserManagement />}
-          {activeTab === 'behavioursUpload' && <FileUpload />}
+          {activeTab === 'behavioursUpload' && <BehavioursFileUpload />}
           {activeTab === 'hydrationUpload' && <HydrationFileUpload />}
         </div>
       </main>

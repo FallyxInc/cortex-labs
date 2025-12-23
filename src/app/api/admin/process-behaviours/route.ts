@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, readdir, unlink, rm } from "fs/promises";
 import { join } from "path";
 import { adminDb } from "@/lib/firebase/firebaseAdmin";
-import { getHomeNameAsync } from "@/lib/homeMappings";
+import { getHomeNameAdmin } from "@/lib/homeMappings";
 import { progressStore } from "../process-progress/route";
 import { processExcelFiles } from "@/lib/processing/behaviours/excelProcessor";
 import { processPdfFiles } from "@/lib/processing/behaviours/pdfProcessor";
@@ -257,13 +257,13 @@ export async function POST(request: NextRequest) {
 
     // Set up directories
     const chain = "chains/" + chainId;
-    const homeNameForPython = await getHomeNameAsync(home);
+    const homeName = await getHomeNameAdmin(home);
     const chainDir = join(process.cwd(), "files", chain);
     const downloadsDir = join(chainDir, "downloads");
     const analyzedDir = join(chainDir, "analyzed");
 
     console.log(
-      `🏠 [API] Home mapping - UI: ${home}, Chain: ${chainId}, Home Name: ${homeNameForPython}`,
+      `🏠 [API] Home mapping - UI: ${home}, Chain: ${chainId}, Home Name: ${homeName}`,
     );
 
     await updateProgress(
@@ -424,7 +424,7 @@ export async function POST(request: NextRequest) {
       await processPdfFiles(
         downloadsDir,
         analyzedDir,
-        homeNameForPython,
+        homeName,
         chainId,
         chainConfig,
       );
@@ -471,7 +471,7 @@ export async function POST(request: NextRequest) {
       await processAllMergedFiles(
         analyzedDir,
         openaiApiKey,
-        homeNameForPython,
+        homeName,
         chainId,
         chainConfig,
       );
@@ -523,7 +523,7 @@ export async function POST(request: NextRequest) {
         "Executing dashboard update...",
         "updating_dashboard",
       );
-      await processMergedCsvFiles(homeNameForPython, chainId);
+      await processMergedCsvFiles(homeName, chainId);
       const updateDuration = ((Date.now() - updateStartTime) / 1000).toFixed(2);
       await updateProgress(
         jobId,
@@ -566,7 +566,7 @@ export async function POST(request: NextRequest) {
         "Executing dashboard upload...",
         "uploading_dashboard",
       );
-      await processCsvFiles(homeNameForPython, chainId);
+      await processCsvFiles(homeName, chainId);
       const uploadDuration = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
       await updateProgress(
         jobId,

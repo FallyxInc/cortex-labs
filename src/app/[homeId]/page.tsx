@@ -1,13 +1,9 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { ref, get } from "firebase/database";
-import { db } from "@/lib/firebase/firebase";
 import UserDashboard from "@/components/dashboard/UserDashboard";
 import {
-  getDisplayName,
-  HOME_MAPPINGS,
-  type HomeMapping,
+  getHomeName,
 } from "@/lib/homeMappings";
 
 interface PageProps {
@@ -16,37 +12,12 @@ interface PageProps {
 
 export default function HomePage({ params }: PageProps) {
   const { homeId } = use(params);
-  const [displayName, setDisplayName] = useState<string>(
-    getDisplayName(homeId),
-  );
+  const [displayName, setDisplayName] = useState<string>(homeId);
 
   useEffect(() => {
-    const loadFirebaseMappings = async () => {
-      try {
-        const mappingsRef = ref(db, "/homeMappings");
-        const snapshot = await get(mappingsRef);
-
-        if (snapshot.exists()) {
-          const firebaseMappings = snapshot.val() as Record<
-            string,
-            HomeMapping
-          >;
-          const allMappings = { ...HOME_MAPPINGS, ...firebaseMappings };
-
-          const mapping = allMappings[homeId];
-          if (mapping) {
-            setDisplayName(mapping.displayName || homeId);
-          }
-        }
-      } catch (error) {
-        console.warn(
-          "Failed to load Firebase mappings, using fallback:",
-          error,
-        );
-      }
-    };
-
-    loadFirebaseMappings();
+    getHomeName(homeId).then((name) => {
+      setDisplayName(name);
+    });
   }, [homeId]);
 
   const title =
