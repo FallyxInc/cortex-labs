@@ -110,34 +110,14 @@ export default function HydrationFileUpload() {
           verifyFormData.append('pdf', file);
           verifyFormData.append('home', selectedHome);
           
-          const verifyResponse = await fetch('/api/admin/verify-pdf', {
+          const verifyResponse = await fetch('/api/admin/verify-files', {
             method: 'POST',
             body: verifyFormData,
           });
           
           const result = await verifyResponse.json();
-          if (!result.validity) {
-            setValidationMessage(result.message);
-            setShowValidationModal(true);
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Verify hydration data PDFs
-        for (const file of hydrationDataFiles) {
-          const verifyFormData = new FormData();
-          verifyFormData.append('pdf', file);
-          verifyFormData.append('home', selectedHome);
-          
-          const verifyResponse = await fetch('/api/admin/verify-pdf', {
-            method: 'POST',
-            body: verifyFormData,
-          });
-          
-          const result = await verifyResponse.json();
-          if (!result.validity) {
-            setValidationMessage(result.message);
+          if (!result.pdf.validity) {
+            setValidationMessage(result.pdf.message);
             setShowValidationModal(true);
             setLoading(false);
             return;

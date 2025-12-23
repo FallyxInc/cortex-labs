@@ -31,7 +31,7 @@ export default function BehavioursFileUpload() {
   });
   const [jobId, setJobId] = useState<string | null>(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
-  const [validationMessage, setValidationMessage] = useState("");
+  const [validationMessage, setValidationMessage] = useState<{ pdf: { message: string }; excel: { message: string } }>({ pdf: { message: "" }, excel: { message: "" } });
 
   // Overview metrics state
   const [antipsychoticsPercentage, setAntipsychoticsPercentage] = useState("");
@@ -208,16 +208,19 @@ export default function BehavioursFileUpload() {
         if (!skipValidation) {
           const verifyFormData = new FormData();
           verifyFormData.append("pdf", pdfFile);
+          if (excelFile) {
+            verifyFormData.append("excel", excelFile);
+          }
           verifyFormData.append("home", selectedHome);
           
-          const verifyResponse = await fetch("/api/admin/verify-pdf", {
+          const verifyResponse = await fetch("/api/admin/verify-files", {
             method: "POST",
             body: verifyFormData,
           });
           
           const result = await verifyResponse.json();
-          if (!result.validity) {
-            setValidationMessage(result.message);
+          if (!result.pdf?.validity || !result.excel?.validity) {
+            setValidationMessage({ pdf: { message: result.pdf?.message || "" }, excel: { message: result.excel?.message || "" } });
             setShowValidationModal(true);
             setLoading(false);
             return;
@@ -931,8 +934,13 @@ If no files are uploaded, these metrics will be saved directly. If files are upl
           }}
           modalContent={
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">PDF Validation Warning</h2>
-              <p className="text-sm text-gray-700 mb-6">{validationMessage}</p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">File Validation Warning</h2>
+              {validationMessage.pdf?.message && (
+                <p className="text-sm text-gray-700 mb-6">{validationMessage.pdf?.message}</p>
+              )}
+              {validationMessage.excel?.message && (
+                <p className="text-sm text-gray-700 mb-6">{validationMessage.excel?.message}</p>
+              )}
               <p className="text-sm text-gray-600 mb-6">Do you want to continue?</p>
               <div className="flex gap-3 justify-end">
                 <button
