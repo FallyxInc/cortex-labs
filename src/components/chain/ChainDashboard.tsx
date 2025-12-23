@@ -28,8 +28,8 @@ interface ChainDashboardProps {
   chainId: string;
 }
 
-type MetricType = "totalIncidents" | "criticalBehaviours" | "followUpCompletionRate";
-type SortField = "totalIncidents" | "followUpCompletionRate" | "criticalBehaviours" | "homeName";
+type MetricType = "totalIncidents" | "criticalBehaviours" | "followUpCompletionRate" | "missed3Days" | "averageIntake";
+type SortField = "totalIncidents" | "followUpCompletionRate" | "criticalBehaviours" | "missed3Days" | "averageIntake" | "homeName";
 
 // Helper to get default date range (entire current month)
 const getDefaultDateRange = () => {
@@ -108,6 +108,14 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
           aValue = a.criticalBehaviours;
           bValue = b.criticalBehaviours;
           break;
+        case "missed3Days":
+          aValue = a.hydrationMissed3Days ?? 0;
+          bValue = b.hydrationMissed3Days ?? 0;
+          break;
+        case "averageIntake":
+          aValue = a.averageIntake ?? 0;
+          bValue = b.averageIntake ?? 0;
+          break;
         case "homeName":
           aValue = a.homeName;
           bValue = b.homeName;
@@ -157,6 +165,10 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
           return home.criticalBehaviours;
         case "followUpCompletionRate":
           return home.followUpCompletionRate;
+        case "missed3Days":
+          return home.hydrationMissed3Days ?? 0;
+        case "averageIntake":
+          return home.averageIntake ?? 0;
         default:
           return home.totalIncidents;
       }
@@ -184,6 +196,10 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
         return "Critical Behaviours";
       case "followUpCompletionRate":
         return "Follow-up Completion Rate (%)";
+      case "missed3Days":
+        return "Number of Missed 3 Days";
+      case "averageIntake":
+        return "Average Intake (ml)";
       default:
         return "Count";
     }
@@ -258,7 +274,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
         },
         ticks: {
           stepSize: (() => {
-            const maxValue = Math.max(
+              const maxValue = Math.max(
               ...filteredHomes.map((h) => {
                 switch (selectedMetric) {
                   case "totalIncidents":
@@ -267,6 +283,10 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
                     return h.criticalBehaviours;
                   case "followUpCompletionRate":
                     return h.followUpCompletionRate;
+                  case "missed3Days":
+                    return h.hydrationMissed3Days ?? 0;
+                  case "averageIntake":
+                    return h.averageIntake ?? 0;
                   default:
                     return 0;
                 }
@@ -297,6 +317,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
       "Follow-up Completion Rate (%)",
       "Hydration Goal Met (%)",
       "Missed 3 Days",
+      "Average Intake (ml)",
       "Monthly Logins",
     ];
     const rows = filteredHomes.map((home) => [
@@ -306,6 +327,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
       home.followUpCompletionRate,
       home.hydrationGoalMet ?? "",
       home.hydrationMissed3Days ?? "",
+      home.averageIntake ?? "",
       home.monthlyLogins ?? "",
     ]);
 
@@ -449,6 +471,26 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
               >
                 Follow-up Rate
               </button>
+              <button
+                onClick={() => setSelectedMetric("missed3Days")}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  selectedMetric === "missed3Days"
+                    ? "bg-cyan-500 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Missed 3 Days
+              </button>
+              <button
+                onClick={() => setSelectedMetric("averageIntake")}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  selectedMetric === "averageIntake"
+                    ? "bg-cyan-500 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Average Intake
+              </button>
             </div>
           </div>
 
@@ -490,6 +532,28 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
               >
                 <span>↓↑</span>
                 <span>Follow-up Rate</span>
+              </button>
+              <button
+                onClick={() => handleSort("missed3Days")}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                  sortField === "missed3Days"
+                    ? "bg-cyan-50 border-cyan-300 text-cyan-700"
+                    : "border-gray-300 hover:bg-gray-50 text-gray-700"
+                }`}
+              >
+                <span>↓↑</span>
+                <span>Missed 3 Days</span>
+              </button>
+              <button
+                onClick={() => handleSort("averageIntake")}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                  sortField === "averageIntake"
+                    ? "bg-cyan-50 border-cyan-300 text-cyan-700"
+                    : "border-gray-300 hover:bg-gray-50 text-gray-700"
+                }`}
+              >
+                <span>↓↑</span>
+                <span>Average Intake</span>
               </button>
             </div>
           </div>

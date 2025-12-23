@@ -10,6 +10,7 @@ export interface HomeCardMetrics {
   criticalBehaviours: number;
   hydrationGoalMet?: number;
   hydrationMissed3Days?: number;
+  averageIntake?: number;
   monthlyLogins?: number;
 }
 
@@ -59,10 +60,10 @@ export default function HomeCard({ home, onClick, colorIndex = 0 }: HomeCardProp
             </span>
           </div>
         )}
-        {home.monthlyLogins !== undefined && (
+        {home.averageIntake !== undefined && (
           <div className="flex justify-between items-center">
-            <span className="text-gray-600">Monthly logins:</span>
-            <span className="font-semibold text-gray-700">{home.monthlyLogins}</span>
+            <span className="text-gray-600">Average Intake:</span>
+            <span className="font-semibold text-cyan-600">{home.averageIntake} ml</span>
           </div>
         )}
       </div>
