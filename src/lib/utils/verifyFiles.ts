@@ -30,12 +30,10 @@ export async function verifyPdfs(pdfs: File[], home: string): Promise<{validity:
 
 export async function verifyExcels(excels: File[], home: string): Promise<{validity: boolean, message: string}> {
     const homeName = await getHomeDisplayNameAdmin(home);
-    console.log("excel homeName", homeName);
-    console.log("excel excels", excels);
 
     for (const excel of excels) {
         const sheetsText = await extractExcelText(Buffer.from(await excel.arrayBuffer()));
-        console.log("sheetsText", sheetsText);
+        
         if (!sheetsText.some(text => text.toLowerCase().includes(homeName.toLowerCase()))) {
             const homeNames = await getHomeDisplayNamesAdmin();
 
