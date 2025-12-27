@@ -16,7 +16,7 @@ export async function DELETE(
       );
     }
 
-    const auth = getAuth();
+    const auth = getAuth(adminDb.app);
 
     // Delete from Firebase Realtime Database
     const userRef = adminDb.ref(`/users/${userId}`);
