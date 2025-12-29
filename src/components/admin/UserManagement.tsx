@@ -321,8 +321,12 @@ export default function UserManagement() {
       // Delete users in parallel
       const deletePromises = userIds.map(async (userId) => {
         try {
-          const response = await fetch(`/api/admin/users/${userId}/delete`, {
+          const response = await fetch(`/api/admin/users/${userId}`, {
             method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
           });
 
           const data = await response.json();
