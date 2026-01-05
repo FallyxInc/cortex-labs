@@ -155,6 +155,56 @@ export function extractFluidTargetsMl(text: string): number[] {
   return uniqueTargets;
 }
 
+
+/**
+ * Extract fluid maximum values (mL) from text.
+ * Looks for patterns like "FLUID TARGET: ... maximum 1800ml".
+ *
+ * @param text - Text to search
+ * @returns Array of mL values found
+ */
+export function extractFluidMaximumsMl(text: string): number[] {
+  const maximums: number[] = [];
+
+  // Pattern 1: FLUID TARGET followed by "maximum" and then number with ml/mL
+  const pattern1 = /FLUID\s*TARGET[^]*?maximum[^0-9]*?(\d{3,})\s*(mL|ml)/gi;
+  let match;
+  while ((match = pattern1.exec(text)) !== null) {
+    const num = parseInt(match[1].replace(",", ""), 10);
+    if (!isNaN(num)) {
+      maximums.push(num);
+    }
+  }
+
+  // Pattern 2: Look for lines containing "FLUID TARGET" and "maximum", then extract numbers with ml/mL
+  const lines = text.split("\n");
+  for (const line of lines) {
+    if (/FLUID\s*TARGET/i.test(line) && /maximum/i.test(line)) {
+      // Find the number after "maximum"
+      const maximumPattern = /maximum[^0-9]*?(\d{3,})\s*(mL|ml)/gi;
+      while ((match = maximumPattern.exec(line)) !== null) {
+        const num = parseInt(match[1].replace(",", ""), 10);
+        if (!isNaN(num)) {
+          maximums.push(num);
+        }
+      }
+    }
+  }
+
+  // Remove duplicates while preserving order
+  const seen = new Set<number>();
+  const uniqueMaximums: number[] = [];
+  for (const maximum of maximums) {
+    if (!seen.has(maximum)) {
+      seen.add(maximum);
+      uniqueMaximums.push(maximum);
+    }
+  }
+
+  return uniqueMaximums;
+}
+
+
 /**
  * Check if text contains feeding tube information.
  * Ported from Python extract_feeding_tube_info().
@@ -189,6 +239,7 @@ export async function processCarePlan(
 
   // Maps to track resident data across pages
   const residentTargets = new Map<string, number>();
+  const residentMaximums = new Map<string, number>();
   const residentFeedingTubes = new Map<string, boolean>();
 
   logger?.info(`Processing ${fileName} with ${pages.length} pages`);
@@ -198,6 +249,7 @@ export async function processCarePlan(
     const pageText = pages[pageNum];
     const names = extractResidentNames(pageText);
     const targets = extractFluidTargetsMl(pageText);
+    const maximums = extractFluidMaximumsMl(pageText);
     const hasFeedingTube = extractFeedingTubeInfo(pageText);
 
     // If we found both names and targets on this page, associate them
@@ -206,6 +258,14 @@ export async function processCarePlan(
       for (const name of names) {
         if (!residentTargets.has(name)) {
           residentTargets.set(name, mainTarget);
+        }
+      }
+      if (maximums.length > 0) {
+        const mainMaximum = maximums[0];
+        for (const name of names) {
+          if (!residentMaximums.has(name)) {
+            residentMaximums.set(name, mainMaximum);
+          }
         }
       }
     }
@@ -253,9 +313,42 @@ export async function processCarePlan(
         }
       }
     }
+
+    // look forward for maximums
+    if (names.length > 0 && maximums.length === 0) {// Look further forward - care plan sections can span 15-20 pages
+      for (let offset = 1; offset <= 20; offset++) {
+        const forwardIdx = pageNum + offset;
+        if (forwardIdx < pages.length) {
+          // Only use maximum if it's still within this resident's section
+          // (i.e., the page still contains this resident's name)
+          const forwardPage = pages[forwardIdx];
+          const forwardNames = extractResidentNames(forwardPage);
+          const forwardMaximums = extractFluidMaximumsMl(forwardPage);
+
+          // Check if any of the current names are on the forward page
+          const sameResident = names.some((name) =>
+            forwardNames.includes(name)
+          );
+
+          if (forwardMaximums.length > 0 && sameResident) {
+            for (const name of names) {
+              if (!residentMaximums.has(name) && forwardNames.includes(name)) {
+                residentMaximums.set(name, forwardMaximums[0]);
+              }
+            }
+            break;
+          }
+
+          // Stop looking if we've moved to a different resident's section
+          if (forwardNames.length > 0 && !sameResident) {
+            break;
+          }
+        }
+      }
+    }
   }
 
-  // Comprehensive search for residents still without targets
+  // Comprehensive search for residents still without targets and maximums
   for (const [name, target] of residentTargets.entries()) {
     if (target === undefined || target === null) {
       const nameParts = name.split(",");
@@ -271,10 +364,14 @@ export async function processCarePlan(
             pageTextLower.includes(name.toLowerCase())
           ) {
             const searchTargets = extractFluidTargetsMl(pageText);
+            const searchMaximums = extractFluidMaximumsMl(pageText);
             if (searchTargets.length > 0) {
               residentTargets.set(name, searchTargets[0]);
-              break;
             }
+            if (searchMaximums.length > 0) {
+              residentMaximums.set(name, searchMaximums[0]);
+            }
+            break;
           }
         }
       }
@@ -294,11 +391,13 @@ export async function processCarePlan(
         seenResidents.add(name);
 
         const targetMl = residentTargets.get(name) ?? null;
+        const maximumMl = residentMaximums.get(name) ?? null;
         const hasFeedingTube = residentFeedingTubes.get(name) ?? false;
 
         residents.push({
           name,
           mlGoal: targetMl,
+          mlMaximum: maximumMl,
           sourceFile: `${fileName} - Page ${pageNum + 1}`,
           hasFeedingTube,
         });

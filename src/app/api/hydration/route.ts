@@ -93,6 +93,7 @@ async function getDefaultHydrationData(
             residentMap.set(residentName, {
               name: residentName,
               goal: record.goal || 0,
+              maximum: record.maximum || 0,
               source: record.source || '',
               missed3Days: record.missed3Days || 'no',
               hasFeedingTube: record.hasFeedingTube || false,
@@ -108,6 +109,7 @@ async function getDefaultHydrationData(
 
           // Update other fields if present
           if (record.goal) resident.goal = record.goal;
+          if (record.maximum) resident.maximum = record.maximum;
           if (record.source) resident.source = record.source;
           if (record.missed3Days === 'yes') resident.missed3Days = 'yes';
           if (record.hasFeedingTube) resident.hasFeedingTube = true;
@@ -157,6 +159,7 @@ function mergeHydrationData(
       residentMap.set(resident.name, {
         name: resident.name,
         goal: resident.goal || existing.goal,
+        maximum: resident.maximum || existing.maximum,
         source: resident.source || existing.source,
         missed3Days: resident.missed3Days === 'yes' || existing.missed3Days === 'yes' ? 'yes' : 'no',
         hasFeedingTube: resident.hasFeedingTube || existing.hasFeedingTube,
@@ -390,6 +393,7 @@ export async function POST(request: NextRequest) {
       name: string;
       intake: number;
       goal: number;
+      maximum: number;
       source: string;
       missed3Days: string;
       hasFeedingTube: boolean;
@@ -410,6 +414,7 @@ export async function POST(request: NextRequest) {
         name: resident.name,
         intake: resident.intake || 0,
         goal: resident.goal || 0,
+        maximum: resident.maximum || 0,
         source: resident.source || '',
         missed3Days: resident.missed3Days || 'no',
         hasFeedingTube: resident.hasFeedingTube || false,

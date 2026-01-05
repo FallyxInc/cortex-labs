@@ -150,6 +150,13 @@ export function validateAndCleanData(
           }
         }
 
+        // Use highest non-zero maximum (prefer non-zero over zero)
+        if (entry.mlMaximum && entry.mlMaximum > 0) {
+          if (!best.mlMaximum || best.mlMaximum === 0 || entry.mlMaximum > best.mlMaximum) {
+            best.mlMaximum = entry.mlMaximum;
+          }
+        }
+
         // Use highest data values
         for (const [date, value] of Object.entries(entry.dateData)) {
           if (value > (best.dateData[date] || 0)) {
@@ -250,6 +257,7 @@ export function generateDashboardData(
       dashboardResidents.push({
         name: resident.name,
         goal: resident.mlGoal || 0,
+        maximum: resident.mlMaximum || 0,
         source: resident.sourceFile,
         missed3Days: resident.missed3Days ? "yes" : "no",
         data: dataValue,
@@ -327,6 +335,7 @@ export function generateCsvContent(residents: ResidentWithIPC[]): string {
   const baseColumns = [
     "Resident Name",
     "mL Goal",
+    "mL Maximum",
     "Source File",
     "Has Feeding Tube",
     "Missed 3 Days",
@@ -341,6 +350,7 @@ export function generateCsvContent(residents: ResidentWithIPC[]): string {
     const values: string[] = [
       escapeCSV(resident.name),
       resident.mlGoal?.toString() || "",
+      resident.mlMaximum?.toString() || "",
       escapeCSV(resident.sourceFile),
       resident.hasFeedingTube ? "Yes" : "No",
       resident.missed3Days ? "yes" : "no",

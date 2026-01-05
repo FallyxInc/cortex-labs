@@ -16,6 +16,8 @@ export interface CarePlanResident {
   name: string;
   /** mL goal from FLUID TARGET, null if not found */
   mlGoal: number | null;
+  /** mL maximum goal, null if not found */
+  mlMaximum: number | null;
   /** Source file and page info, e.g., "careplan.pdf - Page 1" */
   sourceFile: string;
   /** Whether resident has a feeding tube */
@@ -91,6 +93,8 @@ export interface DashboardResident {
   name: string;
   /** mL goal */
   goal: number;
+  /** mL maximum goal */
+  maximum: number;
   /** Source file info */
   source: string;
   /** Whether resident missed goal for 3 consecutive days */

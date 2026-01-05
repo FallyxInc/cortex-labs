@@ -10,6 +10,7 @@
 export interface HydrationResident {
   name: string;
   goal: number;
+  maximum: number;
   source: string;
   missed3Days: 'yes' | 'no';
   hasFeedingTube: boolean;
@@ -24,6 +25,7 @@ export interface HydrationDailyRecord {
   date: string; // "YYYY-MM-DD"
   intake: number;
   goal?: number;
+  maximum?: number;
   source?: string;
   missed3Days?: 'yes' | 'no';
   hasFeedingTube?: boolean;

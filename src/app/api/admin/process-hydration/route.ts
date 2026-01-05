@@ -343,6 +343,7 @@ export async function POST(request: NextRequest) {
           name: r.name,
           intake: r.data,
           goal: r.goal,
+          maximum: r.maximum,
           source: r.source,
           missed3Days: r.missed3Days,
           hasFeedingTube: fullResident?.hasFeedingTube || false,
@@ -360,6 +361,7 @@ export async function POST(request: NextRequest) {
           name: string;
           intake: number;
           goal: number;
+          maximum: number;
           source: string;
           missed3Days: string;
           hasFeedingTube: boolean;
@@ -378,6 +380,7 @@ export async function POST(request: NextRequest) {
           name: resident.name,
           intake: resident.intake || 0,
           goal: resident.goal || 0,
+          maximum: resident.maximum || 0,
           source: resident.source || "",
           missed3Days: resident.missed3Days || "no",
           hasFeedingTube: resident.hasFeedingTube || false,
