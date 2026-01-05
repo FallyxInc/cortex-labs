@@ -18,7 +18,7 @@ interface HydrationTableProps {
   refetch?: () => Promise<void>;
 }
 
-type SortField = "name" | "goal" | "average" | "status" | "missed3Days";
+type SortField = "name" | "goal" | "maximum" | "average" | "status" | "missed3Days";
 type SortDirection = "asc" | "desc";
 /**
  * Parse legacy date format (MM/DD/YYYY) to Date object
@@ -196,12 +196,22 @@ export default function HydrationTable({
   // Get visible date columns filtered by date range (backwards from most recent date)
   const filteredDateColumns = useMemo(() => {
     if (sortedDateColumns.length === 0) return [];
-    
+
     // get the last N dates where N is the dateRange
     // get most recent dates regardless of whether they're consecutive
     const startIndex = Math.max(0, sortedDateColumns.length - dateRange);
     return sortedDateColumns.slice(startIndex);
   }, [sortedDateColumns, dateRange]);
+
+  // Check if goal column should be visible (at least one resident has a non-null, non-zero goal)
+  const showGoalColumn = useMemo(() => {
+    return residents.some((r) => r.goal != null && r.goal > 0);
+  }, [residents]);
+
+  // Check if maximum column should be visible (at least one resident has a non-null, non-zero maximum)
+  const showMaximumColumn = useMemo(() => {
+    return residents.some((r) => r.maximum != null && r.maximum > 0);
+  }, [residents]);
 
   // Filter and sort residents
   const filteredResidents = useMemo(() => {
@@ -236,6 +246,10 @@ export default function HydrationTable({
           case "goal":
             aValue = a.goal;
             bValue = b.goal;
+            break;
+          case "maximum":
+            aValue = a.maximum ?? 0;
+            bValue = b.maximum ?? 0;
             break;
           case "average":
             aValue = calculateAverageIntake(a.dateData);
@@ -768,12 +782,22 @@ export default function HydrationTable({
                 >
                   Resident Name{getSortIndicator("name")}
                 </th>
-                <th
-                  className="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-gray-100"
-                  onClick={() => handleSort("goal")}
-                >
-                  Goal (mL){getSortIndicator("goal")}
-                </th>
+                {showGoalColumn && (
+                  <th
+                    className="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-gray-100"
+                    onClick={() => handleSort("goal")}
+                  >
+                    Goal (mL){getSortIndicator("goal")}
+                  </th>
+                )}
+                {showMaximumColumn && (
+                  <th
+                    className="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-gray-100"
+                    onClick={() => handleSort("maximum")}
+                  >
+                    Maximum (mL){getSortIndicator("maximum")}
+                  </th>
+                )}
                 <th
                   className="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-50 whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-gray-100"
                   onClick={() => handleSort("average")}
@@ -883,7 +907,12 @@ export default function HydrationTable({
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 text-center">{resident.goal}</td>
+                    {showGoalColumn && (
+                      <td className="px-4 py-3 text-sm text-gray-700 text-center">{resident.goal}</td>
+                    )}
+                    {showMaximumColumn && (
+                      <td className="px-4 py-3 text-sm text-gray-700 text-center">{resident.maximum ?? 0}</td>
+                    )}
                     <td className="px-4 py-3 text-sm text-gray-700 text-center">{average}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       <div className="w-full max-w-[120px]">
