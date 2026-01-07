@@ -841,13 +841,15 @@ export default function HydrationTable({
                   resident,
                   filteredDateColumns
                 );
-                const statusPercent =
-                  resident.goal > 0
-                    ? Math.min(
-                        Math.round((mostRecent / resident.goal) * 100),
+                const goal = resident.goal > 0 ? resident.goal : 1000;
+                let hasGoal = true
+                if (resident.goal <= 0) {
+                  hasGoal = false;
+                }
+                const statusPercent = Math.min(
+                        Math.round((mostRecent / goal) * 100),
                         100
                       )
-                    : 0;
                 const missed = calculateMissed3Days(
                   resident,
                   filteredDateColumns
@@ -908,7 +910,7 @@ export default function HydrationTable({
                       </div>
                     </td>
                     {showGoalColumn && (
-                      <td className="px-4 py-3 text-sm text-gray-700 text-center">{resident.goal}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 text-center">{goal + (hasGoal ? "" : " (No Goal)")}</td>
                     )}
                     {showMaximumColumn && (
                       <td className="px-4 py-3 text-sm text-gray-700 text-center">{resident.maximum ?? 0}</td>
@@ -923,7 +925,7 @@ export default function HydrationTable({
                           />
                         </div>
                         <div className="text-xs text-gray-500 mt-1 text-center">
-                          {resident.goal === 0 ? "N/A" : `${statusPercent}%`}
+                          {`${statusPercent}%`}
                         </div>
                       </div>
                     </td>
@@ -954,7 +956,7 @@ export default function HydrationTable({
                             + Add comment
                           </button>
                         ) : comment && !isEditing ? (
-                          <div className="p-2 bg-gray-50 rounded text-xs text-gray-700 min-h-[40px] relative group break-words overflow-hidden">
+                          <div className="p-2 bg-gray-50 rounded text-xs text-gray-700 min-h-[40px] relative group wrap-break-word overflow-hidden">
                             <div
                               className="max-h-12 overflow-hidden"
                               style={{
@@ -990,7 +992,7 @@ export default function HydrationTable({
                                 handleCommentChange(resident.name, e.target.value)
                               }
                               placeholder="Add comment..."
-                              className="w-full px-2 py-1 pr-16 border border-gray-300 rounded text-xs resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 break-words bg-white text-gray-900 placeholder-gray-500"
+                              className="w-full px-2 py-1 pr-16 border border-gray-300 rounded text-xs resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 wrap-break-word bg-white text-gray-900 placeholder-gray-500"
                               rows={2}
                               maxLength={200}
                             />
