@@ -35,8 +35,8 @@ export function extractResidentName(text: string): string | null {
         let name = namePart.trim().toUpperCase();
         name = cleanName(name);
 
-        // Remove trailing non-letter characters
-        name = name.replace(/[^A-Z\s'']+$/, '').trim();
+        // Remove trailing non-letter characters (keep apostrophe variants and hyphens)
+        name = name.replace(/[^A-Z\s'`''-]+$/, '').trim();
 
         // Remove trailing 'R' if it's clearly a trailing character
         if (name.endsWith('R') && name.length > 1) {
@@ -53,7 +53,7 @@ export function extractResidentName(text: string): string | null {
   }
 
   // Pattern 2: Look for "LAST, FIRST (ID)" format
-  const pattern2 = /([A-Z][A-Z\s'']+),\s*([A-Z][A-Z\s'']+)\s*\(\d+\)/;
+  const pattern2 = /([A-Z][A-Z\s'`''-]+),\s*([A-Z][A-Z\s'`''-]+)\s*\(\d+\)/;
   const match2 = text.match(pattern2);
   if (match2) {
     const lastName = cleanName(match2[1].trim());
@@ -62,7 +62,7 @@ export function extractResidentName(text: string): string | null {
   }
 
   // Pattern 3: Look for standalone "LAST, FIRST" pattern
-  const pattern3 = /([A-Z][A-Z\s'']+),\s*([A-Z][A-Z\s'']+)(?=\s*\(|\s*$|\s*\d)/;
+  const pattern3 = /([A-Z][A-Z\s'`''-]+),\s*([A-Z][A-Z\s'`''-]+)(?=\s*\(|\s*$|\s*\d)/;
   const match3 = text.match(pattern3);
   if (match3) {
     const lastName = cleanName(match3[1].trim());

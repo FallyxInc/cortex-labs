@@ -56,22 +56,23 @@ export function extractResidentNames(text: string): string[] {
   const names: string[] = [];
 
   // Pattern 1: Standard format "LASTNAME, FIRSTNAME (ID)" - flexible ID length (4+ digits)
-  const pattern1 = /\b([A-Z][A-Za-z\s'-]+,\s+[A-Z][A-Za-z\s'-]+)\s*\(\d{4,}\)/g;
+  // includes apostrophe variants: ' (straight), ` (backtick), ' (curly)
+  const pattern1 = /\b([A-Z][A-Za-z\s'`''-]+,\s+[A-Z][A-Za-z\s'`''-]+)\s*\(\d{4,}\)/g;
 
   // Pattern 2: Alternative format with different spacing
-  const pattern2 = /\b([A-Z][A-Za-z\s'-]+,\s*[A-Z][A-Za-z\s'-]+)\s*\(\d{4,}\)/g;
+  const pattern2 = /\b([A-Z][A-Za-z\s'`''-]+,\s*[A-Z][A-Za-z\s'`''-]+)\s*\(\d{4,}\)/g;
 
   // Pattern 3: Names with multiple parts
   const pattern3 =
-    /\b([A-Z][A-Za-z\s'-]+,?\s+[A-Z][A-Za-z\s'-]+)\s*\(\d{4,}\)/g;
+    /\b([A-Z][A-Za-z\s'`''-]+,?\s+[A-Z][A-Za-z\s'`''-]+)\s*\(\d{4,}\)/g;
 
   // Pattern 4: ID with dash format (000-00)
   const pattern4 =
-    /\b([A-Z][A-Za-z\s'-]+,\s*[A-Z][A-Za-z\s'-]+)\s*\(\d{3}-\d{2}\)/g;
+    /\b([A-Z][A-Za-z\s'`''-]+,\s*[A-Z][A-Za-z\s'`''-]+)\s*\(\d{3}-\d{2}\)/g;
 
   // Pattern 5: ID with shorter dash format (00-00)
   const pattern5 =
-    /\b([A-Z][A-Za-z\s'-]+,\s*[A-Z][A-Za-z\s'-]+)\s*\(\d{2}-\d{2}\)/g;
+    /\b([A-Z][A-Za-z\s'`''-]+,\s*[A-Z][A-Za-z\s'`''-]+)\s*\(\d{2}-\d{2}\)/g;
 
   const patterns = [pattern1, pattern2, pattern3, pattern4, pattern5];
 
@@ -118,23 +119,23 @@ export function extractResidentNames(text: string): string[] {
 export function extractFluidTargetsMl(text: string): number[] {
   const targets: number[] = [];
 
-  // Pattern 1: FLUID TARGET followed by any text and then number with ml/mL
-  const pattern1 = /FLUID\s*TARGET[^0-9]*?(\d{3,})\s*(mL|ml)/gi;
+  // Pattern 1: FLUID TARGET followed by any text and then number (with optional commas) with ml/mL
+  const pattern1 = /FLUID\s*TARGET[^0-9]*?([\d,]{3,})\s*(mL|ml)/gi;
   let match;
   while ((match = pattern1.exec(text)) !== null) {
-    const num = parseInt(match[1].replace(",", ""), 10);
+    const num = parseInt(match[1].replace(/,/g, ""), 10);
     if (!isNaN(num)) {
       targets.push(num);
     }
   }
 
-  // Pattern 2: Look for lines containing "FLUID TARGET" and extract numbers with ml/mL
+  // Pattern 2: Look for lines containing "FLUID TARGET" and extract numbers (with optional commas) with ml/mL
   const lines = text.split("\n");
   for (const line of lines) {
     if (/FLUID\s*TARGET/i.test(line)) {
-      const numberPattern = /(\d{3,})\s*(mL|ml)/gi;
+      const numberPattern = /([\d,]{3,})\s*(mL|ml)/gi;
       while ((match = numberPattern.exec(line)) !== null) {
-        const num = parseInt(match[1].replace(",", ""), 10);
+        const num = parseInt(match[1].replace(/,/g, ""), 10);
         if (!isNaN(num)) {
           targets.push(num);
         }
@@ -166,11 +167,11 @@ export function extractFluidTargetsMl(text: string): number[] {
 export function extractFluidMaximumsMl(text: string): number[] {
   const maximums: number[] = [];
 
-  // Pattern 1: FLUID TARGET followed by "maximum" and then number with ml/mL
-  const pattern1 = /FLUID\s*TARGET[^]*?maximum[^0-9]*?(\d{3,})\s*(mL|ml)/gi;
+  // Pattern 1: FLUID TARGET followed by "maximum" and then number (with optional commas) with ml/mL
+  const pattern1 = /FLUID\s*TARGET[^]*?maximum[^0-9]*?([\d,]{3,})\s*(mL|ml)/gi;
   let match;
   while ((match = pattern1.exec(text)) !== null) {
-    const num = parseInt(match[1].replace(",", ""), 10);
+    const num = parseInt(match[1].replace(/,/g, ""), 10);
     if (!isNaN(num)) {
       maximums.push(num);
     }
@@ -181,9 +182,9 @@ export function extractFluidMaximumsMl(text: string): number[] {
   for (const line of lines) {
     if (/FLUID\s*TARGET/i.test(line) && /maximum/i.test(line)) {
       // Find the number after "maximum"
-      const maximumPattern = /maximum[^0-9]*?(\d{3,})\s*(mL|ml)/gi;
+      const maximumPattern = /maximum[^0-9]*?([\d,]{3,})\s*(mL|ml)/gi;
       while ((match = maximumPattern.exec(line)) !== null) {
-        const num = parseInt(match[1].replace(",", ""), 10);
+        const num = parseInt(match[1].replace(/,/g, ""), 10);
         if (!isNaN(num)) {
           maximums.push(num);
         }

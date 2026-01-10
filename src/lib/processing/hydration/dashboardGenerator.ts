@@ -43,6 +43,9 @@ const INVALID_KEYWORDS = [
   "physician",
   "location",
   "unspecified",
+  "meeting",
+  "independence",
+  "inability",
 ];
 
 /**
