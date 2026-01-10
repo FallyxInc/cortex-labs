@@ -177,11 +177,6 @@ export default function HydrationFileUpload() {
         if (carePlanInput) carePlanInput.value = '';
         if (hydrationDataInput) hydrationDataInput.value = '';
         if (ipcDataInput) ipcDataInput.value = '';
-        // Clear success message after 10 seconds
-        setTimeout(() => {
-          setShowSuccess(false);
-          setMessage('');
-        }, 10000);
       } else {
         console.error('❌ [HYDRATION UPLOAD] Error processing files:', result.error);
         setMessage(`Error: ${result.error || result.details || 'Unknown error'}`);
