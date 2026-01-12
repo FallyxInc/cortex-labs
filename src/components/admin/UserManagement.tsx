@@ -56,8 +56,8 @@ export default function UserManagement() {
   const [migrationData, setMigrationData] = useState<{
     usersToMigrate: Array<{
       userId: string;
-      currentData: any;
-      proposedChanges: any;
+      currentData: Record<string, any>;
+      proposedChanges: Record<string, any>;
       issues: string[];
     }>;
     totalUsers: number;
@@ -321,8 +321,12 @@ export default function UserManagement() {
       // Delete users in parallel
       const deletePromises = userIds.map(async (userId) => {
         try {
-          const response = await fetch(`/api/admin/users/${userId}/delete`, {
+          const response = await fetch(`/api/admin/users/${userId}`, {
             method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
           });
 
           const data = await response.json();
@@ -604,7 +608,7 @@ export default function UserManagement() {
     );
   }
 
-  const availableRoles = ['admin', 'homeUser'];
+  const availableRoles = ['admin', 'homeUser', 'chainAdmin'];
   const availableHomesForChain = formData.chainId ? getHomesForChain(formData.chainId) : [];
 
   function userCreateForm() {
@@ -1446,138 +1450,6 @@ Note: When you change a home user's home, their chain will automatically update 
           </div>
         </div>
       )}
-
-      {/* Data Migration Section */}
-      <div className="bg-white shadow overflow-hidden rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <h3 className="text-lg font-medium text-gray-900">Data Migration</h3>
-              <HelpIcon 
-                title="Data Migration"
-                content="This tool helps migrate existing users to the correct data structure. It will:
-
-• Fix role fields that contain home names (convert to 'homeUser' and set homeId)
-• Fix loginCount fields that are empty strings (convert to 0)
-• Ensure all required fields exist (username, email, role, homeId, chainId, loginCount, createdAt)
-• Map old role values to proper home/chain associations
-
-Click 'Scan Users' to analyze all users and see what needs to be migrated."
-              />
-            </div>
-            <button
-              onClick={handleScanMigration}
-              disabled={isScanning}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isScanning ? 'Scanning...' : 'Scan Users'}
-            </button>
-          </div>
-        </div>
-
-        {migrationData && (
-          <div className="px-6 py-4">
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="text-sm text-blue-800">
-                <p className="font-medium mb-2">Migration Analysis Results:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Total users: {migrationData.totalUsers}</li>
-                  <li>Users needing migration: <span className="font-semibold">{migrationData.usersNeedingMigration}</span></li>
-                </ul>
-              </div>
-            </div>
-
-            {migrationData.usersToMigrate.length > 0 ? (
-              <>
-                <div className="mb-4">
-                  <button
-                    onClick={handleExecuteMigration}
-                    disabled={isMigrating}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isMigrating ? 'Migrating...' : `Migrate ${migrationData.usersToMigrate.length} User(s)`}
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Role</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proposed Role</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Home/Chain</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issues</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {migrationData.usersToMigrate.map((user) => (
-                        <tr key={user.userId} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-mono text-gray-900">{user.userId.substring(0, 20)}...</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{user.currentData.role || 'N/A'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                            {user.proposedChanges.role || user.currentData.role}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500">
-                            {user.proposedChanges.homeId ? (
-                              <>
-                                Home: {user.proposedChanges.homeId}
-                                {user.proposedChanges.chainId && <><br />Chain: {user.proposedChanges.chainId}</>}
-                              </>
-                            ) : (
-                              'No home/chain'
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500">
-                            <ul className="list-disc list-inside space-y-1">
-                              {user.issues.map((issue, idx) => (
-                                <li key={idx} className="text-xs">{issue}</li>
-                              ))}
-                            </ul>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>All users are already in the correct format! No migration needed.</p>
-              </div>
-            )}
-
-            {migrationResults && (
-              <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
-                <h4 className="font-medium text-gray-900 mb-3">Migration Results:</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="text-green-600 flex items-center gap-2">
-                    <HiOutlineCheckCircle className="text-lg" />
-                    Updated: {migrationResults.updated.length} user(s)
-                  </div>
-                  {migrationResults.failed.length > 0 && (
-                    <div className="text-red-600 flex items-center gap-2">
-                      <HiOutlineXCircle className="text-lg" />
-                      Failed: {migrationResults.failed.length} user(s)
-                      <ul className="list-disc list-inside ml-4 mt-1">
-                        {migrationResults.failed.map((f, idx) => (
-                          <li key={idx} className="text-xs">{f.userId.substring(0, 20)}... - {f.error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {migrationResults.skipped.length > 0 && (
-                    <div className="text-gray-600 flex items-center gap-2">
-                      <HiOutlineArrowRight className="text-lg" />
-                      Skipped: {migrationResults.skipped.length} user(s)
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

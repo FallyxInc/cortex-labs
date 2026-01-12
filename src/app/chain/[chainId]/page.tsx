@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase/firebase';
-import ChainAdminDashboard from '@/components/chain/ChainAdminDashboard';
+import ChainDashboard  from '@/components/chain/ChainDashboard';
 
 interface PageProps {
   params: Promise<{ chainId: string }>;
@@ -74,6 +74,6 @@ export default function ChainAdminPage({ params }: PageProps) {
     return null;
   }
 
-  return <ChainAdminDashboard chainId={chainId} />;
+  return <ChainDashboard chainId={chainId} />;
 }
 

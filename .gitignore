@@ -5,8 +5,10 @@ next-env.d.ts
 *.log
 __pycache__/
 *.pyc
+*.tsbuildinfo
 
 /files/chains
+/files/hydration
 
 *.env
 .env.prod

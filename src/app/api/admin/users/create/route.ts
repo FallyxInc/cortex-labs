@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       finalHomeId = sanitizedHomeName;
     }
 
-    const auth = getAuth();
+    const auth = getAuth(adminDb.app);
 
     const userRecord = await auth.createUser({
       email,
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
       emailVerified: false // Disable email verification
     });
 
-    const userData: any = {
+    const userData: Record<string, unknown> = {
       username,
       role,
       loginCount: 0,

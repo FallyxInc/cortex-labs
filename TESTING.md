@@ -6,6 +6,9 @@
   - create new home
   - create user
   - upload files to home
+    - test responsive (millcreek or oneill)
+    - test kindera (banwell or berkshire)
+  - review correct data
 - login as user
   - test each page for correct data
   - test moving dates

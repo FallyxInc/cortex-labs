@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase/firebase';
-import FileUpload from '@/components/admin/FileUpload';
+import BehavioursFileUpload from '@/components/admin/BehavioursFileUpload';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -43,7 +43,7 @@ export default function UploadPage() {
         <main>
           <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div className="px-4 py-8 sm:px-0">
-              <FileUpload />
+              <BehavioursFileUpload />
             </div>
           </div>
         </main>

@@ -10,68 +10,16 @@
  * The hardcoded mappings below serve as fallback for backwards compatibility.
  */
 
+import { get, ref } from 'firebase/database';
+import { db } from './firebase/firebase';
+
 export interface HomeMapping {
   /** Home ID used in Firebase/database (camelCase) */
   firebaseId: string;
   /** Python directory name (lowercase, no underscores) */
   pythonDir: string;
-  /** Home name used in UI/forms (snake_case) */
-  homeName: string;
-  /** Display name for UI */
+  homeName: string; 
   displayName: string;
-}
-
-// Cache for Firebase mappings to avoid repeated reads
-let firebaseMappingsCache: Record<string, HomeMapping> = {};
-let cacheTimestamp: number = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Load mappings from Firebase (with caching)
- */
-async function loadFirebaseMappings(): Promise<Record<string, HomeMapping>> {
-  const now = Date.now();
-  
-  // Return cached data if still valid
-  if (Object.keys(firebaseMappingsCache).length > 0 && (now - cacheTimestamp) < CACHE_TTL) {
-    return firebaseMappingsCache;
-  }
-
-  try {
-    // Only import Firebase admin on the server side
-    if (typeof window === 'undefined') {
-      const { adminDb } = await import('@/lib/firebase/firebaseAdmin');
-      const mappingsRef = adminDb.ref('/homeMappings');
-      const snapshot = await mappingsRef.once('value');
-      
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        firebaseMappingsCache = (data || {}) as Record<string, HomeMapping>;
-        cacheTimestamp = now;
-        return firebaseMappingsCache;
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to load Firebase mappings, using fallback:', error);
-  }
-
-  firebaseMappingsCache = {};
-  return {};
-}
-
-/**
- * Get all mappings (Firebase + fallback)
- */
-async function getAllMappings(): Promise<Record<string, HomeMapping>> {
-  const firebaseMappings = await loadFirebaseMappings();
-  return { ...HOME_MAPPINGS, ...(firebaseMappings || {}) };
-}
-
-/**
- * Get mappings synchronously (uses fallback only, for client-side)
- */
-function getMappingsSync(): Record<string, HomeMapping> {
-  return HOME_MAPPINGS;
 }
 
 const HOMES: Record<string, HomeMapping> = {
@@ -138,161 +86,85 @@ export const HOME_MAPPINGS: Record<string, HomeMapping> = {
   // Franklin Gardens
   franklingardens: HOMES.franklingardens,
   // Test
-  test: HOMES.test,
+  // test: HOMES.test,
 };
 
-/**
- * Get Firebase ID from any home identifier (async - checks Firebase)
- */
-export async function getFirebaseIdAsync(home: string): Promise<string> {
-  const mappings = await getAllMappings();
-  const mapping = mappings[home];
-  return mapping?.firebaseId || home;
-}
+
+// Cache for Firebase mappings to avoid repeated reads
+let firebaseMappingsCache: Record<string, HomeMapping> = {};
+let cacheTimestamp: number = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Get Python directory name from any home identifier (async - checks Firebase)
+ * Load mappings from Firebase (with caching)
  */
-export async function getPythonDirNameAsync(home: string): Promise<string> {
-  const mappings = await getAllMappings();
-  const mapping = mappings[home];
-  return mapping?.pythonDir || home;
-}
-
-/**
- * Get home name (snake_case) from any home identifier (async - checks Firebase)
- */
-export async function getHomeNameAsync(home: string): Promise<string> {
-  const mappings = await getAllMappings();
-  const mapping = mappings[home];
-  return mapping?.homeName || home;
-}
-
-/**
- * Get Firebase ID from any home identifier (sync - fallback only)
- */
-export function getFirebaseId(home: string): string {
-  const mapping = getMappingsSync()[home];
-  return mapping?.firebaseId || home;
-}
-
-/**
- * Get Python directory name from any home identifier (sync - fallback only)
- */
-export function getPythonDirName(home: string): string {
-  const mapping = getMappingsSync()[home];
-  return mapping?.pythonDir || home;
-}
-
-/**
- * Get home name (snake_case) from any home identifier
- */
-export function getHomeName(home: string): string {
-  const mapping = getMappingsSync()[home];
-  return mapping?.homeName || home;
-}
-
-/**
- * Get display name from any home identifier
- */
-export function getDisplayName(home: string): string {
-  const mapping = getMappingsSync()[home];
-  return mapping?.displayName || home;
-}
-
-/**
- * Validate that a home has all required mappings configured (async - checks Firebase)
- */
-export async function validateHomeMappingAsync(home: string): Promise<{ valid: boolean; missing?: string[] }> {
-  const mappings = await getAllMappings();
-  const mapping = mappings[home];
+async function loadFirebaseMappingsAdmin(): Promise<Record<string, HomeMapping>> {
+  const now = Date.now();
   
-  if (!mapping) {
-    return { valid: false, missing: ['No mapping found'] };
+  // Return cached data if still valid
+  if (Object.keys(firebaseMappingsCache).length > 0 && (now - cacheTimestamp) < CACHE_TTL) {
+    return firebaseMappingsCache;
   }
-  
-  const missing: string[] = [];
-  if (!mapping.firebaseId) missing.push('firebaseId');
-  if (!mapping.pythonDir) missing.push('pythonDir');
-  if (!mapping.homeName) missing.push('homeName');
-  if (!mapping.displayName) missing.push('displayName');
-  
-  return {
-    valid: missing.length === 0,
-    missing: missing.length > 0 ? missing : undefined
-  };
-}
 
-/**
- * Validate that a home has all required mappings configured (sync - fallback only)
- */
-export function validateHomeMapping(home: string): { valid: boolean; missing?: string[] } {
-  const mapping = getMappingsSync()[home];
-  
-  if (!mapping) {
-    return { valid: false, missing: ['No mapping found'] };
-  }
-  
-  const missing: string[] = [];
-  if (!mapping.firebaseId) missing.push('firebaseId');
-  if (!mapping.pythonDir) missing.push('pythonDir');
-  if (!mapping.homeName) missing.push('homeName');
-  if (!mapping.displayName) missing.push('displayName');
-  
-  return {
-    valid: missing.length === 0,
-    missing: missing.length > 0 ? missing : undefined
-  };
-}
-
-/**
- * Get chain ID for a home (async - checks Firebase)
- */
-export async function getChainIdAsync(home: string): Promise<string | null> {
   try {
+    // Only import Firebase admin on the server side
     if (typeof window === 'undefined') {
       const { adminDb } = await import('@/lib/firebase/firebaseAdmin');
-      const homeName = await getHomeNameAsync(home);
-      const homeRef = adminDb.ref(`/${homeName}`);
-      const snapshot = await homeRef.once('value');
+      const mappingsRef = adminDb.ref('/homeMappings');
+      const snapshot = await mappingsRef.once('value');
       
       if (snapshot.exists()) {
-        const homeData = snapshot.val();
-        return homeData.chainId || null;
+        const data = snapshot.val();
+        firebaseMappingsCache = (data || {}) as Record<string, HomeMapping>;
+        cacheTimestamp = now;
+        return firebaseMappingsCache;
       }
     }
   } catch (error) {
-    console.warn('Failed to get chain ID from Firebase:', error);
+    console.warn('Failed to load Firebase mappings, using fallback:', error);
   }
-  return null;
+
+  firebaseMappingsCache = {};
+  return {};
+}
+
+async function loadFirebaseMappings(): Promise<Record<string, HomeMapping>> {
+  const mappingsRef = ref(db, "/homeMappings");
+  const snapshot = await get(mappingsRef);
+  return snapshot.val() as Record<string, HomeMapping>;
 }
 
 /**
- * Get chain Python directory path (e.g., "chains/responsive" or "chains/kindera")
+ * Get home name from any home identifier (async - checks FirebaseAdmin)
  */
-export async function getChainPythonDirAsync(home: string): Promise<string> {
-  const chainId = await getChainIdAsync(home);
-  if (chainId) {
-    return `chains/${chainId}`;
-  }
-  // Fallback: try to determine from home name (for backwards compatibility during migration)
-  const homeName = await getHomeNameAsync(home);
-  
-  // Map known homes to their chains
-  const homeToChainMap: Record<string, string> = {
-    'mill_creek_care': 'responsive',
-    'the_oneill': 'responsive',
-    'franklingardens': 'responsive',
-    'berkshire_care': 'kindera',
-    'banwell_gardens': 'kindera',
-    'test': 'test',
-  };
-  
-  const mappedChain = homeToChainMap[homeName];
-  if (mappedChain) {
-    return `chains/${mappedChain}`;
-  }
-  
-  throw new Error(`No chain found for home: ${home}. All homes must be assigned to a chain.`);
+export async function getHomeNameAdmin(home: string): Promise<string> {
+
+  const firebaseMappings = await loadFirebaseMappingsAdmin();
+  const mappings = { ...HOME_MAPPINGS, ...(firebaseMappings || {}) };
+  const mapping = mappings[home];
+  return mapping?.homeName || home;
+}
+/**
+ * Get home name from any home identifier (async - checks FirebaseAdmin)
+ */
+export async function getHomeDisplayNameAdmin(home: string): Promise<string> {
+
+  const firebaseMappings = await loadFirebaseMappingsAdmin();
+  const mappings = { ...HOME_MAPPINGS, ...(firebaseMappings || {}) };
+  const mapping = mappings[home];
+  return mapping?.displayName || home;
+}
+
+export async function getHomeName(home: string): Promise<string> {
+  const firebaseMappings = await loadFirebaseMappings();
+  const mappings = { ...HOME_MAPPINGS, ...(firebaseMappings || {}) };
+  const mapping = mappings[home];
+  return mapping?.homeName || home;
+}
+
+export async function getHomeDisplayNamesAdmin() : Promise<string[]> {
+  const firebaseMappings = await loadFirebaseMappingsAdmin();
+  const mappings = { ...HOME_MAPPINGS, ...(firebaseMappings || {}) };
+  return Object.values(mappings).map(mapping => mapping.displayName);
 }
 

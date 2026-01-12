@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
-import { ChainExtractionConfig } from '@/lib/processing/types';
+import { ChainExtractionConfig } from '@/types/behaviourProcessingTypes';
 
 /**
  * Validate ChainExtractionConfig

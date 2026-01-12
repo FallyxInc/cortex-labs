@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
-import { getDisplayName } from '@/lib/homeMappings';
+import { getHomeNameAdmin } from '@/lib/homeMappings';
 
 interface HomeMetrics {
   homeId: string;
@@ -13,6 +13,8 @@ interface HomeMetrics {
   behaviourTypes: Record<string, number>;
   monthlyLogins: number;
   lastUpdated: string;
+  hydrationMissed3Days?: number;
+  averageIntake?: number;
 }
 
 export async function GET(
@@ -133,7 +135,66 @@ export async function GET(
         // Get last updated
         const lastUpdated = homeData.updatedAt || homeData.behaviours?.updatedAt || homeData.createdAt || '';
 
-        const displayName = getDisplayName(homeId) || homeId;
+        // Calculate hydration metrics
+        let hydrationMissed3Days = 0;
+        let averageIntake = 0;
+
+        if (startDate && endDate) {
+          try {
+            const hydration = homeData.hydration || {};
+            const allIntakeValues: number[] = [];
+            const residentsWithMissed3Days = new Set<string>();
+
+            // Iterate through hydration data structure: /{homeId}/hydration/{year}/{month} -> { "DD": { "residentName": {...} } }
+            for (const year in hydration) {
+              if (year === 'createdAt' || year === 'updatedAt') continue;
+              const yearData = hydration[year];
+              if (!yearData || typeof yearData !== 'object') continue;
+              
+              for (const month in yearData) {
+                const monthData = yearData[month];
+                if (!monthData || typeof monthData !== 'object') continue;
+                
+                // monthData structure: { "DD": { "residentName": { intake, goal, ... } } }
+                for (const day in monthData) {
+                  const dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                  const date = new Date(dateStr);
+                  const start = new Date(startDate);
+                  const end = new Date(endDate);
+                  
+                  // Check if date is in range
+                  if (date >= start && date <= end) {
+                    const dayData = monthData[day];
+                    if (dayData && typeof dayData === 'object') {
+                      for (const residentKey in dayData) {
+                        const resident = dayData[residentKey];
+                        if (resident && typeof resident === 'object') {
+                          // Collect intake values
+                          if (typeof resident.intake === 'number' && resident.intake > 0) {
+                            allIntakeValues.push(resident.intake);
+                          }
+                          // Count residents who missed 3 days
+                          if (resident.missed3Days === 'yes') {
+                            residentsWithMissed3Days.add(resident.name || residentKey);
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            hydrationMissed3Days = residentsWithMissed3Days.size;
+            averageIntake = allIntakeValues.length > 0
+              ? Math.round(allIntakeValues.reduce((sum, val) => sum + val, 0) / allIntakeValues.length)
+              : 0;
+          } catch (error) {
+            console.error(`Error calculating hydration metrics for ${homeId}:`, error);
+          }
+        }
+
+        const displayName = (await getHomeNameAdmin(homeId)) || homeId;
 
         homesMetrics.push({
           homeId,
@@ -146,6 +207,8 @@ export async function GET(
           behaviourTypes,
           monthlyLogins,
           lastUpdated,
+          hydrationMissed3Days,
+          averageIntake,
         });
       } catch (error) {
         console.error(`Error processing home ${homeId}:`, error);

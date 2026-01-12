@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChainExtractionConfig, ExtractionType } from '@/lib/processing/types';
+import { ChainExtractionConfig, ExtractionType } from '@/types/behaviourProcessingTypes';
 
 interface ChainOption {
   id: string;

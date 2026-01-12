@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   analyzeExcelData,
   toExcelExtractionConfig,
-} from '@/lib/processing/excelAnalyzer';
+} from '@/lib/analysis/excelAnalyzer';
 
 export async function POST(request: NextRequest) {
   try {
