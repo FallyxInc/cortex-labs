@@ -21,7 +21,7 @@
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
     "mixpanel-browser": "^2.72.0",
-    "next": "^16.0.8",
+    "next": "^16.1.1",
     "openai": "^6.9.1",
     "papaparse": "^5.5.3",
     "pdf-parse": "^2.4.5",
