@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
 import { getAuth } from 'firebase-admin/auth';
+import { HomePreferences, DEFAULT_HOME_PREFERENCES } from '@/types/featureTypes';
 
 export async function GET() {
   try {
@@ -21,7 +22,7 @@ export async function GET() {
       Object.keys(usersData).map(async (userId) => {
         let username = null;
         let email = null;
-        
+
         try {
           const userRecord = await auth.getUser(userId);
           email = userRecord.email;
@@ -30,12 +31,18 @@ export async function GET() {
         } catch {
           console.log(`Could not fetch auth data for user ${userId}`);
         }
-        
+
+        // Get preferences with defaults
+        const preferences: HomePreferences = {
+          defaultSection: usersData[userId]?.preferences?.defaultSection ?? DEFAULT_HOME_PREFERENCES.defaultSection,
+        };
+
         return {
           id: userId,
           username,
           email,
-          ...usersData[userId]
+          ...usersData[userId],
+          preferences,
         };
       })
     );
