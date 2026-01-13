@@ -64,8 +64,10 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 	const [filteredHomes, setFilteredHomes] = useState<HomeCardMetrics[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [chainName, setChainName] = useState<string>('');
-	const [selectedMetric, setSelectedMetric] =
+	const [selectedBehaviourMetric, setSelectedBehaviourMetric] =
 		useState<MetricType>('totalIncidents');
+	const [selectedHydrationMetric, setSelectedHydrationMetric] =
+		useState<MetricType>('averageIntake');
 	const [sortField, setSortField] = useState<SortField>('totalIncidents');
 	const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -171,10 +173,10 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 		return { bg: 'rgba(34, 197, 94, 0.7)', border: 'rgb(34, 197, 94)' };
 	};
 
-	const getChartData = () => {
+	const getChartData = (metric: MetricType) => {
 		const labels = filteredHomes.map(home => home.homeName);
 		const data = filteredHomes.map(home => {
-			switch (selectedMetric) {
+			switch (metric) {
 				case 'totalIncidents':
 					return home.totalIncidents;
 				case 'criticalBehaviours':
@@ -194,7 +196,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 			labels,
 			datasets: [
 				{
-					label: getMetricLabel(selectedMetric),
+					label: getMetricLabel(metric),
 					data,
 					backgroundColor: filteredHomes.map((_, i) => getBarColor(i).bg),
 					borderColor: filteredHomes.map((_, i) => getBarColor(i).border),
@@ -236,7 +238,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 		return step * magnitude;
 	};
 
-	const chartOptions = {
+	const getChartOptions = (metric: MetricType) => ({
 		responsive: true,
 		maintainAspectRatio: false,
 		plugins: {
@@ -252,7 +254,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 						return context[0].label;
 					},
 					label: function (context: any) {
-						return `${getMetricLabel(selectedMetric)}: ${context.parsed.y}`;
+						return `${getMetricLabel(metric)}: ${context.parsed.y}`;
 					},
 				},
 			},
@@ -284,7 +286,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 				beginAtZero: true,
 				title: {
 					display: true,
-					text: getMetricLabel(selectedMetric),
+					text: getMetricLabel(metric),
 					font: { size: 13, weight: 'bold' as const },
 					color: '#374151',
 				},
@@ -292,7 +294,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 					stepSize: (() => {
 						const maxValue = Math.max(
 							...filteredHomes.map(h => {
-								switch (selectedMetric) {
+								switch (metric) {
 									case 'totalIncidents':
 										return h.totalIncidents;
 									case 'criticalBehaviours':
@@ -323,7 +325,7 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 		layout: {
 			padding: { left: 15, right: 15, top: 15, bottom: 30 },
 		},
-	};
+	});
 
 	const handleDownloadCSV = () => {
 		const headers = [
@@ -365,28 +367,18 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 
 	const handleHomeClick = (homeId: string) => {
 		const encodedHomeId = encodeURIComponent(homeId);
+		console.log('going to link', `/chain/${chainId}/home/${encodedHomeId}`);
 		router.push(`/chain/${chainId}/home/${encodedHomeId}`);
 	};
 
 	const handleLogout = async () => {
 		try {
-			await auth.signOut();
+			auth.signOut();
 			router.push('/login');
 		} catch (error) {
 			console.error('Error logging out:', error);
 		}
 	};
-
-	// if (loading) {
-	//   return (
-	//     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-	//       <div
-	//         className="animate-spin rounded-full h-32 w-32 border-b-2"
-	//         style={{ borderColor: "#06b6d4" }}
-	//       ></div>
-	//     </div>
-	//   );
-	// }
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -394,12 +386,49 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 			<header className="bg-white shadow-sm border-b border-gray-200">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 					<div className="flex justify-between items-center">
-						<div>
-							<h1 className="text-2xl font-bold text-gray-900">
-								Chain Dashboard
-							</h1>
-							<p className="text-sm text-gray-500 mt-0.5">{chainName}</p>
+						<div className="flex items-center gap-8">
+							<div>
+								<h1 className="text-2xl font-bold text-gray-900">
+									Chain Dashboard
+								</h1>
+								<p className="text-sm text-gray-500 mt-0.5">{chainName}</p>
+							</div>
+
+							{/* Date Range Picker moved to Header */}
+							<div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+								<input
+									type="date"
+									value={startDate}
+									onChange={e => {
+										const newStartDate = e.target.value;
+										setStartDate(newStartDate);
+										if (endDate && newStartDate > endDate) {
+											setEndDate(newStartDate);
+										}
+									}}
+									className="px-2 py-1 border-0 bg-transparent text-sm focus:ring-0"
+									title="Start Date"
+								/>
+								<span className="text-xs text-gray-400 font-medium px-1">
+									TO
+								</span>
+								<input
+									type="date"
+									value={endDate}
+									onChange={e => {
+										const newEndDate = e.target.value;
+										setEndDate(newEndDate);
+										if (startDate && newEndDate < startDate) {
+											setStartDate(newEndDate);
+										}
+									}}
+									className="px-2 py-1 border-0 bg-transparent text-sm focus:ring-0"
+									title="End Date"
+									min={startDate}
+								/>
+							</div>
 						</div>
+
 						<div className="flex items-center gap-4">
 							<button
 								onClick={handleDownloadCSV}
@@ -420,52 +449,19 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 
 			{/* Main Content */}
 			<main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-				{/* Bar Chart Section */}
-				<div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-					<h2 className="text-base font-semibold text-gray-900 mb-4">
-						{getMetricLabel(selectedMetric)} by Home
-					</h2>
-
-					{/* Filters */}
-					<div className="flex items-center gap-4 mb-4 flex-wrap">
-						{/* Date Range Picker */}
-						<div className="flex items-center gap-2">
-							<input
-								type="date"
-								value={startDate}
-								onChange={e => {
-									const newStartDate = e.target.value;
-									setStartDate(newStartDate);
-									if (endDate && newStartDate > endDate) {
-										setEndDate(newStartDate);
-									}
-								}}
-								className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-								title="Start Date"
-							/>
-							<span className="text-sm text-gray-500">to</span>
-							<input
-								type="date"
-								value={endDate}
-								onChange={e => {
-									const newEndDate = e.target.value;
-									setEndDate(newEndDate);
-									if (startDate && newEndDate < startDate) {
-										setStartDate(newEndDate);
-									}
-								}}
-								className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-								title="End Date"
-								min={startDate}
-							/>
-						</div>
-
-						{/* Metric Toggle Buttons */}
-						<div className="flex gap-2">
+				{/* Charts Grid */}
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+					{/* Behaviours Chart */}
+					<div className="bg-white rounded-lg shadow-sm p-6">
+						<h2 className="text-base font-semibold text-gray-900 mb-4">
+							Behaviours - {getMetricLabel(selectedBehaviourMetric)}
+						</h2>
+						{/* Behaviours Toggles */}
+						<div className="flex flex-wrap gap-2 mb-4">
 							<button
-								onClick={() => setSelectedMetric('totalIncidents')}
+								onClick={() => setSelectedBehaviourMetric('totalIncidents')}
 								className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-									selectedMetric === 'totalIncidents'
+									selectedBehaviourMetric === 'totalIncidents'
 										? 'bg-cyan-500 text-white shadow-sm'
 										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
 								}`}
@@ -473,9 +469,9 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 								Total Incidents
 							</button>
 							<button
-								onClick={() => setSelectedMetric('criticalBehaviours')}
+								onClick={() => setSelectedBehaviourMetric('criticalBehaviours')}
 								className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-									selectedMetric === 'criticalBehaviours'
+									selectedBehaviourMetric === 'criticalBehaviours'
 										? 'bg-cyan-500 text-white shadow-sm'
 										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
 								}`}
@@ -483,19 +479,58 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 								Critical Behaviours
 							</button>
 							<button
-								onClick={() => setSelectedMetric('followUpCompletionRate')}
+								onClick={() =>
+									setSelectedBehaviourMetric('followUpCompletionRate')
+								}
 								className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-									selectedMetric === 'followUpCompletionRate'
+									selectedBehaviourMetric === 'followUpCompletionRate'
 										? 'bg-cyan-500 text-white shadow-sm'
 										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
 								}`}
 							>
 								Follow-up Rate
 							</button>
+						</div>
+
+						{/* Behaviours Chart */}
+						<div style={{ height: '400px', position: 'relative' }}>
+							{loading ? (
+								<div className="flex items-end justify-between h-full w-full gap-4 px-2 pb-10">
+									{[60, 40, 75, 50, 85, 35, 65, 45].map((height, i) => (
+										<div
+											key={i}
+											className="flex-1 bg-gray-200 rounded-t-md animate-pulse"
+											style={{
+												height: `${height}%`,
+												animationDelay: `${i * 0.1}s`,
+											}}
+										></div>
+									))}
+								</div>
+							) : filteredHomes.length > 0 ? (
+								<Bar
+									data={getChartData(selectedBehaviourMetric)}
+									options={getChartOptions(selectedBehaviourMetric)}
+								/>
+							) : (
+								<div className="flex items-center justify-center h-full text-gray-500">
+									No data available
+								</div>
+							)}
+						</div>
+					</div>
+
+					{/* Hydration Chart */}
+					<div className="bg-white rounded-lg shadow-sm p-6">
+						<h2 className="text-base font-semibold text-gray-900 mb-4">
+							Hydration - {getMetricLabel(selectedHydrationMetric)}
+						</h2>
+						{/* Hydration Toggles */}
+						<div className="flex flex-wrap gap-2 mb-4">
 							<button
-								onClick={() => setSelectedMetric('missed3Days')}
+								onClick={() => setSelectedHydrationMetric('missed3Days')}
 								className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-									selectedMetric === 'missed3Days'
+									selectedHydrationMetric === 'missed3Days'
 										? 'bg-cyan-500 text-white shadow-sm'
 										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
 								}`}
@@ -503,9 +538,9 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 								Missed 3 Days
 							</button>
 							<button
-								onClick={() => setSelectedMetric('averageIntake')}
+								onClick={() => setSelectedHydrationMetric('averageIntake')}
 								className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-									selectedMetric === 'averageIntake'
+									selectedHydrationMetric === 'averageIntake'
 										? 'bg-cyan-500 text-white shadow-sm'
 										: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
 								}`}
@@ -513,86 +548,139 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 								Average Intake
 							</button>
 						</div>
-					</div>
 
-					{/* Chart */}
-					<div style={{ height: '400px', position: 'relative' }}>
-						{filteredHomes.length > 0 ? (
-							<Bar data={getChartData()} options={chartOptions} />
-						) : (
-							<div className="flex items-center justify-center h-full text-gray-500">
-								No data available
-							</div>
-						)}
+						{/* Hydration Chart */}
+						<div style={{ height: '400px', position: 'relative' }}>
+							{loading ? (
+								<div className="flex items-end justify-between h-full w-full gap-4 px-2 pb-10">
+									{[60, 40, 75, 50, 85, 35, 65, 45].map((height, i) => (
+										<div
+											key={i}
+											className="flex-1 bg-gray-200 rounded-t-md animate-pulse"
+											style={{
+												height: `${height}%`,
+												animationDelay: `${i * 0.1}s`,
+											}}
+										></div>
+									))}
+								</div>
+							) : filteredHomes.length > 0 ? (
+								<Bar
+									data={getChartData(selectedHydrationMetric)}
+									options={getChartOptions(selectedHydrationMetric)}
+								/>
+							) : (
+								<div className="flex items-center justify-center h-full text-gray-500">
+									No data available
+								</div>
+							)}
+						</div>
 					</div>
 				</div>
 
 				{/* Home Cards Grid */}
 				<div className="bg-white rounded-lg shadow-sm p-6">
-					<div className="flex justify-between items-center mb-4">
+					<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
 						<h2 className="text-lg font-semibold text-gray-900">
 							Homes Overview
 						</h2>
-						<div className="flex items-center gap-3">
-							<button
-								onClick={() => handleSort('totalIncidents')}
-								className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
-									sortField === 'totalIncidents'
-										? 'bg-cyan-50 border-cyan-300 text-cyan-700'
-										: 'border-gray-300 hover:bg-gray-50 text-gray-700'
-								}`}
-							>
-								<span>↓↑</span>
-								<span>Total Incidents</span>
-							</button>
-							<button
-								onClick={() => handleSort('followUpCompletionRate')}
-								className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
-									sortField === 'followUpCompletionRate'
-										? 'bg-cyan-50 border-cyan-300 text-cyan-700'
-										: 'border-gray-300 hover:bg-gray-50 text-gray-700'
-								}`}
-							>
-								<span>↓↑</span>
-								<span>Follow-up Rate</span>
-							</button>
-							<button
-								onClick={() => handleSort('missed3Days')}
-								className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
-									sortField === 'missed3Days'
-										? 'bg-cyan-50 border-cyan-300 text-cyan-700'
-										: 'border-gray-300 hover:bg-gray-50 text-gray-700'
-								}`}
-							>
-								<span>↓↑</span>
-								<span>Missed 3 Days</span>
-							</button>
-							<button
-								onClick={() => handleSort('averageIntake')}
-								className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
-									sortField === 'averageIntake'
-										? 'bg-cyan-50 border-cyan-300 text-cyan-700'
-										: 'border-gray-300 hover:bg-gray-50 text-gray-700'
-								}`}
-							>
-								<span>↓↑</span>
-								<span>Average Intake</span>
-							</button>
+						<div className="flex items-center gap-4">
+							<div className="flex flex-col items-start">
+								<span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-2">
+									Behaviours
+								</span>
+								<div className="flex items-center gap-2">
+									<button
+										onClick={() => handleSort('totalIncidents')}
+										className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-medium transition-colors ${
+											sortField === 'totalIncidents'
+												? 'bg-cyan-50 border-cyan-300 text-cyan-700'
+												: 'border-gray-300 hover:bg-gray-50 text-gray-700'
+										}`}
+									>
+										<span>↓↑</span>
+										<span>Total Incidents</span>
+									</button>
+									<button
+										onClick={() => handleSort('followUpCompletionRate')}
+										className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-medium transition-colors ${
+											sortField === 'followUpCompletionRate'
+												? 'bg-cyan-50 border-cyan-300 text-cyan-700'
+												: 'border-gray-300 hover:bg-gray-50 text-gray-700'
+										}`}
+									>
+										<span>↓↑</span>
+										<span>Follow-up Rate</span>
+									</button>
+								</div>
+							</div>
+
+							<div className="h-10 w-px bg-gray-200 self-end mb-1"></div>
+
+							<div className="flex flex-col items-start">
+								<span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-2">
+									Hydration
+								</span>
+								<div className="flex items-center gap-2">
+									<button
+										onClick={() => handleSort('missed3Days')}
+										className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-medium transition-colors ${
+											sortField === 'missed3Days'
+												? 'bg-cyan-50 border-cyan-300 text-cyan-700'
+												: 'border-gray-300 hover:bg-gray-50 text-gray-700'
+										}`}
+									>
+										<span>↓↑</span>
+										<span>Missed 3 Days</span>
+									</button>
+									<button
+										onClick={() => handleSort('averageIntake')}
+										className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-medium transition-colors ${
+											sortField === 'averageIntake'
+												? 'bg-cyan-50 border-cyan-300 text-cyan-700'
+												: 'border-gray-300 hover:bg-gray-50 text-gray-700'
+										}`}
+									>
+										<span>↓↑</span>
+										<span>Average Intake</span>
+									</button>
+								</div>
+							</div>
 						</div>
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-						{filteredHomes.map((home, index) => (
-							<HomeCard
-								key={home.homeId}
-								home={home}
-								onClick={handleHomeClick}
-								colorIndex={index}
-							/>
-						))}
+						{loading ? (
+							<>
+								{[...Array(8)].map((_, i) => (
+									<div
+										key={i}
+										className="bg-white border border-gray-200 rounded-lg p-4 border-l-4 border-l-gray-200 h-48 animate-pulse"
+									>
+										<div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+										<div className="h-8 bg-gray-200 rounded w-1/4 mb-1"></div>
+										<div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+										<div className="space-y-2 pt-3 border-t border-gray-100">
+											<div className="h-3 bg-gray-200 rounded w-full"></div>
+											<div className="h-3 bg-gray-200 rounded w-5/6"></div>
+											<div className="h-3 bg-gray-200 rounded w-4/6"></div>
+										</div>
+									</div>
+								))}
+							</>
+						) : (
+							filteredHomes.map((home, index) => (
+								<HomeCard
+									key={home.homeId}
+									home={home}
+									onClick={handleHomeClick}
+									colorIndex={index}
+								/>
+							))
+						)}
 					</div>
 
-					{filteredHomes.length === 0 && (
+					{!loading && filteredHomes.length === 0 && (
 						<div className="text-center py-12 text-gray-500">
 							No homes available
 						</div>
