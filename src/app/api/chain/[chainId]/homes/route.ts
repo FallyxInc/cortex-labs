@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
 import { getHomeNameAdmin } from '@/lib/homeMappings';
+import { getLegacyHydrationData } from '@/app/api/hydration/hydration-legacy';
 
 interface HomeMetrics {
 	homeId: string;
@@ -151,10 +152,12 @@ export async function GET(
 
 				if (startDate && endDate) {
 					try {
-						const hydration = homeData.hydration || {};
 						const allIntakeValues: number[] = [];
 						const residentsWithMissed3Days = new Set<string>();
 
+						// 1. Process Default Hydration Data (Realtime DB)
+						const hydration = homeData.hydration || {};
+						
 						// Iterate through hydration data structure: /{homeId}/hydration/{year}/{month} -> { "DD": { "residentName": {...} } }
 						for (const year in hydration) {
 							if (year === 'createdAt' || year === 'updatedAt') continue;
@@ -197,6 +200,52 @@ export async function GET(
 										}
 									}
 								}
+							}
+						}
+
+						// 2. Process Legacy Hydration Data (Firestore)
+						if (homeData.hydrationId) {
+							try {
+								// Fetch legacy data (this fetches all history for the home)
+								const legacyResidents = await getLegacyHydrationData('home_manager', homeData.hydrationId) as any[];
+								
+								for (const resident of legacyResidents) {
+									let isResidentActiveInRange = false;
+
+									// Check dateData to see if resident has data in range
+									if (resident.dateData) {
+										for (const [dateStr, value] of Object.entries(resident.dateData)) {
+											// dateStr is MM/DD/YYYY
+											const parts = dateStr.split('/');
+											if (parts.length === 3) {
+												// Note: month is 0-indexed in Date constructor
+												const date = new Date(
+													parseInt(parts[2]), 
+													parseInt(parts[0]) - 1, 
+													parseInt(parts[1])
+												);
+												const start = new Date(startDate);
+												const end = new Date(endDate);
+
+												if (date >= start && date <= end) {
+													isResidentActiveInRange = true;
+													// Add intake value
+													if (typeof value === 'number' && value > 0) {
+														allIntakeValues.push(value);
+													}
+												}
+											}
+										}
+									}
+
+									// If resident is active in this range, include their missed3Days status
+									// Note: legacy missed3Days is aggregated, so we assume if they are active and have the flag, it counts.
+									if (isResidentActiveInRange && resident.missed3Days === 'yes') {
+										residentsWithMissed3Days.add(resident.name);
+									}
+								}
+							} catch (legacyError) {
+								console.error(`Error processing legacy hydration for ${homeId}:`, legacyError);
 							}
 						}
 

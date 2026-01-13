@@ -373,23 +373,12 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 
 	const handleLogout = async () => {
 		try {
-			await auth.signOut();
+			auth.signOut();
 			router.push('/login');
 		} catch (error) {
 			console.error('Error logging out:', error);
 		}
 	};
-
-	// if (loading) {
-	//   return (
-	//     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-	//       <div
-	//         className="animate-spin rounded-full h-32 w-32 border-b-2"
-	//         style={{ borderColor: "#06b6d4" }}
-	//       ></div>
-	//     </div>
-	//   );
-	// }
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -505,7 +494,20 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 
 						{/* Behaviours Chart */}
 						<div style={{ height: '400px', position: 'relative' }}>
-							{filteredHomes.length > 0 ? (
+							{loading ? (
+								<div className="flex items-end justify-between h-full w-full gap-4 px-2 pb-10">
+									{[60, 40, 75, 50, 85, 35, 65, 45].map((height, i) => (
+										<div
+											key={i}
+											className="flex-1 bg-gray-200 rounded-t-md animate-pulse"
+											style={{
+												height: `${height}%`,
+												animationDelay: `${i * 0.1}s`,
+											}}
+										></div>
+									))}
+								</div>
+							) : filteredHomes.length > 0 ? (
 								<Bar
 									data={getChartData(selectedBehaviourMetric)}
 									options={getChartOptions(selectedBehaviourMetric)}
@@ -549,7 +551,20 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 
 						{/* Hydration Chart */}
 						<div style={{ height: '400px', position: 'relative' }}>
-							{filteredHomes.length > 0 ? (
+							{loading ? (
+								<div className="flex items-end justify-between h-full w-full gap-4 px-2 pb-10">
+									{[60, 40, 75, 50, 85, 35, 65, 45].map((height, i) => (
+										<div
+											key={i}
+											className="flex-1 bg-gray-200 rounded-t-md animate-pulse"
+											style={{
+												height: `${height}%`,
+												animationDelay: `${i * 0.1}s`,
+											}}
+										></div>
+									))}
+								</div>
+							) : filteredHomes.length > 0 ? (
 								<Bar
 									data={getChartData(selectedHydrationMetric)}
 									options={getChartOptions(selectedHydrationMetric)}
@@ -635,17 +650,37 @@ export default function ChainDashboard({ chainId }: ChainDashboardProps) {
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-						{filteredHomes.map((home, index) => (
-							<HomeCard
-								key={home.homeId}
-								home={home}
-								onClick={handleHomeClick}
-								colorIndex={index}
-							/>
-						))}
+						{loading ? (
+							<>
+								{[...Array(8)].map((_, i) => (
+									<div
+										key={i}
+										className="bg-white border border-gray-200 rounded-lg p-4 border-l-4 border-l-gray-200 h-48 animate-pulse"
+									>
+										<div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+										<div className="h-8 bg-gray-200 rounded w-1/4 mb-1"></div>
+										<div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+										<div className="space-y-2 pt-3 border-t border-gray-100">
+											<div className="h-3 bg-gray-200 rounded w-full"></div>
+											<div className="h-3 bg-gray-200 rounded w-5/6"></div>
+											<div className="h-3 bg-gray-200 rounded w-4/6"></div>
+										</div>
+									</div>
+								))}
+							</>
+						) : (
+							filteredHomes.map((home, index) => (
+								<HomeCard
+									key={home.homeId}
+									home={home}
+									onClick={handleHomeClick}
+									colorIndex={index}
+								/>
+							))
+						)}
 					</div>
 
-					{filteredHomes.length === 0 && (
+					{!loading && filteredHomes.length === 0 && (
 						<div className="text-center py-12 text-gray-500">
 							No homes available
 						</div>
