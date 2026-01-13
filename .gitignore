@@ -12,6 +12,7 @@ __pycache__/
 
 *.env
 .env.prod
+.env.staging
 !.env.example
 !**/.env.example
 !.env.local.example
