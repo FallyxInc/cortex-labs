@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import {
 	signInWithEmailAndPassword,
 	setPersistence,
@@ -10,22 +10,22 @@ import {
 	browserSessionPersistence,
 	onAuthStateChanged,
 	signOut,
-} from "firebase/auth";
-import { ref, get, set } from "firebase/database";
-import { db, auth } from "@/lib/firebase/firebase";
+} from 'firebase/auth';
+import { ref, get, set } from 'firebase/database';
+import { db, auth } from '@/lib/firebase/firebase';
 import {
 	trackLogin,
 	trackFormInteraction,
 	trackFeatureUsage,
-} from "@/lib/mixpanel";
+} from '@/lib/mixpanel';
 
 const REMEMBER_ME_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-const REMEMBER_ME_STORAGE_KEY = "rememberMeLoginTimestamp";
+const REMEMBER_ME_STORAGE_KEY = 'rememberMeLoginTimestamp';
 
 export default function Login() {
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [errorMessage, setErrorMessage] = useState("");
+	const [email, setEmail] = useState('');
+	const [password, setPassword] = useState('');
+	const [errorMessage, setErrorMessage] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [rememberMe, setRememberMe] = useState(true); // Default to true for better UX
 	const [checkingAuth, setCheckingAuth] = useState(true);
@@ -35,12 +35,12 @@ export default function Login() {
 
 	const loginUser = async (userId: string, userData: unknown) => {
 		if (
-			typeof userData !== "object" ||
+			typeof userData !== 'object' ||
 			userData === null ||
-			!("role" in userData) ||
-			!("loginCount" in userData)
+			!('role' in userData) ||
+			!('loginCount' in userData)
 		) {
-			console.log("User data invalid:", userData);
+			console.log('User data invalid:', userData);
 			return;
 		}
 
@@ -57,7 +57,7 @@ export default function Login() {
 
 		// Track successful login
 		trackLogin({
-			method: "email",
+			method: 'email',
 			success: true,
 			userId,
 			role: role,
@@ -68,45 +68,45 @@ export default function Login() {
 		// Track form completion
 		const timeToComplete = Date.now() - formStartTime.current;
 		trackFormInteraction({
-			formName: "login",
-			action: "submitted",
+			formName: 'login',
+			action: 'submitted',
 			timeToComplete,
 		});
-		if (role === "admin") {
-			router.push("/admin");
+		if (role === 'admin') {
+			router.push('/admin');
 			return;
-		} else if (role === "homeUser") {
-			if ("homeId" in userData) {
+		} else if (role === 'homeUser') {
+			if ('homeId' in userData) {
 				const homeId = userData.homeId as string;
 				router.push(`/${homeId}`);
 				return;
 			} else {
 				// If homeUser doesn't have a homeId, show error
 				setErrorMessage(
-					"Your account is not assigned to a home. Please contact an administrator.",
+					'Your account is not assigned to a home. Please contact an administrator.'
 				);
 				trackLogin({
-					method: "email",
+					method: 'email',
 					success: false,
-					error: "no_home_assigned",
+					error: 'no_home_assigned',
 					userId,
 					role: role,
 				});
 			}
-		} else if (role === "chainAdmin") {
-			if ("chainId" in userData) {
+		} else if (role === 'chainAdmin') {
+			if ('chainId' in userData) {
 				const chainId = userData.chainId as string;
 				router.push(`/chain/${chainId}`);
 				return;
 			} else {
 				// If chainAdmin doesn't have a chainId, show error
 				setErrorMessage(
-					"Your account is not assigned to a chain. Please contact an administrator.",
+					'Your account is not assigned to a chain. Please contact an administrator.'
 				);
 				trackLogin({
-					method: "email",
+					method: 'email',
 					success: false,
-					error: "no_chain_assigned",
+					error: 'no_chain_assigned',
 					userId,
 					role: role,
 				});
@@ -114,23 +114,23 @@ export default function Login() {
 		} else {
 			// Legacy role mappings
 			const roleMapping: { [key: string]: string } = {
-				"niagara-ltc": "niagara",
-				generations: "generations",
-				shepherd: "shepherd",
+				'niagara-ltc': 'niagara',
+				generations: 'generations',
+				shepherd: 'shepherd',
 			};
 			const mappedRole = roleMapping[role] || role;
-			router.push("/" + mappedRole);
+			router.push('/' + mappedRole);
 			return;
 		}
 	};
 	useEffect(() => {
 		// Check if user is already authenticated (for persisted sessions)
-		onAuthStateChanged(auth, async (user) => {
+		onAuthStateChanged(auth, async user => {
 			if (user) {
 				try {
 					// Check if remember me session has expired
 					const rememberMeTimestamp = localStorage.getItem(
-						REMEMBER_ME_STORAGE_KEY,
+						REMEMBER_ME_STORAGE_KEY
 					);
 					if (rememberMeTimestamp) {
 						const loginTime = parseInt(rememberMeTimestamp, 10);
@@ -151,7 +151,7 @@ export default function Login() {
 						await loginUser(user.uid, userSnapshot.val());
 					}
 				} catch (error) {
-					console.error("Error checking user data:", error);
+					console.error('Error checking user data:', error);
 				}
 			} else {
 				// User is not authenticated, clear remember me timestamp
@@ -166,8 +166,8 @@ export default function Login() {
 		if (!checkingAuth) {
 			// Track form start only after auth check is complete
 			trackFormInteraction({
-				formName: "login",
-				action: "started",
+				formName: 'login',
+				action: 'started',
 			});
 		}
 	}, [checkingAuth]);
@@ -176,28 +176,29 @@ export default function Login() {
 		if (event) event.preventDefault();
 
 		if (!email || !password) {
-			setErrorMessage("Please enter both email and password");
+			setErrorMessage('Please enter both email and password');
 			trackFormInteraction({
-				formName: "login",
-				action: "validated",
-				validationErrors: ["missing_fields"],
+				formName: 'login',
+				action: 'validated',
+				validationErrors: ['missing_fields'],
 			});
 			return;
 		}
 
-		let loginEmail = email;
+		let loginEmail = email.trim();
 		// validate email
-		if (!email.includes("@")) {
-			loginEmail = email + "@example.com";
+		if (!loginEmail.includes('@')) {
+			loginEmail = loginEmail + '@example.com';
 		}
+
 		// Additional email validation
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!emailRegex.test(loginEmail)) {
-			setErrorMessage("Please enter a valid email address");
+			setErrorMessage('Please enter a valid email address');
 			trackFormInteraction({
-				formName: "login",
-				action: "validated",
-				validationErrors: ["invalid_email_format"],
+				formName: 'login',
+				action: 'validated',
+				validationErrors: ['invalid_email_format'],
 			});
 			return;
 		}
@@ -210,13 +211,13 @@ export default function Login() {
 			// SESSION persistence: only persists for current browser session
 			await setPersistence(
 				auth,
-				rememberMe ? browserLocalPersistence : browserSessionPersistence,
+				rememberMe ? browserLocalPersistence : browserSessionPersistence
 			);
 
 			const userCredential = await signInWithEmailAndPassword(
 				auth,
 				loginEmail,
-				password,
+				password
 			);
 			const userId = userCredential.user.uid;
 
@@ -228,50 +229,50 @@ export default function Login() {
 			}
 
 			const userSnapshot = await get(
-				ref(db, `users/${userCredential.user.uid}`),
+				ref(db, `users/${userCredential.user.uid}`)
 			);
 
 			if (userSnapshot.exists()) {
 				loginUser(userId, userSnapshot.val());
 			}
 		} catch (error: unknown) {
-			console.error("Error during login:", error);
+			console.error('Error during login:', error);
 
 			// Map Firebase error codes to user-friendly messages
-			let errorMessage = "Login failed. Please check your credentials.";
+			let errorMessage = 'Login failed. Please check your credentials.';
 
-			if (error && typeof error === "object" && "code" in error) {
+			if (error && typeof error === 'object' && 'code' in error) {
 				switch ((error as { code: string }).code) {
-					case "auth/invalid-credential":
-					case "auth/wrong-password":
-					case "auth/user-not-found":
-						errorMessage = "Incorrect email or password";
+					case 'auth/invalid-credential':
+					case 'auth/wrong-password':
+					case 'auth/user-not-found':
+						errorMessage = 'Incorrect email or password';
 						break;
-					case "auth/invalid-email":
-						errorMessage = "Invalid email address";
+					case 'auth/invalid-email':
+						errorMessage = 'Invalid email address';
 						break;
-					case "auth/user-disabled":
-						errorMessage = "This account has been disabled";
+					case 'auth/user-disabled':
+						errorMessage = 'This account has been disabled';
 						break;
-					case "auth/too-many-requests":
-						errorMessage = "Too many failed attempts. Please try again later";
+					case 'auth/too-many-requests':
+						errorMessage = 'Too many failed attempts. Please try again later';
 						break;
-					case "auth/network-request-failed":
-						errorMessage = "Network error. Please check your connection.";
+					case 'auth/network-request-failed':
+						errorMessage = 'Network error. Please check your connection.';
 						break;
 					default:
 						// For other errors, use a generic message
-						errorMessage = "Login failed. Please check your credentials.";
+						errorMessage = 'Login failed. Please check your credentials.';
 				}
-			} else if (error && typeof error === "object" && "message" in error) {
+			} else if (error && typeof error === 'object' && 'message' in error) {
 				// If there's a message but no code, check if it contains invalid-credential
 				if (
 					(error as { message: string }).message.includes(
-						"invalid-credential",
+						'invalid-credential'
 					) ||
-					(error as { message: string }).message.includes("wrong-password")
+					(error as { message: string }).message.includes('wrong-password')
 				) {
-					errorMessage = "Incorrect email or password";
+					errorMessage = 'Incorrect email or password';
 				}
 			}
 
@@ -279,24 +280,24 @@ export default function Login() {
 
 			// Track failed login
 			trackLogin({
-				method: "email",
+				method: 'email',
 				success: false,
 				error:
-					error && typeof error === "object" && "code" in error
+					error && typeof error === 'object' && 'code' in error
 						? (error as { code: string }).code
-						: "authentication_failed",
+						: 'authentication_failed',
 				timeToLogin: loginStartTime.current
 					? Date.now() - loginStartTime.current
 					: undefined,
 			});
 
 			trackFormInteraction({
-				formName: "login",
-				action: "validated",
+				formName: 'login',
+				action: 'validated',
 				validationErrors: [
-					error && typeof error === "object" && "code" in error
+					error && typeof error === 'object' && 'code' in error
 						? (error as { code: string }).code
-						: "authentication_failed",
+						: 'authentication_failed',
 				],
 			});
 		}
@@ -344,11 +345,11 @@ export default function Login() {
 							id="login-email"
 							type="text"
 							value={email}
-							onChange={(e) => setEmail(e.target.value)}
+							onChange={e => setEmail(e.target.value)}
 							placeholder="Enter your email"
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									document.getElementById("login-password")?.focus();
+							onKeyDown={e => {
+								if (e.key === 'Enter') {
+									document.getElementById('login-password')?.focus();
 								}
 							}}
 							className="w-full px-4 py-3 text-sm border border-sky-100 rounded-lg outline-none transition-all duration-300 ease-in-out bg-slate-50 text-slate-900 hover:border-sky-200 hover:bg-white focus:border-cyan-500 focus:bg-white focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-20"
@@ -365,12 +366,12 @@ export default function Login() {
 						<div className="relative">
 							<input
 								id="login-password"
-								type={showPassword ? "text" : "password"}
+								type={showPassword ? 'text' : 'password'}
 								value={password}
-								onChange={(e) => setPassword(e.target.value)}
+								onChange={e => setPassword(e.target.value)}
 								placeholder="Enter your password"
-								onKeyDown={(e) => {
-									if (e.key === "Enter") {
+								onKeyDown={e => {
+									if (e.key === 'Enter') {
 										handleLogin();
 									}
 								}}
@@ -381,13 +382,13 @@ export default function Login() {
 								onClick={() => {
 									setShowPassword(!showPassword);
 									trackFeatureUsage({
-										featureName: "password_visibility_toggle",
-										action: showPassword ? "closed" : "opened",
+										featureName: 'password_visibility_toggle',
+										action: showPassword ? 'closed' : 'opened',
 									});
 								}}
 								className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-1 flex items-center justify-center text-gray-500 text-base"
-								aria-label={showPassword ? "Hide password" : "Show password"}
-								title={showPassword ? "Hide password" : "Show password"}
+								aria-label={showPassword ? 'Hide password' : 'Show password'}
+								title={showPassword ? 'Hide password' : 'Show password'}
 							>
 								{showPassword ? (
 									<svg
@@ -430,7 +431,7 @@ export default function Login() {
 							<input
 								type="checkbox"
 								checked={rememberMe}
-								onChange={(e) => setRememberMe(e.target.checked)}
+								onChange={e => setRememberMe(e.target.checked)}
 								className="w-4 h-4 cursor-pointer accent-cyan-500"
 							/>
 							<span className="text-sm text-gray-500 font-medium">

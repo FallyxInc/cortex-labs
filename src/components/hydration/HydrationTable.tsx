@@ -10,6 +10,8 @@ import {
 	deleteComment as deleteCommentUtil,
 } from '@/lib/utils/commentUtils';
 
+const DEFAULT_GOAL = 1000;
+
 interface HydrationTableProps {
 	residents: HydrationResident[];
 	dateColumns: string[];
@@ -100,10 +102,14 @@ function calculateMissed3Days(
 	resident: HydrationResident,
 	dateColumns: string[]
 ): boolean {
-	if (!resident.dateData || dateColumns.length < 3 || resident.goal === 0) {
+	if (!resident.dateData || dateColumns.length < 3) {
 		return false;
 	}
 
+	let goal = resident.goal;
+	if (goal <= 0) {
+		goal = DEFAULT_GOAL;
+	}
 	const sortedDates = [...dateColumns].sort((a, b) => {
 		const dateA = parseLegacyDate(a);
 		const dateB = parseLegacyDate(b);
@@ -131,11 +137,7 @@ function calculateMissed3Days(
 			const val2 = resident.dateData[date2] || 0;
 			const val3 = resident.dateData[date3] || 0;
 
-			if (
-				val1 < resident.goal &&
-				val2 < resident.goal &&
-				val3 < resident.goal
-			) {
+			if (val1 < goal && val2 < goal && val3 < goal) {
 				return true;
 			}
 		}
@@ -870,7 +872,10 @@ export default function HydrationTable({
 									resident.dateData,
 									filteredDateColumns
 								);
-								const goal = resident.goal > 0 ? resident.goal : 1000;
+								let goal = resident.goal;
+								if (goal <= 0) {
+									goal = DEFAULT_GOAL;
+								}
 								let hasGoal = true;
 								if (resident.goal <= 0) {
 									hasGoal = false;
