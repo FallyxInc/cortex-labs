@@ -306,15 +306,15 @@ export default function Login() {
 	if (checkingAuth) {
 		return (
 			<div className="min-h-screen flex font-['Inter',Arial,Helvetica,sans-serif]">
-				<div className="flex-[0.55] bg-white flex items-center justify-center p-4">
+				<div className="flex-[0.5] bg-white flex items-center justify-center p-4">
 					<div className="text-center p-4">
 						<div className="animate-spin rounded-full h-6 w-6 border-2 border-cyan-500 mx-auto"></div>
 						<p className="mt-2 text-sm text-gray-500">Loading...</p>
 					</div>
 				</div>
-				<div className="flex-[0.45] relative">
+				<div className="flex-[0.5] relative">
 					<Image
-						src="/assets/cortex_login.png"
+						src="/assets/login.png"
 						alt="Cortex Login"
 						fill
 						className="object-cover"
@@ -327,8 +327,8 @@ export default function Login() {
 
 	return (
 		<div className="min-h-screen flex ">
-			{/* Left side - Login Form (55%) */}
-			<div className="flex-[0.55] bg-white flex items-center justify-center p-4">
+			{/* Left side - Login Form (50%) */}
+			<div className="flex-[0.5] bg-white flex items-center justify-center p-4">
 				<div className="w-full max-w-md">
 					<h2 className="text-xl font-extrabold text-black mb-4 text-center">
 						Cortex Login
@@ -450,9 +450,10 @@ export default function Login() {
 			</div>
 
 			{/* Right side - Image (45%) */}
-			<div className="flex-[0.45] relative">
+			<div className="flex-[0.5] relative">
 				<Image
-					src="/assets/cortex_login.png"
+					// src="/assets/ascenix_login.jpg"
+					src="/assets/login.png"
 					alt="Cortex Login"
 					fill
 					className="object-cover"
